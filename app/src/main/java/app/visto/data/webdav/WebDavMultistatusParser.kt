@@ -1,22 +1,23 @@
 package app.visto.data.webdav
 
+import org.kxml2.io.KXmlParser
+import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserException
 import java.io.StringReader
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-import javax.xml.stream.XMLInputFactory
-import javax.xml.stream.XMLStreamConstants
-import javax.xml.stream.XMLStreamReader
 
 /**
  * Tolerant parser for WebDAV multistatus responses (RFC 4918 §14.16).
  *
- * Uses the JVM's built-in StAX (`javax.xml.stream`) so it runs in plain JVM
- * unit tests without Robolectric or Android stubs. The parser ignores XML
- * namespaces and matches WebDAV elements by their local name only.
+ * Backed by kXML2, which provides the `org.xmlpull.v1.XmlPullParser` API on
+ * both Android and the JVM (so unit tests run without Robolectric).
  *
- * Only propstat blocks whose status line indicates a 2xx code are consumed.
+ * The parser is namespace-agnostic: WebDAV elements are matched by their
+ * local name regardless of the prefix the server uses. Only propstat blocks
+ * whose status line indicates a 2xx code are consumed.
  */
 object WebDavMultistatusParser {
 
@@ -31,39 +32,32 @@ object WebDavMultistatusParser {
         SimpleDateFormat(pattern, Locale.US).apply { timeZone = TimeZone.getTimeZone("GMT") }
     }
 
-    private val xmlInputFactory: XMLInputFactory by lazy {
-        XMLInputFactory.newInstance().apply {
-            setProperty(XMLInputFactory.SUPPORT_DTD, false)
-            setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false)
-        }
-    }
-
     @Throws(WebDavError.ParseError::class)
     fun parse(xml: String): List<WebDavRow> {
-        val reader = try {
-            xmlInputFactory.createXMLStreamReader(StringReader(xml))
-        } catch (e: Exception) {
-            throw WebDavError.ParseError("Failed to start WebDAV XML parser", e)
-        }
         try {
+            val parser = KXmlParser().apply {
+                setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true)
+                setInput(StringReader(xml))
+            }
             val rows = mutableListOf<WebDavRow>()
-            while (reader.hasNext()) {
-                val event = reader.next()
-                if (event == XMLStreamConstants.START_ELEMENT &&
-                    reader.localName.equals("response", ignoreCase = true)
+            var event = parser.eventType
+            while (event != XmlPullParser.END_DOCUMENT) {
+                if (event == XmlPullParser.START_TAG &&
+                    parser.name.equals("response", ignoreCase = true)
                 ) {
-                    rows.add(readResponse(reader))
+                    rows.add(readResponse(parser))
                 }
+                event = parser.next()
             }
             return rows.filter { it.rawHref.isNotEmpty() }
+        } catch (e: XmlPullParserException) {
+            throw WebDavError.ParseError("Failed to parse WebDAV multistatus XML", e)
         } catch (e: Exception) {
             throw WebDavError.ParseError("Failed to parse WebDAV multistatus XML", e)
-        } finally {
-            try { reader.close() } catch (_: Exception) {}
         }
     }
 
-    private fun readResponse(reader: XMLStreamReader): WebDavRow {
+    private fun readResponse(parser: XmlPullParser): WebDavRow {
         var href = ""
         var isDirectory = false
         var displayName: String? = null
@@ -72,18 +66,17 @@ object WebDavMultistatusParser {
         var etag: String? = null
         var lastModified: Long? = null
 
-        while (reader.hasNext()) {
-            val event = reader.next()
-            if (event == XMLStreamConstants.END_ELEMENT &&
-                reader.localName.equals("response", ignoreCase = true)
-            ) {
+        // Currently at <response>; walk until matching END_TAG.
+        while (true) {
+            val event = parser.next()
+            if (event == XmlPullParser.END_TAG && parser.name.equals("response", ignoreCase = true)) {
                 break
             }
-            if (event != XMLStreamConstants.START_ELEMENT) continue
-            when (reader.localName.lowercase(Locale.ROOT)) {
-                "href" -> href = readElementText(reader)
+            if (event != XmlPullParser.START_TAG) continue
+            when (parser.name.lowercase(Locale.ROOT)) {
+                "href" -> href = readElementText(parser)
                 "propstat" -> {
-                    val parsed = readPropstat(reader)
+                    val parsed = readPropstat(parser)
                     if (parsed != null) {
                         if (parsed.isDirectory) isDirectory = true
                         if (displayName == null) displayName = parsed.displayName?.takeIf { it.isNotBlank() }
@@ -93,7 +86,7 @@ object WebDavMultistatusParser {
                         if (lastModified == null) lastModified = parsed.lastModifiedEpochMs
                     }
                 }
-                else -> skipElement(reader)
+                else -> skipElement(parser)
             }
         }
 
@@ -117,7 +110,7 @@ object WebDavMultistatusParser {
         val lastModifiedEpochMs: Long?,
     )
 
-    private fun readPropstat(reader: XMLStreamReader): PropstatBlock? {
+    private fun readPropstat(parser: XmlPullParser): PropstatBlock? {
         var statusOk = true
         var isDirectory = false
         var displayName: String? = null
@@ -126,20 +119,18 @@ object WebDavMultistatusParser {
         var etag: String? = null
         var lastModified: Long? = null
 
-        while (reader.hasNext()) {
-            val event = reader.next()
-            if (event == XMLStreamConstants.END_ELEMENT &&
-                reader.localName.equals("propstat", ignoreCase = true)
-            ) {
+        while (true) {
+            val event = parser.next()
+            if (event == XmlPullParser.END_TAG && parser.name.equals("propstat", ignoreCase = true)) {
                 break
             }
-            if (event != XMLStreamConstants.START_ELEMENT) continue
-            when (reader.localName.lowercase(Locale.ROOT)) {
+            if (event != XmlPullParser.START_TAG) continue
+            when (parser.name.lowercase(Locale.ROOT)) {
                 "status" -> {
-                    val statusValue = readElementText(reader)
+                    val statusValue = readElementText(parser)
                     statusOk = Regex("\\b2\\d\\d\\b").containsMatchIn(statusValue)
                 }
-                "prop" -> readProp(reader) { name, value, collection ->
+                "prop" -> readProp(parser) { name, value, collection ->
                     when (name) {
                         "displayname" -> displayName = value
                         "getcontenttype" -> mimeType = value
@@ -149,7 +140,7 @@ object WebDavMultistatusParser {
                         "resourcetype" -> if (collection) isDirectory = true
                     }
                 }
-                else -> skipElement(reader)
+                else -> skipElement(parser)
             }
         }
 
@@ -161,76 +152,69 @@ object WebDavMultistatusParser {
     }
 
     private fun readProp(
-        reader: XMLStreamReader,
+        parser: XmlPullParser,
         emit: (name: String, value: String, collection: Boolean) -> Unit,
     ) {
-        while (reader.hasNext()) {
-            val event = reader.next()
-            if (event == XMLStreamConstants.END_ELEMENT &&
-                reader.localName.equals("prop", ignoreCase = true)
-            ) {
+        while (true) {
+            val event = parser.next()
+            if (event == XmlPullParser.END_TAG && parser.name.equals("prop", ignoreCase = true)) {
                 break
             }
-            if (event != XMLStreamConstants.START_ELEMENT) continue
-            val name = reader.localName.lowercase(Locale.ROOT)
+            if (event != XmlPullParser.START_TAG) continue
+            val name = parser.name.lowercase(Locale.ROOT)
             if (name == "resourcetype") {
-                val collection = hasCollectionChild(reader)
+                val collection = hasCollectionChild(parser)
                 emit(name, "", collection)
             } else {
-                val value = readElementText(reader)
+                val value = readElementText(parser)
                 emit(name, value, false)
             }
         }
     }
 
-    private fun hasCollectionChild(reader: XMLStreamReader): Boolean {
+    private fun hasCollectionChild(parser: XmlPullParser): Boolean {
         var collection = false
-        while (reader.hasNext()) {
-            val event = reader.next()
-            if (event == XMLStreamConstants.END_ELEMENT &&
-                reader.localName.equals("resourcetype", ignoreCase = true)
-            ) {
+        while (true) {
+            val event = parser.next()
+            if (event == XmlPullParser.END_TAG && parser.name.equals("resourcetype", ignoreCase = true)) {
                 break
             }
-            if (event == XMLStreamConstants.START_ELEMENT) {
-                if (reader.localName.equals("collection", ignoreCase = true)) {
+            if (event == XmlPullParser.START_TAG) {
+                if (parser.name.equals("collection", ignoreCase = true)) {
                     collection = true
                 }
-                skipElement(reader)
+                skipElement(parser)
             }
         }
         return collection
     }
 
-    private fun readElementText(reader: XMLStreamReader): String {
-        val startName = reader.localName
+    private fun readElementText(parser: XmlPullParser): String {
+        // Positioned at START_TAG.
+        val startName = parser.name
         val sb = StringBuilder()
-        while (reader.hasNext()) {
-            val event = reader.next()
-            if (event == XMLStreamConstants.END_ELEMENT &&
-                reader.localName.equals(startName, ignoreCase = true)
-            ) {
+        while (true) {
+            val event = parser.next()
+            if (event == XmlPullParser.END_TAG && parser.name.equals(startName, ignoreCase = true)) {
                 break
             }
             when (event) {
-                XMLStreamConstants.CHARACTERS,
-                XMLStreamConstants.CDATA,
-                XMLStreamConstants.SPACE -> sb.append(reader.text)
-                XMLStreamConstants.START_ELEMENT -> skipElement(reader)
+                XmlPullParser.TEXT, XmlPullParser.CDSECT -> sb.append(parser.text)
+                XmlPullParser.START_TAG -> skipElement(parser)
+                XmlPullParser.END_DOCUMENT -> return sb.toString().trim()
             }
         }
         return sb.toString().trim()
     }
 
-    private fun skipElement(reader: XMLStreamReader) {
-        val startName = reader.localName
-        while (reader.hasNext()) {
-            val event = reader.next()
-            if (event == XMLStreamConstants.END_ELEMENT &&
-                reader.localName.equals(startName, ignoreCase = true)
-            ) {
+    private fun skipElement(parser: XmlPullParser) {
+        val startName = parser.name
+        while (true) {
+            val event = parser.next()
+            if (event == XmlPullParser.END_TAG && parser.name.equals(startName, ignoreCase = true)) {
                 return
             }
+            if (event == XmlPullParser.END_DOCUMENT) return
         }
     }
 
