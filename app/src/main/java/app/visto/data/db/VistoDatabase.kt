@@ -10,14 +10,16 @@ import androidx.room.RoomDatabase
         DavAccountEntity::class,
         RemoteEntryEntity::class,
         ThumbnailCacheEntity::class,
+        AlbumSourceEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class VistoDatabase : RoomDatabase() {
     abstract fun davAccountDao(): DavAccountDao
     abstract fun remoteEntryDao(): RemoteEntryDao
     abstract fun thumbnailCacheDao(): ThumbnailCacheDao
+    abstract fun albumSourceDao(): AlbumSourceDao
 
     companion object {
         private const val DB_NAME = "visto.db"

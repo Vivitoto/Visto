@@ -142,7 +142,7 @@ private fun ImagePage(item: RemoteEntry, imageLoader: ImageLoader, url: String) 
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
-                ) { Text(text = "Failed to load ${item.name}") }
+                ) { Text(text = "加载失败：${item.name}") }
             },
         )
     }

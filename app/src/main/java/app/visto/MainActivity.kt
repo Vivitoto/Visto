@@ -19,21 +19,35 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import app.visto.data.account.AccountService
 import app.visto.data.account.AccountSummary
+import app.visto.data.album.AlbumContents
+import app.visto.data.album.AlbumLoader
+import app.visto.data.db.AlbumSourceEntity
 import app.visto.data.db.RemoteEntryRepository
 import app.visto.data.webdav.WebDavClient
 import app.visto.data.webdav.WebDavCredentials
+import app.visto.ui.Strings
 import app.visto.ui.account.AccountErrorMessages
 import app.visto.ui.account.AccountFormReducer
 import app.visto.ui.account.AccountFormState
 import app.visto.ui.account.AccountScreen
+import app.visto.ui.albums.AlbumAddFormReducer
+import app.visto.ui.albums.AlbumAddFormState
+import app.visto.ui.albums.AlbumAddValidator
+import app.visto.ui.albums.AlbumDetailReducer
+import app.visto.ui.albums.AlbumDetailScreen
+import app.visto.ui.albums.AlbumDetailUiState
+import app.visto.ui.albums.AlbumListScreen
+import app.visto.ui.albums.AlbumListUiState
 import app.visto.ui.browser.BrowserNavigator
 import app.visto.ui.browser.BrowserScreen
 import app.visto.ui.browser.BrowserStateBuilder
 import app.visto.ui.browser.BrowserUiState
-import app.visto.ui.viewer.ViewerScreen
-import app.visto.ui.viewer.ViewerSession
+import app.visto.ui.settings.BrowseMode
 import app.visto.ui.settings.SettingsScreen
 import app.visto.ui.settings.SettingsUiState
+import app.visto.ui.viewer.ViewerScreen
+import app.visto.ui.viewer.ViewerSession
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -57,6 +71,7 @@ fun VistoRoot() {
     var screen by remember { mutableStateOf<Screen>(Screen.Loading) }
     var account by remember { mutableStateOf<AccountSummary?>(null) }
     var credentials by remember { mutableStateOf<WebDavCredentials?>(null) }
+    var browseMode by remember { mutableStateOf(BrowseMode.ALBUMS) }
 
     LaunchedEffect(Unit) {
         val active = app.accountService.activeAccount()
@@ -65,7 +80,7 @@ fun VistoRoot() {
             if (creds != null) {
                 account = active
                 credentials = creds
-                screen = Screen.Browser
+                screen = Screen.Home
             } else {
                 screen = Screen.Account
             }
@@ -74,8 +89,8 @@ fun VistoRoot() {
         }
     }
 
-    when (val current = screen) {
-        Screen.Loading -> Text(text = "Loading…")
+    when (screen) {
+        Screen.Loading -> Text(text = Strings.LOADING)
         Screen.Account -> AccountSetup(
             initial = account?.let {
                 AccountFormState(
@@ -88,20 +103,28 @@ fun VistoRoot() {
             onSaved = { savedSummary, savedCredentials ->
                 account = savedSummary
                 credentials = savedCredentials
-                screen = Screen.Browser
+                screen = Screen.Home
             },
             accountService = app.accountService,
         )
-        Screen.Browser -> {
+        Screen.Home -> {
             val summary = account
             val creds = credentials
             if (summary == null || creds == null) {
                 screen = Screen.Account
-            } else {
-                BrowserHost(
+            } else when (browseMode) {
+                BrowseMode.ALBUMS -> AlbumsHost(
+                    summary = summary,
+                    credentials = creds,
+                    browseMode = browseMode,
+                    onBrowseModeChange = { browseMode = it },
+                )
+                BrowseMode.DIRECTORY -> BrowserHost(
                     summary = summary,
                     credentials = creds,
                     repository = app.remoteRepository,
+                    browseMode = browseMode,
+                    onBrowseModeChange = { browseMode = it },
                 )
             }
         }
@@ -111,7 +134,7 @@ fun VistoRoot() {
 private sealed interface Screen {
     data object Loading : Screen
     data object Account : Screen
-    data object Browser : Screen
+    data object Home : Screen
 }
 
 @Composable
@@ -142,7 +165,7 @@ private fun AccountSetup(
                     client.listDirectory(current.normalizedRootPath)
                     state = AccountFormReducer.setMessage(
                         AccountFormReducer.setTesting(state, false),
-                        "Connection succeeded.",
+                        Strings.ACCOUNT_CONNECTION_OK,
                     )
                 } catch (e: Throwable) {
                     state = AccountFormReducer.setError(state, AccountErrorMessages.forWebDavError(e))
@@ -176,10 +199,247 @@ private fun AccountSetup(
 }
 
 @Composable
+private fun AlbumsHost(
+    summary: AccountSummary,
+    credentials: WebDavCredentials,
+    browseMode: BrowseMode,
+    onBrowseModeChange: (BrowseMode) -> Unit,
+) {
+    val context = LocalContext.current
+    val app = remember(context) { context.applicationContext as VistoApplication }
+    val scope = rememberCoroutineScope()
+    val client = remember(summary.id) {
+        app.authInterceptor.setAccount(
+            baseUrl = credentials.baseUrl,
+            username = credentials.username,
+            password = credentials.password,
+        )
+        WebDavClient(
+            credentials = credentials,
+            accountId = summary.id,
+            httpClient = app.okHttpClient,
+        )
+    }
+    val albumLoader = remember(client) { AlbumLoader(client) }
+
+    var listState by remember { mutableStateOf(AlbumListUiState()) }
+    var openedAlbum by remember { mutableStateOf<AlbumSourceEntity?>(null) }
+    var albumDetail by remember { mutableStateOf<AlbumDetailUiState?>(null) }
+    var viewerSession by remember { mutableStateOf<ViewerSession?>(null) }
+    var showSettings by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<AlbumSourceEntity?>(null) }
+    var activeLoadJob by remember { mutableStateOf<Job?>(null) }
+
+    suspend fun refreshAlbumList() {
+        listState = listState.copy(isLoading = true, errorMessage = null)
+        try {
+            val albums = app.database.albumSourceDao().listForAccount(summary.id)
+            listState = listState.copy(isLoading = false, albums = albums)
+        } catch (e: Throwable) {
+            listState = listState.copy(isLoading = false, errorMessage = e.message ?: Strings.ERR_UNEXPECTED)
+        }
+    }
+
+    LaunchedEffect(summary.id) { refreshAlbumList() }
+
+    fun loadAlbum(target: AlbumSourceEntity) {
+        activeLoadJob?.cancel()
+        albumDetail = AlbumDetailUiState(
+            title = target.displayName,
+            rootPath = target.rootPath,
+            isLoading = true,
+        )
+        activeLoadJob = scope.launch {
+            try {
+                albumLoader.load(target.rootPath).collect { contents: AlbumContents ->
+                    albumDetail = AlbumDetailReducer.fromContents(
+                        title = target.displayName,
+                        contents = contents,
+                        loading = true,
+                    )
+                }
+                albumDetail = albumDetail?.copy(isLoading = false)
+            } catch (e: Throwable) {
+                albumDetail = albumDetail?.copy(
+                    isLoading = false,
+                    errorMessage = AccountErrorMessages.forWebDavError(e),
+                )
+            }
+        }
+    }
+
+    // Viewer takes precedence.
+    val activeSession = viewerSession
+    if (activeSession != null) {
+        ViewerScreen(
+            session = activeSession,
+            imageLoader = app.imageLoader,
+            mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
+            onClose = { viewerSession = null },
+        )
+        return
+    }
+
+    if (showSettings) {
+        SettingsHost(
+            summary = summary,
+            browseMode = browseMode,
+            onBrowseModeChange = { mode ->
+                onBrowseModeChange(mode)
+                showSettings = false
+            },
+            onBack = { showSettings = false },
+        )
+        return
+    }
+
+    val opened = openedAlbum
+    val detail = albumDetail
+    if (opened != null && detail != null) {
+        BackHandler {
+            activeLoadJob?.cancel()
+            openedAlbum = null
+            albumDetail = null
+        }
+        AlbumDetailScreen(
+            state = detail,
+            imageLoader = app.imageLoader,
+            mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
+            onBack = {
+                activeLoadJob?.cancel()
+                openedAlbum = null
+                albumDetail = null
+            },
+            onRefresh = { loadAlbum(opened) },
+            onOpenMedia = { entry ->
+                val flat = detail.flatMedia
+                viewerSession = ViewerSession.build(flat, entry.path)
+            },
+        )
+        return
+    }
+
+    AlbumListScreen(
+        state = listState,
+        onOpenAlbum = { album ->
+            openedAlbum = album
+            loadAlbum(album)
+        },
+        onAddRequested = {
+            listState = listState.copy(showAddDialog = true, addDialog = AlbumAddFormReducer.reset())
+        },
+        onAddDismissed = {
+            listState = listState.copy(showAddDialog = false, addDialog = AlbumAddFormReducer.reset())
+        },
+        onAddFormChange = { newForm ->
+            listState = listState.copy(addDialog = newForm)
+        },
+        onAddSubmit = {
+            val existing = listState.albums.map { it.rootPath }.toSet()
+            when (val r = AlbumAddValidator.validate(listState.addDialog, existing)) {
+                is AlbumAddValidator.Result.Err ->
+                    listState = listState.copy(addDialog = AlbumAddFormReducer.setError(listState.addDialog, r.message))
+                is AlbumAddValidator.Result.Ok -> {
+                    listState = listState.copy(addDialog = AlbumAddFormReducer.setSaving(listState.addDialog, true))
+                    scope.launch {
+                        val now = System.currentTimeMillis()
+                        try {
+                            app.database.albumSourceDao().insert(
+                                AlbumSourceEntity(
+                                    accountId = summary.id,
+                                    displayName = r.name,
+                                    rootPath = r.path,
+                                    createdAt = now,
+                                    updatedAt = now,
+                                )
+                            )
+                            listState = listState.copy(showAddDialog = false, addDialog = AlbumAddFormReducer.reset())
+                            refreshAlbumList()
+                        } catch (e: Throwable) {
+                            listState = listState.copy(
+                                addDialog = AlbumAddFormReducer.setError(
+                                    listState.addDialog,
+                                    e.message ?: Strings.ERR_UNEXPECTED,
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        onDeleteRequested = { album -> pendingDelete = album },
+        onOpenSettings = { showSettings = true },
+    )
+
+    val toDelete = pendingDelete
+    if (toDelete != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text(Strings.ALBUMS_DELETE_CONFIRM_TITLE) },
+            text = { Text(Strings.ALBUMS_DELETE_CONFIRM_MESSAGE) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    scope.launch {
+                        app.database.albumSourceDao().deleteById(toDelete.id)
+                        pendingDelete = null
+                        refreshAlbumList()
+                    }
+                }) { Text(Strings.ALBUMS_DELETE) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { pendingDelete = null }) { Text(Strings.ALBUMS_CANCEL) }
+            },
+        )
+    }
+}
+
+@Composable
+private fun SettingsHost(
+    summary: AccountSummary,
+    browseMode: BrowseMode,
+    onBrowseModeChange: (BrowseMode) -> Unit,
+    onBack: () -> Unit,
+) {
+    val context = LocalContext.current
+    val app = remember(context) { context.applicationContext as VistoApplication }
+    val scope = rememberCoroutineScope()
+    var settingsState by remember {
+        mutableStateOf(
+            SettingsUiState(
+                accountDisplayName = summary.displayName,
+                accountBaseUrl = summary.baseUrl,
+                accountRoot = summary.rootPath,
+                thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
+            )
+        )
+    }
+    SettingsScreen(
+        state = settingsState,
+        onBack = onBack,
+        browseMode = browseMode,
+        onBrowseModeChange = onBrowseModeChange,
+        onClearCache = {
+            scope.launch {
+                settingsState = settingsState.copy(isClearingCache = true, message = null)
+                app.imageLoader.memoryCache?.clear()
+                app.imageLoader.diskCache?.clear()
+                settingsState = settingsState.copy(
+                    isClearingCache = false,
+                    thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
+                    message = Strings.SETTINGS_CACHE_CLEARED,
+                )
+            }
+        },
+    )
+}
+
+@Composable
 private fun BrowserHost(
     summary: AccountSummary,
     credentials: WebDavCredentials,
     repository: RemoteEntryRepository,
+    browseMode: BrowseMode,
+    onBrowseModeChange: (BrowseMode) -> Unit,
 ) {
     val context = LocalContext.current
     val app = remember(context) { context.applicationContext as VistoApplication }
@@ -245,31 +505,14 @@ private fun BrowserHost(
     }
 
     if (showSettings) {
-        var settingsState by remember(showSettings) {
-            mutableStateOf(
-                SettingsUiState(
-                    accountDisplayName = summary.displayName,
-                    accountBaseUrl = summary.baseUrl,
-                    accountRoot = summary.rootPath,
-                    thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
-                )
-            )
-        }
-        SettingsScreen(
-            state = settingsState,
-            onBack = { showSettings = false },
-            onClearCache = {
-                scope.launch {
-                    settingsState = settingsState.copy(isClearingCache = true, message = null)
-                    app.imageLoader.memoryCache?.clear()
-                    app.imageLoader.diskCache?.clear()
-                    settingsState = settingsState.copy(
-                        isClearingCache = false,
-                        thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
-                        message = "Local thumbnails cleared. WebDAV files were not touched.",
-                    )
-                }
+        SettingsHost(
+            summary = summary,
+            browseMode = browseMode,
+            onBrowseModeChange = { mode ->
+                onBrowseModeChange(mode)
+                showSettings = false
             },
+            onBack = { showSettings = false },
         )
         return
     }

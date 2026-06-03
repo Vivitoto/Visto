@@ -8,13 +8,13 @@ class AccountErrorMessagesTest {
     @Test
     fun authFailedMessage() {
         val msg = AccountErrorMessages.forWebDavError(WebDavError.AuthFailed())
-        assertTrue(msg.contains("Authentication"))
+        assertTrue(msg.contains("认证") || msg.contains("密码"))
     }
 
     @Test
     fun notFoundMessage() {
         val msg = AccountErrorMessages.forWebDavError(WebDavError.NotFound())
-        assertTrue(msg.contains("root path"))
+        assertTrue(msg.contains("找不到") || msg.contains("路径"))
     }
 
     @Test
@@ -26,12 +26,12 @@ class AccountErrorMessagesTest {
     @Test
     fun networkErrorMessage() {
         val msg = AccountErrorMessages.forWebDavError(WebDavError.NetworkError("boom"))
-        assertTrue(msg.contains("Cannot reach"))
+        assertTrue(msg.contains("网络"))
     }
 
     @Test
     fun unexpectedExceptionFallsBack() {
         val msg = AccountErrorMessages.forWebDavError(IllegalStateException("nope"))
-        assertTrue(msg.contains("nope") || msg.contains("Connection failed"))
+        assertTrue(msg.contains("nope") || msg.contains("未知"))
     }
 }

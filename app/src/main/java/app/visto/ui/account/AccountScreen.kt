@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import app.visto.ui.Strings
 
 /**
  * First-launch / settings screen for the WebDAV account.
@@ -45,7 +46,7 @@ fun AccountScreen(
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Visto") })
+            TopAppBar(title = { Text(Strings.APP_NAME) })
         },
     ) { innerPadding: PaddingValues ->
         Column(
@@ -56,17 +57,17 @@ fun AccountScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(text = "Connect a WebDAV account")
+            Text(text = Strings.ACCOUNT_TITLE)
             OutlinedTextField(
                 value = state.displayName,
                 onValueChange = { onStateChange(AccountFormReducer.updateDisplayName(state, it)) },
-                label = { Text("Display name") },
+                label = { Text(Strings.ACCOUNT_DISPLAY_NAME) },
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = state.baseUrl,
                 onValueChange = { onStateChange(AccountFormReducer.updateBaseUrl(state, it)) },
-                label = { Text("Server URL (https://...)") },
+                label = { Text(Strings.ACCOUNT_SERVER_URL) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 modifier = Modifier.fillMaxWidth(),
@@ -74,14 +75,14 @@ fun AccountScreen(
             OutlinedTextField(
                 value = state.username,
                 onValueChange = { onStateChange(AccountFormReducer.updateUsername(state, it)) },
-                label = { Text("Username") },
+                label = { Text(Strings.ACCOUNT_USERNAME) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = state.password,
                 onValueChange = { onStateChange(AccountFormReducer.updatePassword(state, it)) },
-                label = { Text("Password / app token") },
+                label = { Text(Strings.ACCOUNT_PASSWORD) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -90,7 +91,7 @@ fun AccountScreen(
             OutlinedTextField(
                 value = state.rootPath,
                 onValueChange = { onStateChange(AccountFormReducer.updateRootPath(state, it)) },
-                label = { Text("Root path") },
+                label = { Text(Strings.ACCOUNT_ROOT_PATH) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -109,7 +110,7 @@ fun AccountScreen(
                     if (state.isTesting) {
                         CircularProgressIndicator()
                     } else {
-                        Text("Test connection")
+                        Text(Strings.ACCOUNT_TEST_CONNECTION)
                     }
                 }
                 Button(
@@ -119,7 +120,7 @@ fun AccountScreen(
                     if (state.isSaving) {
                         CircularProgressIndicator()
                     } else {
-                        Text("Save & open")
+                        Text(Strings.ACCOUNT_SAVE_AND_USE)
                     }
                 }
             }

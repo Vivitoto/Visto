@@ -34,6 +34,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import app.visto.core.media.MediaType
 import app.visto.core.model.RemoteEntry
+import app.visto.ui.Strings
 import coil.ImageLoader
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
@@ -83,7 +84,7 @@ fun BrowserScreen(
             }
             if (state.folders.isNotEmpty()) {
                 Text(
-                    text = "Folders",
+                    text = Strings.BROWSER_FOLDERS,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.labelLarge,
                 )
@@ -96,7 +97,7 @@ fun BrowserScreen(
             }
             if (state.media.isNotEmpty()) {
                 Text(
-                    text = "Media",
+                    text = Strings.BROWSER_MEDIA,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.labelLarge,
                 )
@@ -124,7 +125,7 @@ fun BrowserScreen(
                         .padding(32.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(text = "This folder is empty.")
+                    Text(text = Strings.BROWSER_EMPTY)
                 }
             }
         }

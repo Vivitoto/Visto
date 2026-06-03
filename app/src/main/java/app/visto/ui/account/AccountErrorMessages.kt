@@ -1,24 +1,26 @@
 package app.visto.ui.account
 
 import app.visto.data.webdav.WebDavError
+import app.visto.ui.Strings
 
 /**
- * Maps low-level WebDAV errors to user-facing messages for the account form.
+ * Maps low-level WebDAV errors to user-facing Chinese messages for the
+ * account form.
  *
- * Strings are kept plain (no resource references) so this is unit-testable.
- * Actual UI strings can be swapped to string resources later without touching
- * the mapping logic.
+ * The mapping itself stays pure so it is unit-testable; the actual strings
+ * come from [Strings] so we can lift them into resources later without
+ * touching the mapping logic.
  */
 object AccountErrorMessages {
 
     fun forWebDavError(error: Throwable): String = when (error) {
-        is WebDavError.AuthFailed -> "Authentication failed. Check the username and password."
-        is WebDavError.NotFound -> "The root path was not found on the server."
-        is WebDavError.ServerError -> "The WebDAV server returned an error (${error.statusCode})."
-        is WebDavError.NetworkError -> "Cannot reach the WebDAV server."
-        is WebDavError.Timeout -> "The WebDAV server did not respond in time."
-        is WebDavError.ParseError -> "The WebDAV response could not be parsed."
-        is WebDavError.Unexpected -> "Unexpected response from the server (HTTP ${error.statusCode})."
-        else -> "Connection failed: ${error.message ?: error.javaClass.simpleName}"
+        is WebDavError.AuthFailed -> Strings.ERR_AUTH
+        is WebDavError.NotFound -> Strings.ERR_NOT_FOUND
+        is WebDavError.ServerError -> "${Strings.ERR_SERVER}（HTTP ${error.statusCode}）"
+        is WebDavError.NetworkError -> Strings.ERR_NETWORK
+        is WebDavError.Timeout -> Strings.ERR_TIMEOUT
+        is WebDavError.ParseError -> "${Strings.ERR_UNEXPECTED}（响应解析失败）"
+        is WebDavError.Unexpected -> "${Strings.ERR_UNEXPECTED}（HTTP ${error.statusCode}）"
+        else -> "${Strings.ERR_UNEXPECTED}：${error.message ?: error.javaClass.simpleName}"
     }
 }
