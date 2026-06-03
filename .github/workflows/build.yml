@@ -1,0 +1,72 @@
+name: Build Visto APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Rename APK
+        run: |
+          mkdir -p output
+          VERSION=$(grep -E '^[[:space:]]*versionName[[:space:]]*=' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
+          VERSION_SUFFIX=$(echo "$VERSION" | sed -E 's/[^A-Za-z0-9]+/_/g; s/^_+|_+$//g')
+          cp app/build/outputs/apk/debug/app-debug.apk "output/visto-v${VERSION_SUFFIX}-debug.apk"
+          ls -lh output/
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: visto-debug-apk
+          path: output/visto-v*-debug.apk
+          if-no-files-found: error
+
+      - name: Release debug APK to GitHub
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-debug
+          name: Visto Debug APK
+          body: |
+            Visto v0.1 debug APK.
+
+            Scope:
+            - Read-only WebDAV gallery browser
+            - No upload
+            - No remote delete
+            - No move/rename
+
+            This is an unsigned/debug build for early testing.
+          files: output/visto-v*-debug.apk
+          overwrite_files: true
+          draft: false
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
