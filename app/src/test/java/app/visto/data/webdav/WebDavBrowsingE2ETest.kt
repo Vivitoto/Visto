@@ -77,7 +77,17 @@ class WebDavBrowsingE2ETest {
         """.trimIndent()
         server.enqueue(MockResponse().setResponseCode(207).setBody(xml))
 
-        val accountId = 7L
+        val accountId = db.davAccountDao().insert(
+            app.visto.data.db.DavAccountEntity(
+                displayName = "E2E",
+                baseUrl = server.url("/dav").toString(),
+                rootPath = "/Photos",
+                username = "alice",
+                credentialRef = "ref",
+                createdAt = 1,
+                updatedAt = 1,
+            )
+        )
         val client = WebDavClient(
             credentials = WebDavCredentials(
                 baseUrl = server.url("/dav").toString(),
