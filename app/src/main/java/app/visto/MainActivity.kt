@@ -30,6 +30,10 @@ import app.visto.ui.browser.BrowserNavigator
 import app.visto.ui.browser.BrowserScreen
 import app.visto.ui.browser.BrowserStateBuilder
 import app.visto.ui.browser.BrowserUiState
+import app.visto.ui.viewer.ViewerScreen
+import app.visto.ui.viewer.ViewerSession
+import app.visto.ui.settings.SettingsScreen
+import app.visto.ui.settings.SettingsUiState
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -181,6 +185,8 @@ private fun BrowserHost(
     val app = remember(context) { context.applicationContext as VistoApplication }
     val navigator = remember(summary.id) { BrowserNavigator(summary.rootPath) }
     var uiState by remember { mutableStateOf(BrowserUiState(currentPath = summary.rootPath)) }
+    var viewerSession by remember { mutableStateOf<ViewerSession?>(null) }
+    var showSettings by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val client = remember(summary.id) {
         app.authInterceptor.setAccount(
@@ -227,6 +233,47 @@ private fun BrowserHost(
 
     LaunchedEffect(summary.id) { loadCurrent(forceRefresh = true) }
 
+    val activeSession = viewerSession
+    if (activeSession != null) {
+        ViewerScreen(
+            session = activeSession,
+            imageLoader = app.imageLoader,
+            mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
+            onClose = { viewerSession = null },
+        )
+        return
+    }
+
+    if (showSettings) {
+        var settingsState by remember(showSettings) {
+            mutableStateOf(
+                SettingsUiState(
+                    accountDisplayName = summary.displayName,
+                    accountBaseUrl = summary.baseUrl,
+                    accountRoot = summary.rootPath,
+                    thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
+                )
+            )
+        }
+        SettingsScreen(
+            state = settingsState,
+            onBack = { showSettings = false },
+            onClearCache = {
+                scope.launch {
+                    settingsState = settingsState.copy(isClearingCache = true, message = null)
+                    app.imageLoader.memoryCache?.clear()
+                    app.imageLoader.diskCache?.clear()
+                    settingsState = settingsState.copy(
+                        isClearingCache = false,
+                        thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
+                        message = "Local thumbnails cleared. WebDAV files were not touched.",
+                    )
+                }
+            },
+        )
+        return
+    }
+
     BackHandler(enabled = navigator.canGoBack) {
         if (navigator.back() != null) loadCurrent(forceRefresh = false)
     }
@@ -242,8 +289,11 @@ private fun BrowserHost(
             navigator.open(folder.path)
             loadCurrent(forceRefresh = false)
         },
-        onOpenMedia = { /* Phase 7 will hook the viewer. */ },
+        onOpenMedia = { opened ->
+            val all = uiState.media
+            viewerSession = ViewerSession.build(all, opened.path)
+        },
         onRefresh = { loadCurrent(forceRefresh = true) },
-        onOpenSettings = { /* Phase 8 will hook the settings screen. */ },
+        onOpenSettings = { showSettings = true },
     )
 }
