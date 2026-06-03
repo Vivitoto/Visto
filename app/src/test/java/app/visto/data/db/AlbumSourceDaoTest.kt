@@ -7,7 +7,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -68,13 +68,15 @@ class AlbumSourceDaoTest {
         db.albumSourceDao().insert(
             AlbumSourceEntity(accountId = acc, displayName = "家庭", rootPath = "/Photos/Family", createdAt = 1, updatedAt = 1)
         )
-        assertThrows(android.database.sqlite.SQLiteConstraintException::class.java) {
-            runBlocking {
-                db.albumSourceDao().insert(
-                    AlbumSourceEntity(accountId = acc, displayName = "家庭 2", rootPath = "/Photos/Family", createdAt = 2, updatedAt = 2)
-                )
-            }
+        var threw = false
+        try {
+            db.albumSourceDao().insert(
+                AlbumSourceEntity(accountId = acc, displayName = "家庭 2", rootPath = "/Photos/Family", createdAt = 2, updatedAt = 2)
+            )
+        } catch (e: android.database.sqlite.SQLiteConstraintException) {
+            threw = true
         }
+        assertTrue("expected unique constraint violation", threw)
     }
 
     @Test
