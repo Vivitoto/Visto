@@ -6,6 +6,11 @@ import app.visto.data.account.CredentialStore
 import app.visto.data.db.DavAccountDao
 import app.visto.data.db.RemoteEntryRepository
 import app.visto.data.db.VistoDatabase
+import app.visto.data.thumbnail.VistoImageLoaderFactory
+import app.visto.data.webdav.WebDavAuthInterceptor
+import coil.ImageLoader
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 
 /**
  * Process-wide singletons. Visto v0.1 does not pull in Hilt to keep the
@@ -28,11 +33,29 @@ class VistoApplication : Application() {
     lateinit var accountService: AccountService
         private set
 
+    lateinit var authInterceptor: WebDavAuthInterceptor
+        private set
+
+    lateinit var okHttpClient: OkHttpClient
+        private set
+
+    lateinit var imageLoader: ImageLoader
+        private set
+
     override fun onCreate() {
         super.onCreate()
         database = VistoDatabase.create(this)
         remoteRepository = RemoteEntryRepository(database, database.remoteEntryDao())
         credentialStore = CredentialStore(this)
         accountService = AccountService(accountDao, credentialStore)
+        authInterceptor = WebDavAuthInterceptor()
+        okHttpClient = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .addInterceptor(authInterceptor)
+            .build()
+        imageLoader = VistoImageLoaderFactory.create(this, okHttpClient)
     }
 }

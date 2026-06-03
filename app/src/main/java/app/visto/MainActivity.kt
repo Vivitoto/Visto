@@ -177,13 +177,21 @@ private fun BrowserHost(
     credentials: WebDavCredentials,
     repository: RemoteEntryRepository,
 ) {
+    val context = LocalContext.current
+    val app = remember(context) { context.applicationContext as VistoApplication }
     val navigator = remember(summary.id) { BrowserNavigator(summary.rootPath) }
     var uiState by remember { mutableStateOf(BrowserUiState(currentPath = summary.rootPath)) }
     val scope = rememberCoroutineScope()
     val client = remember(summary.id) {
+        app.authInterceptor.setAccount(
+            baseUrl = credentials.baseUrl,
+            username = credentials.username,
+            password = credentials.password,
+        )
         WebDavClient(
             credentials = credentials,
             accountId = summary.id,
+            httpClient = app.okHttpClient,
         )
     }
 
@@ -225,6 +233,8 @@ private fun BrowserHost(
 
     BrowserScreen(
         state = uiState,
+        imageLoader = app.imageLoader,
+        mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
         onBack = {
             if (navigator.back() != null) loadCurrent(forceRefresh = false)
         },

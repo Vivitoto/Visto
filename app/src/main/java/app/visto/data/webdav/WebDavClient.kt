@@ -93,6 +93,12 @@ class WebDavClient(
             .build()
     }
 
+    /**
+     * Plain media URL for use with Coil / Media3 when authentication is
+     * provided out-of-band (for example via [app.visto.data.webdav.WebDavAuthInterceptor]).
+     */
+    fun mediaUrl(path: String): String = buildUrl(DavPath.normalize(path)).toString()
+
     private fun buildUrl(absoluteVistoPath: String): HttpUrl {
         // baseUrl's path acts as the WebDAV root; absoluteVistoPath is relative to it.
         val basePath = baseUrl.encodedPath.trimEnd('/')

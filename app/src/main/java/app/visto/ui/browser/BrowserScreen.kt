@@ -30,9 +30,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import app.visto.core.media.MediaType
 import app.visto.core.model.RemoteEntry
+import coil.ImageLoader
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 
 /**
  * Renders the directory browser: folders first, then a media grid.
@@ -41,6 +45,8 @@ import app.visto.core.model.RemoteEntry
 @Composable
 fun BrowserScreen(
     state: BrowserUiState,
+    imageLoader: ImageLoader,
+    mediaUrlOf: (RemoteEntry) -> String,
     onBack: () -> Unit,
     onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
@@ -51,9 +57,7 @@ fun BrowserScreen(
         topBar = {
             TopAppBar(
                 title = { Text(text = state.currentPath) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Text("←") }
-                },
+                navigationIcon = { IconButton(onClick = onBack) { Text("←") } },
                 actions = {
                     IconButton(onClick = onRefresh) { Text("⟳") }
                     IconButton(onClick = onOpenSettings) { Text("⚙") }
@@ -75,10 +79,7 @@ fun BrowserScreen(
                 ) { CircularProgressIndicator() }
             }
             state.errorMessage?.let {
-                Text(
-                    text = it,
-                    modifier = Modifier.padding(16.dp),
-                )
+                Text(text = it, modifier = Modifier.padding(16.dp))
             }
             if (state.folders.isNotEmpty()) {
                 Text(
@@ -107,7 +108,12 @@ fun BrowserScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(state.media, key = { it.path }) { item ->
-                        MediaTile(item, onClick = { onOpenMedia(item) })
+                        MediaTile(
+                            media = item,
+                            imageLoader = imageLoader,
+                            mediaUrl = mediaUrlOf(item),
+                            onClick = { onOpenMedia(item) },
+                        )
                     }
                 }
             }
@@ -139,7 +145,12 @@ private fun FolderRow(folder: RemoteEntry, onClick: () -> Unit) {
 }
 
 @Composable
-private fun MediaTile(media: RemoteEntry, onClick: () -> Unit) {
+private fun MediaTile(
+    media: RemoteEntry,
+    imageLoader: ImageLoader,
+    mediaUrl: String,
+    onClick: () -> Unit,
+) {
     val typeBadge = when (media.mediaType) {
         MediaType.ANIMATED_IMAGE -> "GIF"
         MediaType.VIDEO -> "▶"
@@ -159,7 +170,31 @@ private fun MediaTile(media: RemoteEntry, onClick: () -> Unit) {
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.BottomEnd,
         ) {
-            // Phase 6 will replace this placeholder with actual thumbnails.
+            if (media.mediaType != MediaType.OTHER && media.mediaType != MediaType.UNKNOWN) {
+                val request = ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                    .data(mediaUrl)
+                    .crossfade(true)
+                    .build()
+                SubcomposeAsyncImage(
+                    model = request,
+                    imageLoader = imageLoader,
+                    contentDescription = media.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    loading = {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) { CircularProgressIndicator() }
+                    },
+                    error = {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) { Text(text = "!") }
+                    },
+                )
+            }
             typeBadge?.let { Text(text = it, modifier = Modifier.padding(4.dp)) }
         }
         Text(
