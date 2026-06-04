@@ -3,7 +3,6 @@ package app.visto.ui.viewer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,8 +41,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.awaitEachGesture
+import androidx.compose.ui.input.pointer.awaitFirstDown
+import androidx.compose.ui.input.pointer.calculatePan
+import androidx.compose.ui.input.pointer.calculateZoom
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -155,29 +159,46 @@ private fun ImagePage(
     var offsetY by remember { mutableStateOf(0f) }
     var loadAttempt by remember(item.path) { mutableStateOf(0) }
 
-    val zoomed = scale > 1.01f
     Box(
         modifier = Modifier
             .fillMaxSize()
             .then(
-                if (loaded && zoomed) Modifier.pointerInput(item.path) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        val newScale = (scale * zoom).coerceIn(1f, 6f)
-                        scale = newScale
-                        if (newScale > 1f) {
-                            offsetX += pan.x
-                            offsetY += pan.y
-                        } else {
-                            offsetX = 0f
-                            offsetY = 0f
-                        }
+                if (loaded) Modifier.pointerInput(item.path) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        do {
+                            val event = awaitPointerEvent()
+                            val pressedCount = event.changes.count { it.pressed }
+                            val canTransform = pressedCount >= 2 || scale > 1.01f
+                            if (canTransform) {
+                                val zoom = if (pressedCount >= 2) event.calculateZoom() else 1f
+                                val pan = if (scale > 1.01f || pressedCount >= 2) {
+                                    event.calculatePan()
+                                } else {
+                                    Offset.Zero
+                                }
+                                if (zoom != 1f || pan != Offset.Zero) {
+                                    val newScale = (scale * zoom).coerceIn(1f, 6f)
+                                    scale = newScale
+                                    if (newScale > 1f) {
+                                        offsetX += pan.x
+                                        offsetY += pan.y
+                                    } else {
+                                        offsetX = 0f
+                                        offsetY = 0f
+                                    }
+                                    event.changes.forEach { it.consume() }
+                                }
+                            }
+                        } while (event.changes.any { it.pressed })
                     }
                 } else Modifier
             )
             .then(
                 if (loaded) Modifier.pointerInput(item.path) {
-                    // Double-tap toggles between fit (1x) and 2x zoom. When not
-                    // zoomed, horizontal swipes pass through to HorizontalPager.
+                    // Double-tap remains a shortcut between fit (1x) and 2x.
+                    // One-finger horizontal swipes at 1x still pass through to
+                    // HorizontalPager; pinch zoom is handled above.
                     detectTapGestures(
                         onDoubleTap = {
                             if (scale > 1.01f) {

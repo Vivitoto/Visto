@@ -1,13 +1,12 @@
 <resources>
-    <!--
-        Base app theme. We intentionally do NOT override statusBarColor or
-        navigationBarColor here so the device's system bars follow the OS
-        theme (the notification bar stays visible against the user's wallpaper
-        or system surface).
-    -->
+    <!-- Initial light theme before Compose applies the runtime theme. -->
     <style name="Theme.Visto" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBar">false</item>
         <item name="android:windowBackground">@color/launcher_icon_background</item>
+        <item name="android:statusBarColor">@color/launcher_icon_background</item>
+        <item name="android:navigationBarColor">@color/launcher_icon_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>

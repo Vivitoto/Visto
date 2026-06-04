@@ -1,11 +1,17 @@
 package app.visto.ui.theme
 
+import android.app.Activity
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
 /**
  * Visto theme selector.
@@ -88,8 +94,29 @@ fun VistoTheme(
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
+    val colorScheme = if (darkTheme) DarkScheme else LightScheme
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            // Explicitly color system bars to match the app surface. Leaving
+            // them fully to the OS made some devices show a pure-white status
+            // bar in light mode, visually splitting it from Visto's warm
+            // background.
+            window.statusBarColor = colorScheme.background.toArgb()
+            window.navigationBarColor = colorScheme.background.toArgb()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                window.isStatusBarContrastEnforced = false
+                window.isNavigationBarContrastEnforced = false
+            }
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !darkTheme
+                isAppearanceLightNavigationBars = !darkTheme
+            }
+        }
+    }
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkScheme else LightScheme,
+        colorScheme = colorScheme,
         typography = MaterialTheme.typography,
         shapes = MaterialTheme.shapes,
         content = content,
