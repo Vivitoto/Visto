@@ -113,18 +113,3 @@ jobs:
           make_latest: 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Archive APK to history release
-        if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: apk-history
-          name: Visto APK History
-          body_path: apk-history/README.md
-          files: output/visto-v*.apk
-          overwrite_files: true
-          draft: false
-          prerelease: false
-          make_latest: 'false'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
