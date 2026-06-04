@@ -24,6 +24,11 @@ class VistoPreferences(context: Context) {
         get() = prefs.getBoolean(KEY_AUTO_LOAD_ORIGINAL_IMAGES, false)
         set(enabled) = prefs.edit { putBoolean(KEY_AUTO_LOAD_ORIGINAL_IMAGES, enabled) }
 
+    /** Blur thumbnails in lists/grids for shoulder-surfing privacy. */
+    var blurThumbnails: Boolean
+        get() = prefs.getBoolean(KEY_BLUR_THUMBNAILS, false)
+        set(enabled) = prefs.edit { putBoolean(KEY_BLUR_THUMBNAILS, enabled) }
+
     /**
      * Maximum byte size for which Visto will fetch an image for grid
      * thumbnails. Files larger than this show a metadata placeholder so the
@@ -60,6 +65,7 @@ class VistoPreferences(context: Context) {
         private const val PREF_NAME = "visto_settings"
         private const val KEY_THEME = "theme_mode"
         private const val KEY_AUTO_LOAD_ORIGINAL_IMAGES = "auto_load_original_images"
+        private const val KEY_BLUR_THUMBNAILS = "blur_thumbnails"
         private const val KEY_MAX_GRID_THUMBNAIL_BYTES = "max_grid_thumbnail_bytes"
         private const val KEY_ALBUM_VIEW_MODE = "album_view_mode"
         private const val KEY_THUMBNAIL_CACHE_LIMIT = "thumbnail_cache_limit"

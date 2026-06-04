@@ -25,6 +25,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,11 +33,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.visto.AppInfo
 import app.visto.data.account.ThumbnailCacheLimit
 import app.visto.ui.Strings
 import app.visto.ui.theme.ThemeMode
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +49,7 @@ fun SettingsScreen(
     onCacheLimitChange: (ThumbnailCacheLimit) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onAutoLoadOriginalImagesChange: (Boolean) -> Unit,
+    onBlurThumbnailsChange: (Boolean) -> Unit,
     onAddServer: () -> Unit,
     onSwitchAccount: (Long) -> Unit,
     onDeleteAccount: (Long) -> Unit,
@@ -80,7 +84,12 @@ fun SettingsScreen(
 
             ThemeSection(state.themeMode, onThemeModeChange)
 
-            ViewerSection(state.autoLoadOriginalImages, onAutoLoadOriginalImagesChange)
+            ViewerSection(
+                autoLoadOriginalImages = state.autoLoadOriginalImages,
+                blurThumbnails = state.blurThumbnails,
+                onAutoLoadOriginalImagesChange = onAutoLoadOriginalImagesChange,
+                onBlurThumbnailsChange = onBlurThumbnailsChange,
+            )
 
             CacheSection(state, onClearCache, onCacheLimitChange)
 
@@ -100,10 +109,11 @@ fun SettingsScreen(
 @Composable
 private fun SectionLabel(text: String) {
     Text(
-        text = text.uppercase(),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 4.dp),
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
     )
 }
 
@@ -229,33 +239,56 @@ private fun RailsRadio(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ViewerSection(autoLoadOriginalImages: Boolean, onChange: (Boolean) -> Unit) {
+private fun ViewerSection(
+    autoLoadOriginalImages: Boolean,
+    blurThumbnails: Boolean,
+    onAutoLoadOriginalImagesChange: (Boolean) -> Unit,
+    onBlurThumbnailsChange: (Boolean) -> Unit,
+) {
     SectionLabel(Strings.SETTINGS_VIEWER)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onChange(!autoLoadOriginalImages) }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = Strings.SETTINGS_AUTO_LOAD_ORIGINAL, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = Strings.SETTINGS_AUTO_LOAD_ORIGINAL_DESC,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Switch(
+        Column(modifier = Modifier.fillMaxWidth()) {
+            SwitchRow(
+                title = Strings.SETTINGS_AUTO_LOAD_ORIGINAL,
+                description = Strings.SETTINGS_AUTO_LOAD_ORIGINAL_DESC,
                 checked = autoLoadOriginalImages,
-                onCheckedChange = onChange,
+                onChange = onAutoLoadOriginalImagesChange,
+            )
+            SwitchRow(
+                title = Strings.SETTINGS_BLUR_THUMBNAILS,
+                description = Strings.SETTINGS_BLUR_THUMBNAILS_DESC,
+                checked = blurThumbnails,
+                onChange = onBlurThumbnailsChange,
             )
         }
+    }
+}
+
+@Composable
+private fun SwitchRow(title: String, description: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onChange(!checked) }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onChange,
+        )
     }
 }
 
@@ -269,23 +302,31 @@ private fun CacheSection(state: SettingsUiState, onClearCache: () -> Unit, onCac
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = Strings.thumbnailsOnDisk(formatBytes(state.thumbnailCacheBytes)))
 
-            Text(
-                text = Strings.SETTINGS_CACHE_LIMIT_LABEL,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 14.dp, bottom = 4.dp),
-            )
-            ThumbnailCacheLimit.entries.forEach { limit ->
-                RailsRadio(
-                    label = limit.displayLabel,
-                    selected = limit == state.thumbnailCacheLimit,
-                    onClick = { onCacheLimitChange(limit) },
+            val limits = ThumbnailCacheLimit.entries
+            val selectedIndex = limits.indexOf(state.thumbnailCacheLimit).coerceAtLeast(0)
+            Row(
+                modifier = Modifier.padding(top = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = Strings.SETTINGS_CACHE_LIMIT_LABEL,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = state.thumbnailCacheLimit.displayLabel,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
-            Text(
-                text = Strings.SETTINGS_CACHE_LIMIT_HINT,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 6.dp, bottom = 4.dp),
+            Slider(
+                value = selectedIndex.toFloat(),
+                onValueChange = { value ->
+                    onCacheLimitChange(limits[value.roundToInt().coerceIn(0, limits.lastIndex)])
+                },
+                valueRange = 0f..limits.lastIndex.toFloat(),
+                steps = (limits.size - 2).coerceAtLeast(0),
+                modifier = Modifier.fillMaxWidth(),
             )
             state.message?.let {
                 Text(text = it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -317,10 +358,19 @@ private fun AboutCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(18.dp).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             Text(
-                text = "Visto · v${AppInfo.VERSION_NAME} · 只读 WebDAV 相册",
+                text = "Visto",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "v${AppInfo.VERSION_NAME}",
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             val info = update.info

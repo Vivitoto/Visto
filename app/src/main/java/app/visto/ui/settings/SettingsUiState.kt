@@ -30,6 +30,7 @@ data class SettingsUiState(
     val thumbnailCacheBytes: Long,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val autoLoadOriginalImages: Boolean = false,
+    val blurThumbnails: Boolean = false,
     val thumbnailCacheLimit: ThumbnailCacheLimit = ThumbnailCacheLimit.DEFAULT,
     val isClearingCache: Boolean = false,
     val message: String? = null,

@@ -37,6 +37,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -61,6 +62,7 @@ import coil.request.ImageRequest
 fun BrowserScreen(
     state: BrowserUiState,
     imageLoader: ImageLoader,
+    blurThumbnails: Boolean,
     mediaUrlOf: (RemoteEntry) -> String,
     mediaCacheKeyOf: (RemoteEntry) -> String,
     onBack: () -> Unit,
@@ -150,6 +152,7 @@ fun BrowserScreen(
                             imageLoader = imageLoader,
                             mediaUrl = mediaUrlOf(item),
                             mediaCacheKey = mediaCacheKeyOf(item),
+                            blurThumbnails = blurThumbnails,
                             onClick = { onOpenMedia(item) },
                         )
                     }
@@ -197,6 +200,7 @@ private fun MediaTile(
     imageLoader: ImageLoader,
     mediaUrl: String,
     mediaCacheKey: String,
+    blurThumbnails: Boolean,
     onClick: () -> Unit,
 ) {
     val isVideo = media.mediaType == MediaType.VIDEO
@@ -245,7 +249,7 @@ private fun MediaTile(
                     imageLoader = imageLoader,
                     contentDescription = media.name,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().then(if (blurThumbnails) Modifier.blur(12.dp) else Modifier),
                     loading = {
                         Box(
                             modifier = Modifier.fillMaxSize(),

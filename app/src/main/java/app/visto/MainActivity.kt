@@ -593,6 +593,7 @@ private fun AlbumsHost(
             state = detail,
             albumRootPath = rootPath,
             imageLoader = app.imageLoader,
+            blurThumbnails = app.preferences.blurThumbnails,
             mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
             mediaCacheKeyOf = { entry -> mediaCacheKeyScope(summary) + ":" + entry.path },
             folderPreviewPathsOf = { folder ->
@@ -668,6 +669,7 @@ private fun AlbumsHost(
         mediaUrlOf = { path -> client.mediaUrl(path) },
         mediaCacheKeyOf = { path -> mediaCacheKeyScope(summary) + ":" + path },
         imageLoader = app.imageLoader,
+        blurThumbnails = app.preferences.blurThumbnails,
         onOpenAlbum = { album -> openAlbum(album) },
         onAddRequested = {
             listState = listState.copy(showAddDialog = true, addDialog = AlbumAddFormReducer.reset())
@@ -771,6 +773,7 @@ private fun SettingsHost(
                 thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
                 themeMode = themeMode,
                 autoLoadOriginalImages = app.preferences.autoLoadOriginalImages,
+                blurThumbnails = app.preferences.blurThumbnails,
                 thumbnailCacheLimit = app.preferences.thumbnailCacheLimit,
             )
         )
@@ -782,15 +785,23 @@ private fun SettingsHost(
             accountDisplayName = summary?.displayName.orEmpty(),
             accountBaseUrl = summary?.baseUrl.orEmpty(),
             accountRoot = summary?.rootPath.orEmpty(),
+            themeMode = themeMode,
         ),
         bottomBar = { VistoBottomBar(selected = selectedTab, onSelect = onTabSelected) },
-        onThemeModeChange = onThemeModeChange,
+        onThemeModeChange = { mode ->
+            settingsState = settingsState.copy(themeMode = mode)
+            onThemeModeChange(mode)
+        },
         onAddServer = onAddServer,
         onSwitchAccount = onSwitchAccount,
         onDeleteAccount = onDeleteAccount,
         onAutoLoadOriginalImagesChange = { enabled ->
             app.preferences.autoLoadOriginalImages = enabled
             settingsState = settingsState.copy(autoLoadOriginalImages = enabled)
+        },
+        onBlurThumbnailsChange = { enabled ->
+            app.preferences.blurThumbnails = enabled
+            settingsState = settingsState.copy(blurThumbnails = enabled)
         },
         onClearCache = {
             scope.launch {
@@ -810,7 +821,7 @@ private fun SettingsHost(
             settingsState = settingsState.copy(
                 thumbnailCacheLimit = limit,
                 thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
-                message = "缓存上限已生效。",
+                message = null,
             )
         },
         onCheckUpdate = {
@@ -1011,6 +1022,7 @@ private fun BrowserHost(
     BrowserScreen(
         state = uiState,
         imageLoader = app.imageLoader,
+        blurThumbnails = app.preferences.blurThumbnails,
         mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
         mediaCacheKeyOf = { entry -> mediaCacheKeyScope(summary) + ":" + entry.path },
         onBack = {

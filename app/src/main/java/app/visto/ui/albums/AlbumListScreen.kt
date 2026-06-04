@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -63,6 +64,7 @@ fun AlbumListScreen(
     mediaUrlOf: (String) -> String,
     mediaCacheKeyOf: (String) -> String,
     imageLoader: ImageLoader,
+    blurThumbnails: Boolean,
     onOpenAlbum: (AlbumSourceEntity) -> Unit,
     onAddRequested: () -> Unit,
     onAddDismissed: () -> Unit,
@@ -112,6 +114,7 @@ fun AlbumListScreen(
                             mediaUrlOf = mediaUrlOf,
                             mediaCacheKeyOf = mediaCacheKeyOf,
                             imageLoader = imageLoader,
+                            blurThumbnails = blurThumbnails,
                             onClick = { onOpenAlbum(album) },
                             onLongClick = { onDeleteRequested(album) },
                         )
@@ -149,6 +152,7 @@ private fun AlbumRow(
     mediaUrlOf: (String) -> String,
     mediaCacheKeyOf: (String) -> String,
     imageLoader: ImageLoader,
+    blurThumbnails: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -174,6 +178,7 @@ private fun AlbumRow(
                 mediaUrlOf = mediaUrlOf,
                 mediaCacheKeyOf = mediaCacheKeyOf,
                 imageLoader = imageLoader,
+                blurThumbnails = blurThumbnails,
             )
             Column(
                 modifier = Modifier
@@ -218,6 +223,7 @@ private fun AlbumThumbnail(
     mediaUrlOf: (String) -> String,
     mediaCacheKeyOf: (String) -> String,
     imageLoader: ImageLoader,
+    blurThumbnails: Boolean,
 ) {
     val THUMB_SIZE = 76.dp
     Box(
@@ -233,18 +239,21 @@ private fun AlbumThumbnail(
                 mediaUrlOf = mediaUrlOf,
                 mediaCacheKeyOf = mediaCacheKeyOf,
                 imageLoader = imageLoader,
+                blurThumbnails = blurThumbnails,
             )
             coverImagePath != null -> SinglePreview(
                 path = coverImagePath,
                 mediaUrlOf = mediaUrlOf,
                 mediaCacheKeyOf = mediaCacheKeyOf,
                 imageLoader = imageLoader,
+                blurThumbnails = blurThumbnails,
             )
             coverPreviews.size == 1 -> SinglePreview(
                 path = coverPreviews[0],
                 mediaUrlOf = mediaUrlOf,
                 mediaCacheKeyOf = mediaCacheKeyOf,
                 imageLoader = imageLoader,
+                blurThumbnails = blurThumbnails,
             )
             else -> Icon(
                 imageVector = Icons.Filled.PhotoAlbum,
@@ -261,6 +270,7 @@ private fun CompactMosaic(
     mediaUrlOf: (String) -> String,
     mediaCacheKeyOf: (String) -> String,
     imageLoader: ImageLoader,
+    blurThumbnails: Boolean,
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -278,6 +288,7 @@ private fun CompactMosaic(
                             mediaUrlOf = mediaUrlOf,
                             mediaCacheKeyOf = mediaCacheKeyOf,
                             imageLoader = imageLoader,
+                            blurThumbnails = blurThumbnails,
                         )
                     }
                 }
@@ -293,6 +304,7 @@ private fun SinglePreview(
     mediaUrlOf: (String) -> String,
     mediaCacheKeyOf: (String) -> String,
     imageLoader: ImageLoader,
+    blurThumbnails: Boolean,
 ) {
     val request = ImageRequest.Builder(LocalContext.current)
         .data(mediaUrlOf(path))
@@ -306,7 +318,7 @@ private fun SinglePreview(
         imageLoader = imageLoader,
         contentDescription = null,
         contentScale = ContentScale.Crop,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().then(if (blurThumbnails) Modifier.blur(12.dp) else Modifier),
         loading = { /* blank */ },
         error = { /* blank */ },
     )
