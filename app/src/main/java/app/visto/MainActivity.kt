@@ -380,7 +380,7 @@ private fun AlbumsHost(
     // the path of a representative image inside it, or null if no image
     // was found / probe failed. Used by FLAT icon grid to render folder
     // thumbnails instead of a blank folder icon.
-    val folderCovers = remember { mutableStateMapOf<String, String?>() }
+    val folderPreviews = remember { mutableStateMapOf<String, List<String>>() }
     val folderCoverJobs = remember { mutableMapOf<String, Job>() }
 
     suspend fun refreshAlbumList() {
@@ -586,14 +586,16 @@ private fun AlbumsHost(
             imageLoader = app.imageLoader,
             mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
             mediaCacheKeyOf = { entry -> mediaCacheKeyScope(summary) + ":" + entry.path },
-            folderCoverPathOf = { folder ->
+            folderPreviewPathsOf = { folder ->
                 val key = folder.path
-                val cached = folderCovers[key]
-                if (cached == null && folderCoverJobs[key]?.isActive != true && !folderCovers.containsKey(key)) {
+                val cached = folderPreviews[key]
+                if (cached == null && folderCoverJobs[key]?.isActive != true && !folderPreviews.containsKey(key)) {
                     folderCoverJobs[key] = scope.launch {
                         try {
-                            val cover = coverFinder.findCoverImage(folder.path)
-                            folderCovers[key] = cover?.path
+                            val previews = previewFinder
+                                .findPreviewImages(folder.path, targetCount = 4)
+                                .map { it.path }
+                            folderPreviews[key] = previews
                         } catch (ce: CancellationException) {
                             throw ce
                         } catch (_: Throwable) {
@@ -601,7 +603,7 @@ private fun AlbumsHost(
                         }
                     }
                 }
-                cached
+                cached.orEmpty()
             },
             mediaUrlOfPath = { path -> client.mediaUrl(path) },
             mediaCacheKeyOfPath = { path -> mediaCacheKeyScope(summary) + ":" + path },

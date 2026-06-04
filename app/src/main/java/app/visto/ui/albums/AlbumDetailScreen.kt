@@ -67,7 +67,7 @@ fun AlbumDetailScreen(
     imageLoader: ImageLoader,
     mediaUrlOf: (RemoteEntry) -> String,
     mediaCacheKeyOf: (RemoteEntry) -> String,
-    folderCoverPathOf: ((RemoteEntry) -> String?)? = null,
+    folderPreviewPathsOf: ((RemoteEntry) -> List<String>)? = null,
     mediaUrlOfPath: ((String) -> String)? = null,
     mediaCacheKeyOfPath: ((String) -> String)? = null,
     onBack: () -> Unit,
@@ -140,7 +140,7 @@ fun AlbumDetailScreen(
                     imageLoader = imageLoader,
                     mediaUrlOf = mediaUrlOf,
                     mediaCacheKeyOf = mediaCacheKeyOf,
-                    folderCoverPathOf = folderCoverPathOf,
+                    folderPreviewPathsOf = folderPreviewPathsOf,
                     mediaUrlOfPath = mediaUrlOfPath,
                     mediaCacheKeyOfPath = mediaCacheKeyOfPath,
                     onOpenFolder = onOpenFolder,
@@ -224,27 +224,28 @@ private fun FolderIconGrid(
     imageLoader: ImageLoader,
     mediaUrlOf: (RemoteEntry) -> String,
     mediaCacheKeyOf: (RemoteEntry) -> String,
-    folderCoverPathOf: ((RemoteEntry) -> String?)? = null,
+    folderPreviewPathsOf: ((RemoteEntry) -> List<String>)? = null,
     mediaUrlOfPath: ((String) -> String)? = null,
     mediaCacheKeyOfPath: ((String) -> String)? = null,
     onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
 ) {
+    // 2 columns: bigger tiles so the 2x2 mosaic is actually legible.
     LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
+        columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         items(folderView.folders, key = { "folder-icon:${it.path}" }) { folder ->
-            val coverPath = folderCoverPathOf?.invoke(folder)
-            FolderIconTile(
+            val previewPaths = folderPreviewPathsOf?.invoke(folder).orEmpty()
+            FolderMosaicTile(
                 folder = folder,
                 imageLoader = imageLoader,
-                coverPath = coverPath,
-                coverUrl = coverPath?.let { p -> mediaUrlOfPath?.invoke(p) },
-                coverCacheKey = coverPath?.let { p -> mediaCacheKeyOfPath?.invoke(p) },
+                previewPaths = previewPaths,
+                previewUrls = previewPaths.mapNotNull { p -> mediaUrlOfPath?.invoke(p) },
+                previewCacheKeys = previewPaths.mapNotNull { p -> mediaCacheKeyOfPath?.invoke(p) },
                 onClick = { onOpenFolder(folder) },
             )
         }
@@ -261,20 +262,20 @@ private fun FolderIconGrid(
 }
 
 @Composable
-private fun FolderIconTile(
+private fun FolderMosaicTile(
     folder: RemoteEntry,
     imageLoader: ImageLoader,
-    coverPath: String?,
-    coverUrl: String?,
-    coverCacheKey: String?,
+    previewPaths: List<String>,
+    previewUrls: List<String>,
+    previewCacheKeys: List<String>,
     onClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(8.dp),
+            .padding(6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -282,57 +283,123 @@ private fun FolderIconTile(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(10.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
-            if (coverPath != null && coverUrl != null && coverCacheKey != null) {
-                val request = ImageRequest.Builder(LocalContext.current)
-                    .data(coverUrl)
-                    .memoryCacheKey(coverCacheKey)
-                    .diskCacheKey(coverCacheKey)
-                    .crossfade(true)
-                    .size(256)
-                    .build()
-                SubcomposeAsyncImage(
-                    model = request,
+            when {
+                previewPaths.size >= 4 -> Mosaic2x2(
+                    urls = previewUrls.take(4),
+                    keys = previewCacheKeys.take(4),
                     imageLoader = imageLoader,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                    loading = {
-                        Icon(
-                            imageVector = Icons.Filled.Folder,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.fillMaxSize(0.52f),
-                        )
-                    },
-                    error = {
-                        Icon(
-                            imageVector = Icons.Filled.Folder,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.fillMaxSize(0.52f),
-                        )
-                    },
                 )
-            } else {
-                Icon(
+                previewPaths.size == 3 -> Mosaic3(
+                    urls = previewUrls.take(3),
+                    keys = previewCacheKeys.take(3),
+                    imageLoader = imageLoader,
+                )
+                previewPaths.size == 2 -> Mosaic2(
+                    urls = previewUrls.take(2),
+                    keys = previewCacheKeys.take(2),
+                    imageLoader = imageLoader,
+                )
+                previewPaths.size == 1 -> MosaicSingle(
+                    url = previewUrls[0],
+                    key = previewCacheKeys[0],
+                    imageLoader = imageLoader,
+                )
+                else -> Icon(
                     imageVector = Icons.Filled.Folder,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.fillMaxSize(0.52f),
+                    modifier = Modifier.fillMaxSize(0.46f),
                 )
             }
         }
         Text(
             text = folder.name,
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
     }
+}
+
+@Composable
+private fun Mosaic2x2(urls: List<String>, keys: List<String>, imageLoader: ImageLoader) {
+    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        urls.chunked(2).forEach { row ->
+            Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                row.forEachIndexed { i, url ->
+                    Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                        MosaicCell(url = url, key = keys.getOrNull(i) ?: url, imageLoader = imageLoader)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Mosaic3(urls: List<String>, keys: List<String>, imageLoader: ImageLoader) {
+    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                MosaicCell(url = urls[0], key = keys[0], imageLoader = imageLoader)
+            }
+            Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                MosaicCell(url = urls[1], key = keys[1], imageLoader = imageLoader)
+            }
+        }
+        Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+            MosaicCell(url = urls[2], key = keys[2], imageLoader = imageLoader)
+        }
+    }
+}
+
+@Composable
+private fun Mosaic2(urls: List<String>, keys: List<String>, imageLoader: ImageLoader) {
+    Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        urls.forEachIndexed { i, url ->
+            Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                MosaicCell(url = url, key = keys[i], imageLoader = imageLoader)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MosaicSingle(url: String, key: String, imageLoader: ImageLoader) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        MosaicCell(url = url, key = key, imageLoader = imageLoader)
+    }
+}
+
+@Composable
+private fun MosaicCell(url: String, key: String, imageLoader: ImageLoader) {
+    val request = ImageRequest.Builder(LocalContext.current)
+        .data(url)
+        .memoryCacheKey(key)
+        .diskCacheKey(key)
+        .crossfade(true)
+        .size(256)
+        .build()
+    SubcomposeAsyncImage(
+        model = request,
+        imageLoader = imageLoader,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.fillMaxSize(),
+        loading = { /* blank */ },
+        error = {
+            Icon(
+                imageVector = Icons.Filled.Folder,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                modifier = Modifier.fillMaxSize(0.4f),
+            )
+        },
+    )
 }
 
 @Composable
