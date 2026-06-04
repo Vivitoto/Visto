@@ -17,14 +17,18 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.automirrored.filled.List as ListIcon
+import androidx.compose.material.icons.automirrored.filled.Sort as SortIcon
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -34,6 +38,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.visto.core.media.MediaType
 import app.visto.core.model.RemoteEntry
+import app.visto.core.sort.SortMode
 import app.visto.data.account.AlbumViewMode
 import app.visto.ui.Strings
 import coil.ImageLoader
@@ -70,6 +79,8 @@ fun AlbumDetailScreen(
     folderPreviewPathsOf: ((RemoteEntry) -> List<String>)? = null,
     mediaUrlOfPath: ((String) -> String)? = null,
     mediaCacheKeyOfPath: ((String) -> String)? = null,
+    sortMode: SortMode = SortMode.DEFAULT,
+    onSortModeChange: (SortMode) -> Unit = {},
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onOpenFolder: (RemoteEntry) -> Unit,
@@ -94,6 +105,12 @@ fun AlbumDetailScreen(
                     }
                 },
                 actions = {
+                    SortMenuAction(
+                        sortMode = sortMode,
+                        onChange = onSortModeChange,
+                    )
+                    // Clear icons: list-mode shows GridView (“switch to grid”);
+                    // grid-mode shows List (“switch back to list”).
                     when (state.viewMode) {
                         AlbumViewMode.FOLDERS -> IconButton(onClick = onSwitchToFlat) {
                             Icon(
@@ -103,7 +120,7 @@ fun AlbumDetailScreen(
                         }
                         AlbumViewMode.FLAT -> IconButton(onClick = onSwitchToFolders) {
                             Icon(
-                                Icons.Filled.AccountTree,
+                                ListIcon,
                                 contentDescription = Strings.ALBUM_VIEW_MODE_FOLDERS,
                             )
                         }
@@ -574,4 +591,40 @@ private fun formatBytes(bytes: Long): String {
         unit++
     }
     return "%.1f %s".format(value, units[unit])
+}
+
+@Composable
+private fun SortMenuAction(sortMode: SortMode, onChange: (SortMode) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    IconButton(onClick = { open = true }) {
+        Icon(
+            SortIcon,
+            contentDescription = "排序方式",
+        )
+    }
+    DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        SortMode.values().forEach { mode ->
+            val selected = mode == sortMode
+            DropdownMenuItem(
+                text = { Text(sortModeLabel(mode)) },
+                onClick = {
+                    onChange(mode)
+                    open = false
+                },
+                leadingIcon = if (selected) {
+                    { Icon(Icons.Filled.Check, contentDescription = null) }
+                } else null,
+            )
+        }
+    }
+}
+
+private fun sortModeLabel(mode: SortMode): String = when (mode) {
+    SortMode.NAME_ASC -> "名称 A→Z"
+    SortMode.NAME_DESC -> "名称 Z→A"
+    SortMode.MODIFIED_NEWEST_FIRST -> "最近修改在前"
+    SortMode.MODIFIED_OLDEST_FIRST -> "最早修改在前"
+    SortMode.SIZE_LARGEST_FIRST -> "文件最大在前"
+    SortMode.SIZE_SMALLEST_FIRST -> "文件最小在前"
+    SortMode.TYPE -> "按类型"
 }

@@ -154,11 +154,12 @@ private fun ImagePage(
     var offsetY by remember { mutableStateOf(0f) }
     var loadAttempt by remember(item.path) { mutableStateOf(0) }
 
+    val zoomed = scale > 1.01f
     Box(
         modifier = Modifier
             .fillMaxSize()
             .then(
-                if (loaded) Modifier.pointerInput(item.path) {
+                if (loaded && zoomed) Modifier.pointerInput(item.path) {
                     detectTransformGestures { _, pan, zoom, _ ->
                         val newScale = (scale * zoom).coerceIn(1f, 6f)
                         scale = newScale
@@ -170,6 +171,21 @@ private fun ImagePage(
                             offsetY = 0f
                         }
                     }
+                } else Modifier
+            )
+            .then(
+                if (loaded) Modifier.pointerInput(item.path) {
+                    // Double-tap toggles between fit (1x) and 2x zoom. When not
+                    // zoomed, horizontal swipes pass through to HorizontalPager.
+                    androidx.compose.foundation.gestures.detectTapGestures(
+                        onDoubleTap = {
+                            if (scale > 1.01f) {
+                                scale = 1f; offsetX = 0f; offsetY = 0f
+                            } else {
+                                scale = 2f
+                            }
+                        },
+                    )
                 } else Modifier
             ),
         contentAlignment = Alignment.Center,
@@ -195,6 +211,14 @@ private fun ImagePage(
                         translationY = offsetY,
                     ),
                 loading = {
+                    // While original is decoding, keep showing the cached
+                    // thumbnail so the viewer never looks blank.
+                    ThumbnailBackdrop(
+                        item = item,
+                        imageLoader = imageLoader,
+                        url = url,
+                        cacheKeyScope = cacheKeyScope,
+                    )
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.Center,
@@ -210,6 +234,12 @@ private fun ImagePage(
                     }
                 },
                 error = {
+                    ThumbnailBackdrop(
+                        item = item,
+                        imageLoader = imageLoader,
+                        url = url,
+                        cacheKeyScope = cacheKeyScope,
+                    )
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -243,73 +273,85 @@ private fun ImagePage(
                 },
             )
         } else {
+            // Default state when the user has not asked to load the original yet:
+            // show the (already cached) thumbnail as the backdrop and overlay a
+            // small "load original" pill so the page is never blank.
+            ThumbnailBackdrop(
+                item = item,
+                imageLoader = imageLoader,
+                url = url,
+                cacheKeyScope = cacheKeyScope,
+            )
             LoadOriginalOverlay(item, onLoadRequest)
         }
     }
 }
 
 @Composable
+private fun ThumbnailBackdrop(
+    item: RemoteEntry,
+    imageLoader: ImageLoader,
+    url: String,
+    cacheKeyScope: String,
+) {
+    val request = ImageRequest.Builder(LocalContext.current)
+        .data(url)
+        .memoryCacheKey("$cacheKeyScope:${item.path}")
+        .diskCacheKey("$cacheKeyScope:${item.path}")
+        .crossfade(true)
+        .size(1024) // thumbnail size that Coil will downsample to
+        .build()
+    SubcomposeAsyncImage(
+        model = request,
+        imageLoader = imageLoader,
+        contentDescription = item.name,
+        contentScale = ContentScale.Fit,
+        modifier = Modifier.fillMaxSize(),
+        loading = { /* blank — page just stays black briefly */ },
+        error = { /* blank */ },
+    )
+}
+
+@Composable
 private fun LoadOriginalOverlay(item: RemoteEntry, onLoad: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1A1A1E)),
-    ) {
-        Text(
-            text = OriginalImageUiText.fileDetails(item.name, item.sizeBytes),
-            color = Color.White.copy(alpha = 0.56f),
-            style = MaterialTheme.typography.bodySmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+    // Sits on top of the thumbnail backdrop. No solid background so the
+    // thumbnail underneath stays visible; just a small pill at the bottom.
+    Box(modifier = Modifier.fillMaxSize()) {
+        Surface(
+            onClick = onLoad,
+            shape = RoundedCornerShape(22.dp),
+            color = Color.Black.copy(alpha = 0.55f),
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 16.dp, start = 24.dp, end = 24.dp),
-        )
-        Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 24.dp),
         ) {
-            Surface(
-                onClick = onLoad,
-                shape = RoundedCornerShape(22.dp),
-                color = Color.White.copy(alpha = 0.18f),
-                tonalElevation = 0.dp,
-                shadowElevation = 0.dp,
+            Row(
+                modifier = Modifier
+                    .border(
+                        width = 0.5.dp,
+                        color = Color.White.copy(alpha = 0.30f),
+                        shape = RoundedCornerShape(22.dp),
+                    )
+                    .padding(horizontal = 18.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    modifier = Modifier
-                        .border(
-                            width = 0.5.dp,
-                            color = Color.White.copy(alpha = 0.30f),
-                            shape = RoundedCornerShape(22.dp),
-                        )
-                        .padding(horizontal = 18.dp, vertical = 11.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        Icons.Filled.Download,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.88f),
-                        modifier = Modifier.size(17.dp),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = OriginalImageUiText.loadButtonLabel(item.sizeBytes),
-                        color = Color.White.copy(alpha = 0.92f),
-                        style = MaterialTheme.typography.labelLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                Icon(
+                    Icons.Filled.Download,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.92f),
+                    modifier = Modifier.size(17.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = OriginalImageUiText.loadButtonLabel(item.sizeBytes),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            Text(
-                text = "默认不自动下载原图，点按后再加载",
-                color = Color.White.copy(alpha = 0.42f),
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.padding(top = 12.dp),
-            )
         }
     }
 }

@@ -1,6 +1,8 @@
 package app.visto.ui.albums
 
 import app.visto.core.model.RemoteEntry
+import app.visto.core.sort.DirectorySorter
+import app.visto.core.sort.SortMode
 import app.visto.data.account.AlbumViewMode
 
 /**
@@ -20,6 +22,7 @@ data class AlbumDetailUiState(
     val viewMode: AlbumViewMode = AlbumViewMode.FOLDERS,
     val folderView: AlbumFolderViewState = AlbumFolderViewState(currentPath = rootPath),
     val flatView: AlbumFlatViewState = AlbumFlatViewState(),
+    val sortMode: SortMode = SortMode.DEFAULT,
     val errorMessage: String? = null,
 ) {
     val isLoading: Boolean
@@ -84,10 +87,12 @@ object AlbumDetailReducer {
         path: String,
         entries: List<RemoteEntry>,
     ): AlbumDetailUiState {
-        val folders = entries.filter { it.isDirectory }.sortedBy { it.name.lowercase() }
-        val media = entries
-            .filter { !it.isDirectory && it.mediaType in MEDIA_FOR_GRID }
-            .sortedBy { it.name.lowercase() }
+        val sorted = DirectorySorter.sort(
+            entries.filter { it.isDirectory || it.mediaType in MEDIA_FOR_GRID },
+            state.sortMode,
+        )
+        val folders = sorted.filter { it.isDirectory }
+        val media = sorted.filter { !it.isDirectory }
         return state.copy(
             folderView = AlbumFolderViewState(
                 currentPath = path,
@@ -96,6 +101,19 @@ object AlbumDetailReducer {
                 isLoading = false,
             ),
             errorMessage = null,
+        )
+    }
+
+    fun applySort(state: AlbumDetailUiState, mode: SortMode): AlbumDetailUiState {
+        val resorted = DirectorySorter.sort(
+            state.folderView.folders + state.folderView.media,
+            mode,
+        )
+        val folders = resorted.filter { it.isDirectory }
+        val media = resorted.filter { !it.isDirectory }
+        return state.copy(
+            sortMode = mode,
+            folderView = state.folderView.copy(folders = folders, media = media),
         )
     }
 

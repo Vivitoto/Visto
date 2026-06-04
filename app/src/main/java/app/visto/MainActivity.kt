@@ -527,6 +527,7 @@ private fun AlbumsHost(
     // Viewer takes precedence.
     val activeSession = viewerSession
     if (activeSession != null) {
+        BackHandler { viewerSession = null }
         ViewerScreen(
             session = activeSession,
             imageLoader = app.imageLoader,
@@ -607,6 +608,10 @@ private fun AlbumsHost(
             },
             mediaUrlOfPath = { path -> client.mediaUrl(path) },
             mediaCacheKeyOfPath = { path -> mediaCacheKeyScope(summary) + ":" + path },
+            sortMode = detail.sortMode,
+            onSortModeChange = { mode ->
+                albumDetail = AlbumDetailReducer.applySort(detail, mode)
+            },
             onBack = {
                 if (canGoUpInAlbum) {
                     val parent = DavPath.parent(detail.folderView.currentPath) ?: rootPath
