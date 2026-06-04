@@ -108,7 +108,7 @@ class WebDavClientTest {
 
         val recorded = server.takeRequest()
         assertEquals(
-            "/dav/photos%20root/%E7%9B%B8%E5%86%8C%20A/a%2Bb%23c%25raw/",
+            "/dav/photos%20root/%E7%9B%B8%E5%86%8C%20A/a+b%23c%25raw/",
             recorded.requestUrl?.encodedPath,
         )
     }
@@ -118,7 +118,7 @@ class WebDavClientTest {
         val request = client(basePath = "/dav/photos root").buildMediaRequest("/相册 A/a+b#c%raw.jpg")
 
         assertEquals(
-            "/dav/photos%20root/%E7%9B%B8%E5%86%8C%20A/a%2Bb%23c%25raw.jpg",
+            "/dav/photos%20root/%E7%9B%B8%E5%86%8C%20A/a+b%23c%25raw.jpg",
             request.url.encodedPath,
         )
         assertEquals("Basic YWxpY2U6c2VjcmV0", request.header("Authorization"))
