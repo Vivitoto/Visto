@@ -1,6 +1,7 @@
 package app.visto.ui.settings
 
 import app.visto.data.account.AccountSummary
+import app.visto.data.account.ThumbnailCacheLimit
 import app.visto.ui.theme.ThemeMode
 
 /**
@@ -15,6 +16,7 @@ data class SettingsUiState(
     val thumbnailCacheBytes: Long,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val autoLoadOriginalImages: Boolean = false,
+    val thumbnailCacheLimit: ThumbnailCacheLimit = ThumbnailCacheLimit.DEFAULT,
     val isClearingCache: Boolean = false,
     val message: String? = null,
 )

@@ -29,7 +29,7 @@ object VistoImageLoaderFactory {
     fun create(
         context: Context,
         okHttpClient: OkHttpClient,
-        diskCacheBytes: Long = 200L * 1024 * 1024,
+        diskCacheBytes: Long = 500L * 1024 * 1024,
     ): ImageLoader = ImageLoader.Builder(context)
         .okHttpClient(okHttpClient)
         .memoryCache {

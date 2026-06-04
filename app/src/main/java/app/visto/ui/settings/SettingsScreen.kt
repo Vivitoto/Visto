@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.visto.AppInfo
+import app.visto.data.account.ThumbnailCacheLimit
 import app.visto.ui.Strings
 import app.visto.ui.theme.ThemeMode
 
@@ -37,6 +38,7 @@ import app.visto.ui.theme.ThemeMode
 fun SettingsScreen(
     state: SettingsUiState,
     onClearCache: () -> Unit,
+    onCacheLimitChange: (ThumbnailCacheLimit) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onAutoLoadOriginalImagesChange: (Boolean) -> Unit,
     onAddServer: () -> Unit,
@@ -70,7 +72,7 @@ fun SettingsScreen(
 
             ViewerSection(state.autoLoadOriginalImages, onAutoLoadOriginalImagesChange)
 
-            CacheSection(state, onClearCache)
+            CacheSection(state, onClearCache, onCacheLimitChange)
 
             SectionLabel("关于")
             AboutCard()
@@ -241,7 +243,7 @@ private fun ViewerSection(autoLoadOriginalImages: Boolean, onChange: (Boolean) -
 }
 
 @Composable
-private fun CacheSection(state: SettingsUiState, onClearCache: () -> Unit) {
+private fun CacheSection(state: SettingsUiState, onClearCache: () -> Unit, onCacheLimitChange: (ThumbnailCacheLimit) -> Unit) {
     SectionLabel(Strings.SETTINGS_LOCAL_CACHE)
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -249,6 +251,25 @@ private fun CacheSection(state: SettingsUiState, onClearCache: () -> Unit) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = Strings.thumbnailsOnDisk(formatBytes(state.thumbnailCacheBytes)))
+
+            Text(
+                text = Strings.SETTINGS_CACHE_LIMIT_LABEL,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 14.dp, bottom = 4.dp),
+            )
+            ThumbnailCacheLimit.entries.forEach { limit ->
+                RailsRadio(
+                    label = limit.displayLabel,
+                    selected = limit == state.thumbnailCacheLimit,
+                    onClick = { onCacheLimitChange(limit) },
+                )
+            }
+            Text(
+                text = Strings.SETTINGS_CACHE_LIMIT_HINT,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp, bottom = 4.dp),
+            )
             state.message?.let {
                 Text(text = it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

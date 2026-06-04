@@ -757,6 +757,7 @@ private fun SettingsHost(
     val app = remember(context) { context.applicationContext as VistoApplication }
     val scope = rememberCoroutineScope()
     var settingsState by remember(themeMode) {
+            var settingsState by remember(summary?.id) {
         mutableStateOf(
             SettingsUiState(
                 activeAccountId = summary?.id,
@@ -767,6 +768,7 @@ private fun SettingsHost(
                 thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
                 themeMode = themeMode,
                 autoLoadOriginalImages = app.preferences.autoLoadOriginalImages,
+                thumbnailCacheLimit = app.preferences.thumbnailCacheLimit,
             )
         )
     }
@@ -798,6 +800,15 @@ private fun SettingsHost(
                     message = Strings.SETTINGS_CACHE_CLEARED,
                 )
             }
+        },
+        onCacheLimitChange = { limit ->
+            app.preferences.thumbnailCacheLimit = limit
+            app.rebuildImageLoader(limit.bytes)
+            settingsState = settingsState.copy(
+                thumbnailCacheLimit = limit,
+                thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
+                message = "缓存上限已生效。",
+            )
         },
     )
 }

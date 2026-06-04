@@ -53,6 +53,7 @@ class VistoApplication : Application() {
         remoteRepository = RemoteEntryRepository(database, database.remoteEntryDao())
         credentialStore = CredentialStore(this)
         accountService = AccountService(database, credentialStore)
+        preferences = VistoPreferences(this)
         authInterceptor = WebDavAuthInterceptor()
         val dispatcher = Dispatcher().apply {
             // Be gentle with home NAS/WebDAV servers. Album scanning and
@@ -69,7 +70,19 @@ class VistoApplication : Application() {
             .retryOnConnectionFailure(true)
             .addInterceptor(authInterceptor)
             .build()
-        imageLoader = VistoImageLoaderFactory.create(this, okHttpClient)
-        preferences = VistoPreferences(this)
+        imageLoader = VistoImageLoaderFactory.create(
+            this,
+            okHttpClient,
+            diskCacheBytes = preferences.thumbnailCacheLimit.bytes,
+        )
+    }
+
+    /**
+     * Rebuild the [imageLoader] with a new disk cache size. Call after
+     * the user changes the thumbnail cache limit; the old cache directory
+     * and files remain on disk until Coil's eviction policy cleans them up.
+     */
+    fun rebuildImageLoader(diskCacheBytes: Long) {
+        imageLoader = VistoImageLoaderFactory.create(this, okHttpClient, diskCacheBytes)
     }
 }

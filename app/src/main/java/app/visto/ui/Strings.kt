@@ -108,6 +108,8 @@ object Strings {
     const val SETTINGS_CLEAR_THUMBNAILS = "清除本地缩略图"
     const val SETTINGS_CLEARING = "清理中…"
     const val SETTINGS_CACHE_CLEARED = "本地缩略图已清除，未触碰 WebDAV 上的文件。"
+    const val SETTINGS_CACHE_LIMIT_LABEL = "缩略图缓存上限"
+    const val SETTINGS_CACHE_LIMIT_HINT = "由 LRU 逐渐淘汰旧缓存；需要立即释放可以点下面“清除本地缩略图”。"
 
     const val VIEWER_LOAD_ORIGINAL = "加载原图"
     const val VIEWER_ORIGINAL_HINT = "原图可能较大，加载前会通过 WebDAV 下载。"

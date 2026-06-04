@@ -162,54 +162,50 @@ private fun ImagePage(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .then(
-                if (loaded) Modifier.pointerInput(item.path) {
-                    awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false)
-                        do {
-                            val event = awaitPointerEvent()
-                            val pressedCount = event.changes.count { it.pressed }
-                            val canTransform = pressedCount >= 2 || scale > 1.01f
-                            if (canTransform) {
-                                val zoom = if (pressedCount >= 2) event.calculateZoom() else 1f
-                                val pan = if (scale > 1.01f || pressedCount >= 2) {
-                                    event.calculatePan()
-                                } else {
-                                    Offset.Zero
-                                }
-                                if (zoom != 1f || pan != Offset.Zero) {
-                                    val newScale = (scale * zoom).coerceIn(1f, 6f)
-                                    scale = newScale
-                                    if (newScale > 1f) {
-                                        offsetX += pan.x
-                                        offsetY += pan.y
-                                    } else {
-                                        offsetX = 0f
-                                        offsetY = 0f
-                                    }
-                                    event.changes.forEach { it.consume() }
-                                }
-                            }
-                        } while (event.changes.any { it.pressed })
-                    }
-                } else Modifier
-            )
-            .then(
-                if (loaded) Modifier.pointerInput(item.path) {
-                    // Double-tap remains a shortcut between fit (1x) and 2x.
-                    // One-finger horizontal swipes at 1x still pass through to
-                    // HorizontalPager; pinch zoom is handled above.
-                    detectTapGestures(
-                        onDoubleTap = {
-                            if (scale > 1.01f) {
-                                scale = 1f; offsetX = 0f; offsetY = 0f
+            .pointerInput(item.path) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val event = awaitPointerEvent()
+                        val pressedCount = event.changes.count { it.pressed }
+                        val canTransform = pressedCount >= 2 || scale > 1.01f
+                        if (canTransform) {
+                            val zoom = if (pressedCount >= 2) event.calculateZoom() else 1f
+                            val pan = if (scale > 1.01f || pressedCount >= 2) {
+                                event.calculatePan()
                             } else {
-                                scale = 2f
+                                Offset.Zero
                             }
-                        },
-                    )
-                } else Modifier
-            ),
+                            if (zoom != 1f || pan != Offset.Zero) {
+                                val newScale = (scale * zoom).coerceIn(1f, 6f)
+                                scale = newScale
+                                if (newScale > 1f) {
+                                    offsetX += pan.x
+                                    offsetY += pan.y
+                                } else {
+                                    offsetX = 0f
+                                    offsetY = 0f
+                                }
+                                event.changes.forEach { it.consume() }
+                            }
+                        }
+                    } while (event.changes.any { it.pressed })
+                }
+            }
+            .pointerInput(item.path) {
+                // Double-tap remains a shortcut between fit (1x) and 2x.
+                // One-finger horizontal swipes at 1x still pass through to
+                // HorizontalPager; pinch zoom is handled above.
+                detectTapGestures(
+                    onDoubleTap = {
+                        if (scale > 1.01f) {
+                            scale = 1f; offsetX = 0f; offsetY = 0f
+                        } else {
+                            scale = 2f
+                        }
+                    },
+                )
+            },
         contentAlignment = Alignment.Center,
     ) {
         if (loaded) {
@@ -297,12 +293,20 @@ private fun ImagePage(
         } else {
             // Default state when the user has not asked to load the original yet:
             // show the (already cached) thumbnail as the backdrop and overlay a
-            // small "load original" pill so the page is never blank.
+            // small "load original" pill so the page is never blank. The
+            // backdrop participates in the pinch-zoom transform so users can
+            // inspect the thumbnail even before downloading the original.
             ThumbnailBackdrop(
                 item = item,
                 imageLoader = imageLoader,
                 url = url,
                 cacheKeyScope = cacheKeyScope,
+                modifier = Modifier.graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    translationX = offsetX,
+                    translationY = offsetY,
+                ),
             )
             LoadOriginalOverlay(item, onLoadRequest)
         }
@@ -315,6 +319,7 @@ private fun ThumbnailBackdrop(
     imageLoader: ImageLoader,
     url: String,
     cacheKeyScope: String,
+    modifier: Modifier = Modifier,
 ) {
     val request = ImageRequest.Builder(LocalContext.current)
         .data(url)
@@ -328,7 +333,7 @@ private fun ThumbnailBackdrop(
         imageLoader = imageLoader,
         contentDescription = item.name,
         contentScale = ContentScale.Fit,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().then(modifier),
         loading = { /* blank — page just stays black briefly */ },
         error = { /* blank */ },
     )
