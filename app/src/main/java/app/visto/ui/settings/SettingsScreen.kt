@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -17,12 +19,15 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -44,6 +49,11 @@ fun SettingsScreen(
     onAddServer: () -> Unit,
     onSwitchAccount: (Long) -> Unit,
     onDeleteAccount: (Long) -> Unit,
+    onCheckUpdate: () -> Unit,
+    onDownloadUpdate: () -> Unit,
+    onInstallUpdate: () -> Unit,
+    onOpenReleasePage: () -> Unit,
+    onDismissUpdateMessage: () -> Unit,
     bottomBar: @Composable () -> Unit = {},
 ) {
     Scaffold(
@@ -74,8 +84,15 @@ fun SettingsScreen(
 
             CacheSection(state, onClearCache, onCacheLimitChange)
 
-            SectionLabel("关于")
-            AboutCard()
+            SectionLabel(Strings.SETTINGS_ABOUT_TITLE)
+            AboutCard(
+                update = state.update,
+                onCheckUpdate = onCheckUpdate,
+                onDownloadUpdate = onDownloadUpdate,
+                onInstallUpdate = onInstallUpdate,
+                onOpenReleasePage = onOpenReleasePage,
+                onDismissUpdateMessage = onDismissUpdateMessage,
+            )
         }
     }
 }
@@ -288,16 +305,141 @@ private fun CacheSection(state: SettingsUiState, onClearCache: () -> Unit, onCac
 }
 
 @Composable
-private fun AboutCard() {
+private fun AboutCard(
+    update: UpdateUiState,
+    onCheckUpdate: () -> Unit,
+    onDownloadUpdate: () -> Unit,
+    onInstallUpdate: () -> Unit,
+    onOpenReleasePage: () -> Unit,
+    onDismissUpdateMessage: () -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text = "Visto · v${AppInfo.VERSION_NAME} · 只读 WebDAV 相册", modifier = Modifier.weight(1f))
+        Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+            Text(
+                text = "Visto · v${AppInfo.VERSION_NAME} · 只读 WebDAV 相册",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            val info = update.info
+            if (info != null && info.hasUpdate) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "${Strings.SETTINGS_NEW_VERSION}：v${info.latestVersion}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                val sizeText = info.apkSize?.let { " · ${formatBytes(it)}" } ?: ""
+                Text(
+                    text = "${info.apkName}$sizeText",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (info.releaseNotes.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = info.releaseNotes,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 8,
+                    )
+                }
+            } else if (info != null && !info.hasUpdate) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = Strings.SETTINGS_LATEST_VERSION_ALREADY,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            if (update.isDownloading) {
+                Spacer(modifier = Modifier.height(10.dp))
+                val total = update.downloadTotalBytes
+                val received = update.downloadedBytes
+                if (total != null && total > 0) {
+                    LinearProgressIndicator(
+                        progress = { (received.toFloat() / total.toFloat()).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        text = "${formatBytes(received)} / ${formatBytes(total)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    Text(
+                        text = formatBytes(received),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            update.errorMessage?.let {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onDismissUpdateMessage) {
+                        Text(text = "知道了")
+                    }
+                }
+            }
+            update.infoMessage?.let {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onDismissUpdateMessage) {
+                        Text(text = "知道了")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val downloaded = update.downloaded
+                if (info != null && info.hasUpdate) {
+                    if (downloaded != null) {
+                        Button(
+                            onClick = onInstallUpdate,
+                            modifier = Modifier.weight(1f),
+                        ) { Text(text = Strings.SETTINGS_INSTALL_NOW) }
+                    } else {
+                        Button(
+                            onClick = onDownloadUpdate,
+                            enabled = !update.isDownloading,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(text = if (update.isDownloading) Strings.SETTINGS_DOWNLOADING else Strings.SETTINGS_DOWNLOAD_AND_INSTALL)
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = onOpenReleasePage,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(text = Strings.SETTINGS_OPEN_RELEASE_PAGE) }
+                } else {
+                    Button(
+                        onClick = onCheckUpdate,
+                        enabled = !update.isChecking,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(text = if (update.isChecking) Strings.SETTINGS_CHECKING_UPDATE else Strings.SETTINGS_CHECK_UPDATE)
+                    }
+                }
+            }
         }
     }
 }

@@ -1,5 +1,7 @@
 package app.visto
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -36,6 +38,7 @@ import app.visto.data.album.AlbumPreviewFinder
 import app.visto.data.album.AlbumCoverFinder
 import app.visto.data.db.AlbumSourceEntity
 import app.visto.data.db.RemoteEntryRepository
+import app.visto.data.update.AppUpdateService
 import app.visto.data.webdav.WebDavClient
 import app.visto.data.webdav.WebDavCredentials
 import app.visto.ui.HomeTab
@@ -755,6 +758,7 @@ private fun SettingsHost(
 ) {
     val context = LocalContext.current
     val app = remember(context) { context.applicationContext as VistoApplication }
+    val updateService = remember(app) { AppUpdateService(app, app.okHttpClient) }
     val scope = rememberCoroutineScope()
     var settingsState by remember(summary?.id) {
         mutableStateOf(
@@ -807,6 +811,101 @@ private fun SettingsHost(
                 thumbnailCacheLimit = limit,
                 thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
                 message = "缓存上限已生效。",
+            )
+        },
+        onCheckUpdate = {
+            scope.launch {
+                settingsState = settingsState.copy(
+                    update = settingsState.update.copy(
+                        isChecking = true,
+                        errorMessage = null,
+                        infoMessage = null,
+                    ),
+                )
+                try {
+                    val info = updateService.checkLatest()
+                    settingsState = settingsState.copy(
+                        update = settingsState.update.copy(
+                            isChecking = false,
+                            info = info,
+                            infoMessage = if (!info.hasUpdate) Strings.SETTINGS_LATEST_VERSION_ALREADY else null,
+                        ),
+                    )
+                } catch (e: Throwable) {
+                    settingsState = settingsState.copy(
+                        update = settingsState.update.copy(
+                            isChecking = false,
+                            errorMessage = e.message ?: "检查更新失败",
+                        ),
+                    )
+                }
+            }
+        },
+        onDownloadUpdate = {
+            val info = settingsState.update.info ?: return@SettingsScreen
+            scope.launch {
+                settingsState = settingsState.copy(
+                    update = settingsState.update.copy(
+                        isDownloading = true,
+                        downloadedBytes = 0L,
+                        downloadTotalBytes = info.apkSize,
+                        errorMessage = null,
+                        infoMessage = null,
+                    ),
+                )
+                try {
+                    val downloaded = updateService.downloadApk(info) { received, total ->
+                        settingsState = settingsState.copy(
+                            update = settingsState.update.copy(
+                                downloadedBytes = received,
+                                downloadTotalBytes = total ?: settingsState.update.downloadTotalBytes,
+                            ),
+                        )
+                    }
+                    settingsState = settingsState.copy(
+                        update = settingsState.update.copy(
+                            isDownloading = false,
+                            downloaded = downloaded,
+                            infoMessage = Strings.SETTINGS_UPDATE_SAVED_TO_DOWNLOADS,
+                        ),
+                    )
+                    // Trigger system installer immediately, mirroring Vink Flasher.
+                    try {
+                        updateService.installApk(downloaded)
+                    } catch (_: Throwable) {
+                        // Installer launch failure is non-fatal; the APK is on disk.
+                    }
+                } catch (e: Throwable) {
+                    settingsState = settingsState.copy(
+                        update = settingsState.update.copy(
+                            isDownloading = false,
+                            errorMessage = e.message ?: "下载更新失败",
+                        ),
+                    )
+                }
+            }
+        },
+        onInstallUpdate = {
+            val downloaded = settingsState.update.downloaded ?: return@SettingsScreen
+            try {
+                updateService.installApk(downloaded)
+            } catch (e: Throwable) {
+                settingsState = settingsState.copy(
+                    update = settingsState.update.copy(
+                        errorMessage = e.message ?: "启动安装器失败",
+                    ),
+                )
+            }
+        },
+        onOpenReleasePage = {
+            val url = settingsState.update.info?.releaseUrl ?: "https://github.com/Vivitoto/Visto/releases/latest"
+            try {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            } catch (_: Throwable) { /* no browser */ }
+        },
+        onDismissUpdateMessage = {
+            settingsState = settingsState.copy(
+                update = settingsState.update.copy(errorMessage = null, infoMessage = null),
             )
         },
     )
