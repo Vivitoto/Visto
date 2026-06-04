@@ -474,7 +474,7 @@ private fun AlbumsHost(
             rootPath = DavPath.normalize(target.rootPath),
             viewMode = viewMode,
         )
-        val cached = AlbumIndexCache.load(this, target.accountId, normalizedPath)
+        val cached = AlbumIndexCache.load(context, target.accountId, normalizedPath)
         albumDetail = if (cached != null) {
             AlbumDetailReducer.applyFolderContents(
                 AlbumDetailReducer.startFolder(baseState, normalizedPath, viewMode),
@@ -486,7 +486,7 @@ private fun AlbumsHost(
         activeLoadJob = scope.launch {
             try {
                 val entries = client.listDirectory(normalizedPath)
-                AlbumIndexCache.save(this@MainActivity, target.accountId, normalizedPath, entries)
+                AlbumIndexCache.save(context, target.accountId, normalizedPath, entries)
                 val current = albumDetail
                 if (generation != activeLoadGeneration || current?.folderView?.currentPath != normalizedPath) return@launch
                 albumDetail = AlbumDetailReducer.applyFolderContents(current, normalizedPath, entries)
@@ -510,7 +510,7 @@ private fun AlbumsHost(
             rootPath = DavPath.normalize(target.rootPath),
             viewMode = AlbumViewMode.FLAT,
         )
-        val cached = AlbumIndexCache.load(this, target.accountId, normalizedPath)
+        val cached = AlbumIndexCache.load(context, target.accountId, normalizedPath)
         albumDetail = if (cached != null) {
             AlbumDetailReducer.applyFolderContents(
                 AlbumDetailReducer.startFolder(baseState, normalizedPath, AlbumViewMode.FLAT),
@@ -522,7 +522,7 @@ private fun AlbumsHost(
         activeLoadJob = scope.launch {
             try {
                 val entries = client.listDirectory(normalizedPath)
-                AlbumIndexCache.save(this@MainActivity, target.accountId, normalizedPath, entries)
+                AlbumIndexCache.save(context, target.accountId, normalizedPath, entries)
                 val current = albumDetail
                 if (generation != activeLoadGeneration || current?.folderView?.currentPath != normalizedPath) return@launch
                 albumDetail = AlbumDetailReducer.applyFolderContents(current, normalizedPath, entries)
