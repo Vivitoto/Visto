@@ -3,7 +3,10 @@ package app.visto.data.webdav
 import app.visto.core.model.DavPath
 import app.visto.core.model.RemoteEntry
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.Credentials
 import okhttp3.Dispatcher
 import okhttp3.HttpUrl
@@ -12,9 +15,12 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * Read-only WebDAV client used by Visto v0.1.
@@ -42,7 +48,7 @@ class WebDavClient(
      */
     suspend fun listDirectory(path: String): List<RemoteEntry> = withContext(Dispatchers.IO) {
         val normalized = DavPath.normalize(path)
-        val url = buildUrl(normalized)
+        val url = buildUrl(normalized, collection = true)
         val authHeader = Credentials.basic(credentials.username, credentials.password)
         val request = Request.Builder()
             .url(url)
@@ -53,21 +59,8 @@ class WebDavClient(
             .header("Accept", "application/xml, text/xml")
             .build()
 
-        val xml = try {
-            client.newCall(request).execute().use { response ->
-                when (val code = response.code) {
-                    in 200..299 -> response.body?.string().orEmpty()
-                    401, 403 -> throw WebDavError.AuthFailed()
-                    404 -> throw WebDavError.NotFound()
-                    in 500..599 -> throw WebDavError.ServerError(code)
-                    else -> throw WebDavError.Unexpected(code)
-                }
-            }
-        } catch (e: SocketTimeoutException) {
-            throw WebDavError.Timeout(cause = e)
-        } catch (e: IOException) {
-            throw WebDavError.NetworkError("Network failure during PROPFIND", e)
-        }
+        val call = client.newCall(request)
+        val xml = executeCancellable(call)
 
         val rows = WebDavMultistatusParser.parse(xml)
         WebDavListingMapper.map(
@@ -100,14 +93,63 @@ class WebDavClient(
      */
     fun mediaUrl(path: String): String = buildUrl(DavPath.normalize(path)).toString()
 
-    private fun buildUrl(absoluteVistoPath: String): HttpUrl {
-        // baseUrl's path acts as the WebDAV root; absoluteVistoPath is relative to it.
-        val basePath = baseUrl.encodedPath.trimEnd('/')
-        val joined = if (absoluteVistoPath == "/") "$basePath/" else "$basePath$absoluteVistoPath"
-        val resolved = baseUrl.newBuilder()
-            .encodedPath(joined.ifEmpty { "/" })
-            .build()
-        return resolved
+    private suspend fun executeCancellable(call: Call): String =
+        suspendCancellableCoroutine { continuation ->
+            call.enqueue(object : Callback {
+                override fun onResponse(call: Call, response: Response) {
+                    try {
+                        response.use { resp ->
+                            if (!continuation.isActive) return
+                            val code = resp.code
+                            when {
+                                code in 200..299 -> continuation.resume(resp.body?.string().orEmpty())
+                                code == 401 || code == 403 -> continuation.resumeWithException(WebDavError.AuthFailed())
+                                code == 404 -> continuation.resumeWithException(WebDavError.NotFound())
+                                code in 500..599 -> continuation.resumeWithException(WebDavError.ServerError(code))
+                                else -> continuation.resumeWithException(WebDavError.Unexpected(code))
+                            }
+                        }
+                    } catch (e: Throwable) {
+                        if (continuation.isActive) continuation.resumeWithException(e)
+                    }
+                }
+
+                override fun onFailure(call: Call, e: IOException) {
+                    if (!continuation.isActive) return
+                    if (e is SocketTimeoutException) {
+                        continuation.resumeWithException(WebDavError.Timeout(cause = e))
+                    } else {
+                        continuation.resumeWithException(WebDavError.NetworkError("Network failure during PROPFIND", e))
+                    }
+                }
+            })
+            continuation.invokeOnCancellation {
+                if (!call.isCanceled()) call.cancel()
+            }
+        }
+
+    private fun buildUrl(absoluteVistoPath: String, collection: Boolean = false): HttpUrl {
+        // baseUrl carries the WebDAV root (it may already include path segments,
+        // e.g. https://nas.example.com/dav). absoluteVistoPath is decoded and
+        // is appended one segment at a time so OkHttp can properly URL-encode
+        // non-ASCII names (Chinese, spaces, '#', '%', etc).
+        val builder = baseUrl.newBuilder()
+        // Drop the implicit trailing empty segment from the base if present
+        // so we don't get a double slash when we append.
+        if (baseUrl.encodedPathSegments.isNotEmpty() && baseUrl.encodedPathSegments.last().isEmpty()) {
+            builder.removePathSegment(baseUrl.encodedPathSegments.lastIndex)
+        }
+        if (absoluteVistoPath != "/") {
+            absoluteVistoPath.trimStart('/').split('/').forEach { segment ->
+                if (segment == "." || segment == "..") throw WebDavError.InvalidPath()
+                if (segment.isNotEmpty()) builder.addPathSegment(segment)
+            }
+            if (collection) builder.addPathSegment("")
+        } else {
+            // Need the trailing slash for collection PROPFIND.
+            builder.addPathSegment("")
+        }
+        return builder.build()
     }
 
     companion object {

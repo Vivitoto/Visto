@@ -7,15 +7,24 @@ import app.visto.core.model.RemoteEntry
  */
 data class FolderPickerState(
     val currentPath: String,
+    val rootPath: String = "/",
     val folders: List<RemoteEntry> = emptyList(),
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
 ) {
-    val canGoUp: Boolean get() = currentPath != "/"
+    val canGoUp: Boolean get() = currentPath != rootPath
 }
 
 object FolderPickerNavigator {
-    fun parentOf(path: String): String {
+    fun parentOf(path: String, rootPath: String = "/"): String {
+        val root = normalize(rootPath)
+        val current = clampToRoot(path, root)
+        if (current == root) return root
+        val parent = rawParentOf(current)
+        return clampToRoot(parent, root)
+    }
+
+    private fun rawParentOf(path: String): String {
         val normalized = normalize(path)
         if (normalized == "/") return "/"
         val trimmed = normalized.trimEnd('/')
@@ -27,5 +36,12 @@ object FolderPickerNavigator {
         val trimmed = path.trim()
         if (trimmed.isEmpty() || trimmed == "/") return "/"
         return "/" + trimmed.trim('/').replace(Regex("/+"), "/")
+    }
+
+    fun clampToRoot(path: String, rootPath: String): String {
+        val root = normalize(rootPath)
+        val normalized = normalize(path)
+        if (root == "/") return normalized
+        return if (normalized == root || normalized.startsWith("$root/")) normalized else root
     }
 }

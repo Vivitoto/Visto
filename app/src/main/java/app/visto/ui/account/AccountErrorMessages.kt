@@ -20,6 +20,7 @@ object AccountErrorMessages {
         is WebDavError.NetworkError -> Strings.ERR_NETWORK
         is WebDavError.Timeout -> Strings.ERR_TIMEOUT
         is WebDavError.ParseError -> "${Strings.ERR_UNEXPECTED}（响应解析失败）"
+        is WebDavError.InvalidPath -> Strings.ERR_INVALID_PATH
         is WebDavError.Unexpected -> "${Strings.ERR_UNEXPECTED}（HTTP ${error.statusCode}）"
         else -> "${Strings.ERR_UNEXPECTED}：${error.message ?: error.javaClass.simpleName}"
     }

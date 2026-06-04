@@ -31,6 +31,15 @@ class AlbumAddTest {
     }
 
     @Test
+    fun validatorRejectsDotSegments() {
+        val dot = AlbumAddValidator.validate(AlbumAddFormState(name = "x", path = "/Photos/./A"), emptySet())
+        assertTrue(dot is AlbumAddValidator.Result.Err)
+
+        val dotDot = AlbumAddValidator.validate(AlbumAddFormState(name = "x", path = "/Photos/../A"), emptySet())
+        assertTrue(dotDot is AlbumAddValidator.Result.Err)
+    }
+
+    @Test
     fun validatorRejectsDuplicates() {
         val dup = AlbumAddValidator.validate(
             state = AlbumAddFormState(name = "Family", path = "/Photos/Family"),

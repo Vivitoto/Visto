@@ -19,4 +19,17 @@ class FolderPickerNavigatorTest {
         assertEquals("/Photos", FolderPickerNavigator.parentOf("/Photos/Family"))
         assertEquals("/Photos/Family", FolderPickerNavigator.parentOf("/Photos/Family/2024"))
     }
+
+    @Test
+    fun parentOfClampsToConfiguredRoot() {
+        assertEquals("/Photos", FolderPickerNavigator.parentOf("/Photos", "/Photos"))
+        assertEquals("/Photos", FolderPickerNavigator.parentOf("/Photos/Family", "/Photos"))
+        assertEquals("/Photos", FolderPickerNavigator.parentOf("/Other", "/Photos"))
+    }
+
+    @Test
+    fun clampToRootUsesPathBoundary() {
+        assertEquals("/Photos", FolderPickerNavigator.clampToRoot("/Photos2", "/Photos"))
+        assertEquals("/Photos/Family", FolderPickerNavigator.clampToRoot("/Photos/Family", "/Photos"))
+    }
 }

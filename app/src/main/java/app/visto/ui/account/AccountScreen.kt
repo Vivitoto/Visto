@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.visto.ui.Strings
@@ -53,11 +56,12 @@ fun AccountScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .imePadding()
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(text = Strings.ACCOUNT_TITLE)
+            Text(text = Strings.ACCOUNT_TITLE, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
             OutlinedTextField(
                 value = state.displayName,
                 onValueChange = { onStateChange(AccountFormReducer.updateDisplayName(state, it)) },
@@ -93,6 +97,10 @@ fun AccountScreen(
                 onValueChange = { onStateChange(AccountFormReducer.updateRootPath(state, it)) },
                 label = { Text(Strings.ACCOUNT_ROOT_PATH) },
                 singleLine = true,
+                isError = !state.isSafeRootPath,
+                supportingText = if (!state.isSafeRootPath) {
+                    { Text(Strings.ERR_INVALID_PATH) }
+                } else null,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -106,21 +114,23 @@ fun AccountScreen(
                 OutlinedButton(
                     onClick = onTestConnection,
                     enabled = state.canTestConnection,
+                    modifier = Modifier.weight(1f),
                 ) {
                     if (state.isTesting) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     } else {
-                        Text(Strings.ACCOUNT_TEST_CONNECTION)
+                        Text(Strings.ACCOUNT_TEST_CONNECTION, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
                 Button(
                     onClick = onSave,
                     enabled = state.canSave,
+                    modifier = Modifier.weight(1f),
                 ) {
                     if (state.isSaving) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     } else {
-                        Text(Strings.ACCOUNT_SAVE_AND_USE)
+                        Text(Strings.ACCOUNT_SAVE_AND_USE, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }

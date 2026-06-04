@@ -23,6 +23,9 @@ sealed class WebDavError(message: String, cause: Throwable? = null) : Exception(
     /** Response body could not be parsed into a WebDAV multistatus document. */
     class ParseError(message: String, cause: Throwable? = null) : WebDavError(message, cause)
 
+    /** User/model path contains dot segments that could escape the WebDAV base. */
+    class InvalidPath(message: String = "Invalid WebDAV path") : WebDavError(message)
+
     /** Any other non-success HTTP status. */
     class Unexpected(val statusCode: Int, message: String = "Unexpected HTTP $statusCode") : WebDavError(message)
 }

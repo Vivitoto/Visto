@@ -1,7 +1,8 @@
 package app.visto.data.account
 
-import app.visto.data.db.DavAccountDao
+import androidx.room.withTransaction
 import app.visto.data.db.DavAccountEntity
+import app.visto.data.db.VistoDatabase
 import app.visto.data.webdav.WebDavCredentials
 
 /**
@@ -12,10 +13,11 @@ import app.visto.data.webdav.WebDavCredentials
  * later without rewiring callers.
  */
 class AccountService(
-    private val accountDao: DavAccountDao,
+    private val database: VistoDatabase,
     private val credentialStore: CredentialStore,
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) {
+    private val accountDao = database.davAccountDao()
 
     suspend fun activeAccount(): AccountSummary? {
         val entity = accountDao.getActive() ?: return null
@@ -40,6 +42,10 @@ class AccountService(
 
     /**
      * Persist a freshly tested account and mark it active.
+     *
+     * Re-saving the same baseUrl+username updates the existing row instead of
+     * Room REPLACE-ing it. That preserves the account id and prevents
+     * cascading deletion of saved albums/cache tied to the account.
      */
     suspend fun saveAndActivate(
         displayName: String,
@@ -49,29 +55,56 @@ class AccountService(
         password: String,
     ): AccountSummary {
         val now = clock()
-        val credentialRef = CredentialStore.newCredentialRef()
-        credentialStore.savePassword(credentialRef, password)
-        accountDao.clearActive()
-        val id = accountDao.insert(
-            DavAccountEntity(
-                displayName = displayName,
-                baseUrl = baseUrl,
-                rootPath = rootPath,
-                username = username,
-                credentialRef = credentialRef,
-                isActive = true,
-                createdAt = now,
-                updatedAt = now,
-            )
-        )
-        return AccountSummary(
-            id = id,
-            displayName = displayName,
-            baseUrl = baseUrl,
-            rootPath = rootPath,
-            username = username,
-            credentialRef = credentialRef,
-        )
+        val newCredentialRef = CredentialStore.newCredentialRef()
+        credentialStore.savePassword(newCredentialRef, password)
+        var oldCredentialRefToDelete: String? = null
+        return try {
+            val summary = database.withTransaction {
+                val existing = accountDao.getByBaseUrlAndUsername(baseUrl, username)
+                accountDao.clearActive()
+                val id = if (existing != null) {
+                    oldCredentialRefToDelete = existing.credentialRef
+                    accountDao.update(
+                        existing.copy(
+                            displayName = displayName,
+                            rootPath = rootPath,
+                            credentialRef = newCredentialRef,
+                            isActive = true,
+                            updatedAt = now,
+                        )
+                    )
+                    existing.id
+                } else {
+                    accountDao.insert(
+                        DavAccountEntity(
+                            displayName = displayName,
+                            baseUrl = baseUrl,
+                            rootPath = rootPath,
+                            username = username,
+                            credentialRef = newCredentialRef,
+                            isActive = true,
+                            createdAt = now,
+                            updatedAt = now,
+                        )
+                    )
+                }
+                AccountSummary(
+                    id = id,
+                    displayName = displayName,
+                    baseUrl = baseUrl,
+                    rootPath = rootPath,
+                    username = username,
+                    credentialRef = newCredentialRef,
+                )
+            }
+            oldCredentialRefToDelete
+                ?.takeIf { it != newCredentialRef }
+                ?.let { credentialStore.deletePassword(it) }
+            summary
+        } catch (t: Throwable) {
+            credentialStore.deletePassword(newCredentialRef)
+            throw t
+        }
     }
 }
 

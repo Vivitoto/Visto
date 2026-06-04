@@ -30,43 +30,99 @@ jobs:
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
-
-      - name: Rename APK
+      - name: Restore release signing key
+        env:
+          VISTO_KEYSTORE_B64: ${{ secrets.VISTO_KEYSTORE_B64 }}
         run: |
+          mkdir -p app/keystore
+          test -n "$VISTO_KEYSTORE_B64"
+          echo "$VISTO_KEYSTORE_B64" | base64 -d > app/keystore/release.p12
+
+      - name: Build unsigned release APK
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Rename and sign APK
+        env:
+          VISTO_STORE_PASSWORD: ${{ secrets.VISTO_STORE_PASSWORD }}
+          VISTO_KEY_ALIAS: ${{ secrets.VISTO_KEY_ALIAS }}
+          VISTO_KEY_PASSWORD: ${{ secrets.VISTO_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$VISTO_STORE_PASSWORD"
+          test -n "$VISTO_KEY_ALIAS"
+          test -n "$VISTO_KEY_PASSWORD"
           mkdir -p output
           VERSION=$(grep -E '^[[:space:]]*versionName[[:space:]]*=' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
           VERSION_SUFFIX=$(echo "$VERSION" | sed -E 's/[^A-Za-z0-9]+/_/g; s/^_+|_+$//g')
-          cp app/build/outputs/apk/debug/app-debug.apk "output/visto-v${VERSION_SUFFIX}-debug.apk"
+          UNSIGNED_APK="app/build/outputs/apk/release/app-release-unsigned.apk"
+          ALIGNED_APK="output/visto-v${VERSION_SUFFIX}-aligned.apk"
+          SIGNED_APK="output/visto-v${VERSION_SUFFIX}.apk"
+          BUILD_TOOLS=$(ls -d "$ANDROID_SDK_ROOT"/build-tools/* | sort -V | tail -1)
+          "$BUILD_TOOLS/zipalign" -f -p 4 "$UNSIGNED_APK" "$ALIGNED_APK"
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks app/keystore/release.p12 \
+            --ks-type PKCS12 \
+            --ks-pass pass:"$VISTO_STORE_PASSWORD" \
+            --key-pass pass:"$VISTO_KEY_PASSWORD" \
+            --ks-key-alias "$VISTO_KEY_ALIAS" \
+            --out "$SIGNED_APK" \
+            "$ALIGNED_APK"
+          rm -f "$ALIGNED_APK"
           ls -lh output/
+
+      - name: Verify APK signature
+        run: |
+          BUILD_TOOLS=$(ls -d "$ANDROID_SDK_ROOT"/build-tools/* | sort -V | tail -1)
+          "$BUILD_TOOLS/apksigner" verify -v output/visto-v*.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: visto-debug-apk
-          path: output/visto-v*-debug.apk
+          name: visto-release-apk
+          path: output/visto-v*.apk
           if-no-files-found: error
 
-      - name: Release debug APK to GitHub
+      - name: Remove old APK assets from latest release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view latest >/dev/null 2>&1; then
+            gh release view latest --json assets --jq '.assets[].name | select(endswith(".apk"))' | while read -r asset; do
+              if [ -n "$asset" ]; then
+                gh release delete-asset latest "$asset" --yes
+              fi
+            done
+          fi
+
+      - name: Release APK to GitHub
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest-debug
-          name: Visto Debug APK
+          tag_name: latest
+          name: Visto (latest)
           body: |
-            Visto v0.1 debug APK.
-
-            Scope:
-            - Read-only WebDAV gallery browser
-            - No upload
-            - No remote delete
-            - No move/rename
-
-            This is an unsigned/debug build for early testing.
-          files: output/visto-v*-debug.apk
+            Visto - 只读 WebDAV 相册查看器
+            - 浏览 WebDAV 相册、文件夹、图片和视频
+            - 默认不自动下载大原图
+            - 不上传、不删除、不移动远端文件
+          files: output/visto-v*.apk
           overwrite_files: true
           draft: false
-          prerelease: true
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Archive APK to history release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-history
+          name: Visto APK History
+          body_path: apk-history/README.md
+          files: output/visto-v*.apk
+          overwrite_files: true
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

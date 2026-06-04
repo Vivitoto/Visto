@@ -96,6 +96,11 @@ class AlbumLoader(
 
     private suspend fun fetch(path: String): FetchOutcome = try {
         FetchOutcome.Success(client.listDirectory(path))
+    } catch (ce: kotlinx.coroutines.CancellationException) {
+        // Rethrow so the outer scope can collapse cleanly when the user
+        // navigates back; we must never swallow cancellation and report it
+        // as a per-folder failure.
+        throw ce
     } catch (t: Throwable) {
         FetchOutcome.Failure(t.message ?: t::class.simpleName ?: "未知错误")
     }

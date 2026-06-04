@@ -33,5 +33,5 @@ PY
 if command -v java >/dev/null 2>&1; then
   ./gradlew testDebugUnitTest
 else
-  echo 'java not found; skipped Gradle unit tests. CI will run tests and assembleDebug.'
+  echo 'java not found; skipped Gradle unit tests. CI will run tests and assembleRelease.'
 fi

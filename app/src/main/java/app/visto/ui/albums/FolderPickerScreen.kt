@@ -30,6 +30,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.visto.core.model.RemoteEntry
 import app.visto.ui.Strings
@@ -60,6 +61,9 @@ fun FolderPickerScreen(
             Text(
                 text = state.currentPath,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Button(
                 onClick = onSelectCurrent,
@@ -117,8 +121,10 @@ fun FolderPickerScreen(
                             Text(
                                 text = folder.name,
                                 modifier = Modifier.weight(1f).padding(start = 12.dp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
-                            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+                            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         HorizontalDivider()
                     }

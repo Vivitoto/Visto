@@ -52,7 +52,7 @@ class VistoApplication : Application() {
         database = VistoDatabase.create(this)
         remoteRepository = RemoteEntryRepository(database, database.remoteEntryDao())
         credentialStore = CredentialStore(this)
-        accountService = AccountService(accountDao, credentialStore)
+        accountService = AccountService(database, credentialStore)
         authInterceptor = WebDavAuthInterceptor()
         val dispatcher = Dispatcher().apply {
             // Be gentle with home NAS/WebDAV servers. Album scanning and

@@ -1,5 +1,6 @@
 package app.visto.ui.albums
 
+import app.visto.core.model.DavPath
 import app.visto.data.db.AlbumSourceEntity
 
 /**
@@ -69,8 +70,12 @@ object AlbumAddValidator {
         if (!trimmedPath.startsWith("/")) {
             return Result.Err(app.visto.ui.Strings.ALBUMS_ERR_PATH_MUST_START_WITH_SLASH)
         }
-        val normalizedPath = trimmedPath.trimEnd('/').ifEmpty { "/" }
-        if (normalizedPath in existingPaths) {
+        val normalizedPath = DavPath.normalize(trimmedPath)
+        if (DavPath.hasDotSegments(normalizedPath)) {
+            return Result.Err(app.visto.ui.Strings.ERR_INVALID_PATH)
+        }
+        val normalizedExistingPaths = existingPaths.mapTo(mutableSetOf()) { DavPath.normalize(it) }
+        if (normalizedPath in normalizedExistingPaths) {
             return Result.Err(app.visto.ui.Strings.ALBUMS_ERR_DUPLICATE)
         }
         val finalName = state.name.trim().ifEmpty { normalizedPath.substringAfterLast('/').ifEmpty { normalizedPath } }

@@ -75,6 +75,16 @@ object DavPath {
     }
 
     /**
+     * True when the path contains literal dot segments that WebDAV URL
+     * building rejects for safety. Percent-encoded dots are network-layer
+     * data and are not decoded here.
+     */
+    fun hasDotSegments(path: String): Boolean {
+        val normalized = normalize(path)
+        return normalized.split('/').any { it == "." || it == ".." }
+    }
+
+    /**
      * Return true when [child] is exactly one level below [parent].
      */
     fun isDirectChild(parent: String, child: String): Boolean {

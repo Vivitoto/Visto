@@ -71,4 +71,16 @@ class DavPathTest {
         assertFalse(DavPath.isDirectChild("/Photos", "/Photos/Travel/a.jpg"))
         assertFalse(DavPath.isDirectChild("/Photos", "/"))
     }
+
+    @Test
+    fun dotSegmentDetectionRejectsLiteralDotSegments() {
+        assertTrue(DavPath.hasDotSegments("/Photos/./A"))
+        assertTrue(DavPath.hasDotSegments("/Photos/../A"))
+    }
+
+    @Test
+    fun dotSegmentDetectionAllowsNormalNames() {
+        assertFalse(DavPath.hasDotSegments("/Photos/..hidden/file.jpg"))
+        assertFalse(DavPath.hasDotSegments("/Photos/a.b/file.jpg"))
+    }
 }

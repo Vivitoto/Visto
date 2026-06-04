@@ -7,7 +7,7 @@ import okhttp3.Response
 
 /**
  * OkHttp interceptor that attaches Basic Authorization to outbound requests
- * whose URL host+path prefix matches a registered WebDAV account.
+ * whose URL origin and path-prefix boundary match a registered WebDAV account.
  *
  * The interceptor is intentionally a no-op for unrelated requests so it can
  * sit on a shared OkHttpClient (used by both [WebDavClient] and Coil).
@@ -36,10 +36,15 @@ class WebDavAuthInterceptor(
 
         val base = baseUrl.toHttpUrlOrNull() ?: return chain.proceed(req)
         val target = req.url
-        if (target.host != base.host) return chain.proceed(req)
-        val basePathPrefix = base.encodedPath.trimEnd('/')
-        if (basePathPrefix.isNotEmpty() && !target.encodedPath.startsWith(basePathPrefix)) {
+        if (target.scheme != base.scheme || target.host != base.host || target.port != base.port) {
             return chain.proceed(req)
+        }
+        val basePathPrefix = base.encodedPath.trimEnd('/')
+        if (basePathPrefix.isNotEmpty() && basePathPrefix != "/") {
+            val targetPath = target.encodedPath.trimEnd('/')
+            val samePath = targetPath == basePathPrefix
+            val childPath = target.encodedPath.startsWith("$basePathPrefix/")
+            if (!samePath && !childPath) return chain.proceed(req)
         }
         val authed = req.newBuilder()
             .header("Authorization", Credentials.basic(user, pass))

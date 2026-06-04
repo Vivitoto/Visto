@@ -8,7 +8,7 @@ import androidx.room.Update
 
 @Dao
 interface DavAccountDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(account: DavAccountEntity): Long
 
     @Update
@@ -16,6 +16,9 @@ interface DavAccountDao {
 
     @Query("SELECT * FROM dav_account WHERE id = :id LIMIT 1")
     suspend fun getById(id: Long): DavAccountEntity?
+
+    @Query("SELECT * FROM dav_account WHERE baseUrl = :baseUrl AND username = :username LIMIT 1")
+    suspend fun getByBaseUrlAndUsername(baseUrl: String, username: String): DavAccountEntity?
 
     @Query("SELECT * FROM dav_account WHERE isActive = 1 LIMIT 1")
     suspend fun getActive(): DavAccountEntity?

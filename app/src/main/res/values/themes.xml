@@ -1,3 +1,9 @@
 <resources>
-    <style name="Theme.Visto" parent="android:style/Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Visto" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowBackground">#F7F3EA</item>
+        <item name="android:statusBarColor">#F7F3EA</item>
+        <item name="android:navigationBarColor">#F7F3EA</item>
+    </style>
 </resources>

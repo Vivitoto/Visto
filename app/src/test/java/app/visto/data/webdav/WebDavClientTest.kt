@@ -25,9 +25,9 @@ class WebDavClientTest {
         server.shutdown()
     }
 
-    private fun client(): WebDavClient = WebDavClient(
+    private fun client(basePath: String = "/dav"): WebDavClient = WebDavClient(
         credentials = WebDavCredentials(
-            baseUrl = server.url("/dav").toString(),
+            baseUrl = server.url(basePath).toString(),
             username = "alice",
             password = "secret",
         ),
@@ -90,6 +90,40 @@ class WebDavClientTest {
         assertTrue(request.url.toString().endsWith("/dav/Photos/a.jpg"))
     }
 
+    @Test(expected = WebDavError.InvalidPath::class)
+    fun listDirectoryRejectsDotDotSegments() {
+        runBlocking { client().listDirectory("/Photos/../Secret") }
+    }
+
+    @Test(expected = WebDavError.InvalidPath::class)
+    fun listDirectoryRejectsSingleDotSegments() {
+        runBlocking { client().listDirectory("/Photos/./stuff") }
+    }
+
+    @Test
+    fun listDirectoryEncodesDecodedSpecialPathSegmentsUnderBasePath() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(207).setBody(MULTISTATUS_EMPTY_SPECIAL))
+
+        client(basePath = "/dav/photos root").listDirectory("/相册 A/a+b#c%raw")
+
+        val recorded = server.takeRequest()
+        assertEquals(
+            "/dav/photos%20root/%E7%9B%B8%E5%86%8C%20A/a%2Bb%23c%25raw/",
+            recorded.requestUrl?.encodedPath,
+        )
+    }
+
+    @Test
+    fun mediaRequestEncodesSpecialPathSegmentsUnderBasePath() {
+        val request = client(basePath = "/dav/photos root").buildMediaRequest("/相册 A/a+b#c%raw.jpg")
+
+        assertEquals(
+            "/dav/photos%20root/%E7%9B%B8%E5%86%8C%20A/a%2Bb%23c%25raw.jpg",
+            request.url.encodedPath,
+        )
+        assertEquals("Basic YWxpY2U6c2VjcmV0", request.header("Authorization"))
+    }
+
     companion object {
         private val MULTISTATUS_PHOTOS = """
             <?xml version="1.0" encoding="utf-8"?>
@@ -120,6 +154,21 @@ class WebDavClientTest {
                     <d:resourcetype/>
                     <d:getcontenttype>image/jpeg</d:getcontenttype>
                     <d:getcontentlength>1024</d:getcontentlength>
+                  </d:prop>
+                  <d:status>HTTP/1.1 200 OK</d:status>
+                </d:propstat>
+              </d:response>
+            </d:multistatus>
+        """.trimIndent()
+
+        private val MULTISTATUS_EMPTY_SPECIAL = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <d:multistatus xmlns:d="DAV:">
+              <d:response>
+                <d:href>/dav/photos%20root/%E7%9B%B8%E5%86%8C%20A/a%2Bb%23c%25raw/</d:href>
+                <d:propstat>
+                  <d:prop>
+                    <d:resourcetype><d:collection/></d:resourcetype>
                   </d:prop>
                   <d:status>HTTP/1.1 200 OK</d:status>
                 </d:propstat>

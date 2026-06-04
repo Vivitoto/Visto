@@ -49,4 +49,49 @@ class WebDavHrefNormalizerTest {
         )
         assertEquals("/", path)
     }
+
+    @Test
+    fun plusCharacterIsNotDecodedToSpace() {
+        val path = WebDavHrefNormalizer.toAccountPath(
+            rawHref = "/dav/Photos/a+b.jpg",
+            baseUrl = "https://dav.example.com/dav",
+        )
+        assertEquals("/Photos/a+b.jpg", path)
+    }
+
+    @Test
+    fun siblingPrefixIsNotStripped() {
+        val path = WebDavHrefNormalizer.toAccountPath(
+            rawHref = "/dav2/Photos/a.jpg",
+            baseUrl = "https://dav.example.com/dav",
+        )
+        assertEquals("/dav2/Photos/a.jpg", path)
+    }
+
+    @Test
+    fun encodedHashPercentPlusUnicodeAndSpaceAreDecodedWithBasePath() {
+        val path = WebDavHrefNormalizer.toAccountPath(
+            rawHref = "/dav%20root/%E7%9B%B8%E5%86%8C%20A/a%2Bb%23c%25raw.jpg",
+            baseUrl = "https://dav.example.com/dav%20root",
+        )
+        assertEquals("/相册 A/a+b#c%raw.jpg", path)
+    }
+
+    @Test
+    fun absoluteUrlWithEncodedSpecialCharsIsStrippedToAccountPath() {
+        val path = WebDavHrefNormalizer.toAccountPath(
+            rawHref = "https://dav.example.com/dav/photos/%E7%8C%AB%20%E5%9B%BE/a%2Bb%23c%25.jpg",
+            baseUrl = "https://dav.example.com/dav/photos",
+        )
+        assertEquals("/猫 图/a+b#c%.jpg", path)
+    }
+
+    @Test
+    fun relativeHrefWithBasePrefixIsStripped() {
+        val path = WebDavHrefNormalizer.toAccountPath(
+            rawHref = "dav/photos/%E7%8C%AB.jpg",
+            baseUrl = "https://dav.example.com/dav/photos",
+        )
+        assertEquals("/猫.jpg", path)
+    }
 }

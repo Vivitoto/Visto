@@ -6,17 +6,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -26,9 +26,10 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -38,6 +39,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.visto.core.media.MediaType
 import app.visto.core.model.RemoteEntry
@@ -48,6 +51,10 @@ import coil.request.ImageRequest
 
 /**
  * Renders the directory browser: folders first, then a media grid.
+ *
+ * Implemented as a single LazyVerticalGrid so the folder list and media
+ * grid live inside one scroll container. Headers and folder rows span all
+ * columns; only media tiles fill grid cells.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,21 +62,34 @@ fun BrowserScreen(
     state: BrowserUiState,
     imageLoader: ImageLoader,
     mediaUrlOf: (RemoteEntry) -> String,
+    mediaCacheKeyOf: (RemoteEntry) -> String,
     onBack: () -> Unit,
     onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
     onRefresh: () -> Unit,
     onOpenSettings: () -> Unit,
+    maxGridThumbnailBytes: Long,
+    canGoBack: Boolean = true,
     bottomBar: @Composable () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = state.currentPath) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "返回") } },
+                title = { Text(text = state.currentPath, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    if (canGoBack) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "返回")
+                        }
+                    }
+                },
                 actions = {
-                    IconButton(onClick = onRefresh) { Icon(Icons.Filled.Refresh, contentDescription = Strings.ALBUM_DETAIL_REFRESH) }
-                    IconButton(onClick = onOpenSettings) { Icon(Icons.Filled.Settings, contentDescription = Strings.SETTINGS_TITLE) }
+                    IconButton(onClick = onRefresh) {
+                        Icon(Icons.Filled.Refresh, contentDescription = Strings.ALBUM_DETAIL_REFRESH)
+                    }
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = Strings.SETTINGS_TITLE)
+                    }
                 },
             )
         },
@@ -80,7 +100,10 @@ fun BrowserScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            if (state.isLoading) {
+            if (state.isRefreshing && !state.isLoading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            if (state.isLoading && state.isEmpty) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -91,50 +114,47 @@ fun BrowserScreen(
             state.errorMessage?.let {
                 Text(text = it, modifier = Modifier.padding(16.dp))
             }
-            if (state.folders.isNotEmpty()) {
-                Text(
-                    text = Strings.BROWSER_FOLDERS,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                    items(state.folders, key = { it.path }) { folder ->
-                        FolderRow(folder, onClick = { onOpenFolder(folder) })
-                        HorizontalDivider()
-                    }
-                }
-            }
-            if (state.media.isNotEmpty()) {
-                Text(
-                    text = Strings.BROWSER_MEDIA,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 110.dp),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(state.media, key = { it.path }) { item ->
-                        MediaTile(
-                            media = item,
-                            imageLoader = imageLoader,
-                            mediaUrl = mediaUrlOf(item),
-                            onClick = { onOpenMedia(item) },
-                        )
-                    }
-                }
-            }
             if (!state.isLoading && state.isEmpty && state.errorMessage == null) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .fillMaxSize()
                         .padding(32.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(text = Strings.BROWSER_EMPTY)
+                }
+                return@Column
+            }
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 110.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (state.folders.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "header-folders") {
+                        SectionHeader(Strings.BROWSER_FOLDERS)
+                    }
+                    items(state.folders, span = { GridItemSpan(maxLineSpan) }, key = { "folder-${it.path}" }) { folder ->
+                        FolderRow(folder, onClick = { onOpenFolder(folder) })
+                        HorizontalDivider()
+                    }
+                }
+                if (state.media.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "header-media") {
+                        SectionHeader(Strings.BROWSER_MEDIA)
+                    }
+                    items(state.media, key = { "media-${it.path}" }) { item ->
+                        MediaTile(
+                            media = item,
+                            imageLoader = imageLoader,
+                            mediaUrl = mediaUrlOf(item),
+                            mediaCacheKey = mediaCacheKeyOf(item),
+                            maxThumbnailBytes = maxGridThumbnailBytes,
+                            onClick = { onOpenMedia(item) },
+                        )
+                    }
                 }
             }
         }
@@ -142,16 +162,33 @@ fun BrowserScreen(
 }
 
 @Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
 private fun FolderRow(folder: RemoteEntry, onClick: () -> Unit) {
-    androidx.compose.foundation.layout.Row(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 8.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Filled.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        Text(text = folder.name, modifier = Modifier.weight(1f).padding(start = 12.dp))
+        Text(
+            text = folder.name,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
         Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
     }
 }
@@ -161,8 +198,12 @@ private fun MediaTile(
     media: RemoteEntry,
     imageLoader: ImageLoader,
     mediaUrl: String,
+    mediaCacheKey: String,
+    maxThumbnailBytes: Long,
     onClick: () -> Unit,
 ) {
+    val isVideo = media.mediaType == MediaType.VIDEO
+    val tooLarge = !isVideo && media.sizeBytes != null && media.sizeBytes > maxThumbnailBytes
     val typeBadge = when (media.mediaType) {
         MediaType.ANIMATED_IMAGE -> "GIF"
         MediaType.VIDEO -> "VIDEO"
@@ -182,9 +223,25 @@ private fun MediaTile(
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.BottomEnd,
         ) {
-            if (media.mediaType != MediaType.OTHER && media.mediaType != MediaType.UNKNOWN) {
-                val request = ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+            if (tooLarge || isVideo) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(6.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = if (isVideo) "VIDEO" else formatBytes(media.sizeBytes ?: 0L),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else if (media.mediaType != MediaType.OTHER && media.mediaType != MediaType.UNKNOWN) {
+                val request = ImageRequest.Builder(LocalContext.current)
                     .data(mediaUrl)
+                    .memoryCacheKey(mediaCacheKey)
+                    .diskCacheKey(mediaCacheKey)
                     .crossfade(true)
                     .build()
                 SubcomposeAsyncImage(
@@ -207,13 +264,35 @@ private fun MediaTile(
                     },
                 )
             }
-            typeBadge?.let { Text(text = it, modifier = Modifier.padding(4.dp)) }
+            typeBadge?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier
+                        .padding(4.dp),
+                )
+            }
         }
         Text(
             text = media.name,
             style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 4.dp),
         )
         Spacer(modifier = Modifier.height(2.dp))
     }
+}
+
+private fun formatBytes(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB")
+    var value = bytes.toDouble()
+    var unit = 0
+    while (value >= 1024 && unit < units.lastIndex) {
+        value /= 1024
+        unit++
+    }
+    return "%.1f %s".format(value, units[unit])
 }

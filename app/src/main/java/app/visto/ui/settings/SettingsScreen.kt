@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Button
@@ -22,12 +21,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.visto.AppInfo
 import app.visto.ui.Strings
 import app.visto.ui.theme.ThemeMode
 
@@ -37,6 +38,7 @@ fun SettingsScreen(
     state: SettingsUiState,
     onClearCache: () -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onAutoLoadOriginalImagesChange: (Boolean) -> Unit,
     bottomBar: @Composable () -> Unit = {},
 ) {
     Scaffold(
@@ -58,6 +60,8 @@ fun SettingsScreen(
 
             ThemeSection(state.themeMode, onThemeModeChange)
 
+            ViewerSection(state.autoLoadOriginalImages, onAutoLoadOriginalImagesChange)
+
             CacheSection(state, onClearCache)
 
             SectionLabel("关于")
@@ -71,7 +75,7 @@ private fun SectionLabel(text: String) {
     Text(
         text = text.uppercase(),
         style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.outline,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(start = 4.dp),
     )
 }
@@ -93,18 +97,17 @@ private fun AccountCard(state: SettingsUiState) {
                 modifier = Modifier.padding(end = 14.dp),
             )
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = state.accountDisplayName, style = MaterialTheme.typography.titleMedium)
-                Text(text = state.accountBaseUrl, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(text = "${Strings.SETTINGS_ROOT_LABEL}${state.accountRoot}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                Text(text = state.accountDisplayName, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                Text(text = state.accountBaseUrl, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                Text(text = "${Strings.SETTINGS_ROOT_LABEL}${state.accountRoot}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
-            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
         }
     }
 }
 
 @Composable
 private fun ThemeSection(current: ThemeMode, onChange: (ThemeMode) -> Unit) {
-    SectionLabel(Strings.SETTINGS_TITLE)
+    SectionLabel(Strings.SETTINGS_APPEARANCE)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -150,6 +153,37 @@ private fun RailsRadio(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
+private fun ViewerSection(autoLoadOriginalImages: Boolean, onChange: (Boolean) -> Unit) {
+    SectionLabel(Strings.SETTINGS_VIEWER)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onChange(!autoLoadOriginalImages) }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = Strings.SETTINGS_AUTO_LOAD_ORIGINAL, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = Strings.SETTINGS_AUTO_LOAD_ORIGINAL_DESC,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(
+                checked = autoLoadOriginalImages,
+                onCheckedChange = onChange,
+            )
+        }
+    }
+}
+
+@Composable
 private fun CacheSection(state: SettingsUiState, onClearCache: () -> Unit) {
     SectionLabel(Strings.SETTINGS_LOCAL_CACHE)
     Card(
@@ -185,8 +219,7 @@ private fun AboutCard() {
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = "Visto · 调试构建", modifier = Modifier.weight(1f))
-            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+            Text(text = "Visto · v${AppInfo.VERSION_NAME} · 只读 WebDAV 相册", modifier = Modifier.weight(1f))
         }
     }
 }

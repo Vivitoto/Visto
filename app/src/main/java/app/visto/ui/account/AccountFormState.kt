@@ -1,5 +1,7 @@
 package app.visto.ui.account
 
+import app.visto.core.model.DavPath
+
 /**
  * Validation/UI state for the WebDAV account form.
  *
@@ -18,7 +20,7 @@ data class AccountFormState(
     val errorMessage: String? = null,
 ) {
     val normalizedRootPath: String
-        get() = rootPath.ifBlank { "/" }
+        get() = DavPath.normalize(rootPath)
 
     val isValidUrl: Boolean
         get() {
@@ -27,9 +29,13 @@ data class AccountFormState(
                 trimmed.length > 8
         }
 
+    val isSafeRootPath: Boolean
+        get() = !DavPath.hasDotSegments(rootPath)
+
     val canTestConnection: Boolean
         get() = !isTesting && !isSaving &&
             isValidUrl &&
+            isSafeRootPath &&
             username.isNotBlank() &&
             password.isNotEmpty()
 

@@ -55,7 +55,7 @@ private fun itemColors(): NavigationBarItemColors {
         selectedIconColor = cs.onPrimary,
         selectedTextColor = cs.primary,
         indicatorColor = cs.primary,
-        unselectedIconColor = cs.outline,
-        unselectedTextColor = cs.outline,
+        unselectedIconColor = cs.onSurfaceVariant,
+        unselectedTextColor = cs.onSurfaceVariant,
     )
 }

@@ -34,6 +34,7 @@ object Strings {
     const val ERR_TIMEOUT = "连接超时，请检查网络"
     const val ERR_NETWORK = "网络错误，请稍后重试"
     const val ERR_SERVER = "服务器错误，请稍后重试"
+    const val ERR_INVALID_PATH = "路径不能包含 . 或 .. 段"
     const val ERR_UNEXPECTED = "未知错误"
 
     // Browser (legacy directory mode)
@@ -67,6 +68,11 @@ object Strings {
     const val RETRY = "重试"
     const val ALBUM_DETAIL_LOADING = "正在读取 WebDAV…"
     const val ALBUM_DETAIL_NO_MEDIA = "未找到媒体文件"
+    const val ALBUM_VIEW_MODE_FOLDERS = "文件夹"
+    const val ALBUM_VIEW_MODE_FLAT = "所有图片"
+    const val ALBUM_VIEW_MODE_TOGGLE = "切换查看方式"
+    const val ALBUM_FOLDER_EMPTY = "这个文件夹是空的"
+    const val ALBUM_NO_COVER = "未找到封面"
 
     // Folder picker
     const val FOLDER_PICKER_TITLE = "选择 WebDAV 路径"
@@ -85,13 +91,20 @@ object Strings {
     const val SETTINGS_TITLE = "设置"
     const val SETTINGS_ACCOUNT = "账号"
     const val SETTINGS_ROOT_LABEL = "根路径："
+    const val SETTINGS_APPEARANCE = "外观"
     const val SETTINGS_BROWSE_MODE = "浏览方式"
     const val SETTINGS_BROWSE_MODE_ALBUMS = "相册（默认）"
     const val SETTINGS_BROWSE_MODE_DIR = "按目录浏览（旧版）"
+    const val SETTINGS_VIEWER = "查看器"
+    const val SETTINGS_AUTO_LOAD_ORIGINAL = "自动加载原图"
+    const val SETTINGS_AUTO_LOAD_ORIGINAL_DESC = "关闭后，点开图片会先确认，避免误下载大图。"
     const val SETTINGS_LOCAL_CACHE = "本地缓存"
     const val SETTINGS_CLEAR_THUMBNAILS = "清除本地缩略图"
     const val SETTINGS_CLEARING = "清理中…"
     const val SETTINGS_CACHE_CLEARED = "本地缩略图已清除，未触碰 WebDAV 上的文件。"
+
+    const val VIEWER_LOAD_ORIGINAL = "加载原图"
+    const val VIEWER_ORIGINAL_HINT = "原图可能较大，加载前会通过 WebDAV 下载。"
 
     fun thumbnailsOnDisk(formatted: String): String = "本地缩略图占用：$formatted"
 }
