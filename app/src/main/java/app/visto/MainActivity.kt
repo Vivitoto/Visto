@@ -456,7 +456,11 @@ private fun AlbumsHost(
         }
     }
 
-    fun loadFolder(target: AlbumSourceEntity, path: String) {
+    fun loadFolder(
+        target: AlbumSourceEntity,
+        path: String,
+        viewMode: AlbumViewMode = AlbumViewMode.FOLDERS,
+    ) {
         activeLoadJob?.cancel()
         val generation = activeLoadGeneration + 1
         activeLoadGeneration = generation
@@ -464,8 +468,9 @@ private fun AlbumsHost(
         val baseState = albumDetail ?: AlbumDetailUiState(
             title = target.displayName,
             rootPath = DavPath.normalize(target.rootPath),
+            viewMode = viewMode,
         )
-        albumDetail = AlbumDetailReducer.startFolder(baseState, normalizedPath)
+        albumDetail = AlbumDetailReducer.startFolder(baseState, normalizedPath, viewMode)
         activeLoadJob = scope.launch {
             try {
                 val entries = client.listDirectory(normalizedPath)
@@ -643,7 +648,7 @@ private fun AlbumsHost(
             },
             onSwitchToFolders = {
                 app.preferences.albumViewMode = AlbumViewMode.FOLDERS
-                loadFolder(opened, detail.folderView.currentPath.ifBlank { rootPath })
+                loadFolder(opened, detail.folderView.currentPath.ifBlank { rootPath }, AlbumViewMode.FOLDERS)
             },
             onSwitchToFlat = {
                 app.preferences.albumViewMode = AlbumViewMode.FLAT

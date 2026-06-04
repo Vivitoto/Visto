@@ -2,7 +2,7 @@
 
 Visto 是一个 **只读 WebDAV 相册查看器**,用于在 Android 设备上浏览 WebDAV 服务器里的照片、视频和文件夹。
 
-> 当前版本：`v0.1.3`
+> 当前版本：`v0.1.4`
 > 包名:`app.visto`
 
 [English README](README.en.md)
@@ -39,7 +39,7 @@ Visto 当前是只读应用。v0.1 不提供这些远端写操作:
 
 - https://github.com/Vivitoto/Visto/releases/tag/latest
 
-请下载 `visto-v0_1_3.apk`。
+请下载 `visto-v0_1_4.apk`。
 
 ## 构建
 
