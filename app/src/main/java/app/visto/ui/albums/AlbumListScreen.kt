@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,6 +42,7 @@ fun AlbumListScreen(
     onAddDismissed: () -> Unit,
     onAddFormChange: (AlbumAddFormState) -> Unit,
     onAddSubmit: () -> Unit,
+    onBrowsePathRequested: () -> Unit,
     onDeleteRequested: (AlbumSourceEntity) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -90,6 +92,7 @@ fun AlbumListScreen(
             onDismiss = onAddDismissed,
             onChange = onAddFormChange,
             onSubmit = onAddSubmit,
+            onBrowsePathRequested = onBrowsePathRequested,
         )
     }
 }
@@ -139,19 +142,23 @@ private fun AlbumAddDialog(
     onDismiss: () -> Unit,
     onChange: (AlbumAddFormState) -> Unit,
     onSubmit: () -> Unit,
+    onBrowsePathRequested: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(Strings.ALBUMS_ADD_DIALOG_TITLE) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = form.path,
-                    onValueChange = { onChange(AlbumAddFormReducer.updatePath(form, it)) },
-                    label = { Text(Strings.ALBUMS_PATH_LABEL) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = form.path,
+                        onValueChange = { onChange(AlbumAddFormReducer.updatePath(form, it)) },
+                        label = { Text(Strings.ALBUMS_PATH_LABEL) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onBrowsePathRequested) { Text(Strings.ALBUMS_BROWSE) }
+                }
                 Text(
                     text = Strings.ALBUMS_PATH_HINT,
                     style = MaterialTheme.typography.bodySmall,

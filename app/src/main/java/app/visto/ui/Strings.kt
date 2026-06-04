@@ -53,6 +53,7 @@ object Strings {
     const val ALBUMS_PATH_HINT = "应用会递归读取该路径下的所有媒体"
     const val ALBUMS_SAVE = "保存"
     const val ALBUMS_CANCEL = "取消"
+    const val ALBUMS_BROWSE = "浏览…"
     const val ALBUMS_DELETE = "删除"
     const val ALBUMS_DELETE_CONFIRM_TITLE = "删除相册"
     const val ALBUMS_DELETE_CONFIRM_MESSAGE = "只会从相册列表移除，不会删除 WebDAV 上的文件。"
@@ -65,6 +66,12 @@ object Strings {
     const val ALBUM_DETAIL_REFRESH = "刷新"
     const val ALBUM_DETAIL_LOADING = "正在读取 WebDAV…"
     const val ALBUM_DETAIL_NO_MEDIA = "未找到媒体文件"
+
+    // Folder picker
+    const val FOLDER_PICKER_TITLE = "选择 WebDAV 路径"
+    const val FOLDER_PICKER_SELECT_CURRENT = "选择当前目录"
+    const val FOLDER_PICKER_EMPTY = "这个目录下没有子文件夹"
+    const val FOLDER_PICKER_UP = "上一级"
 
     fun albumDetailProgress(visited: Int, failed: Int): String {
         val base = "已扫描 $visited 个目录"

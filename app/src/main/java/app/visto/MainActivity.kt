@@ -38,6 +38,9 @@ import app.visto.ui.albums.AlbumDetailScreen
 import app.visto.ui.albums.AlbumDetailUiState
 import app.visto.ui.albums.AlbumListScreen
 import app.visto.ui.albums.AlbumListUiState
+import app.visto.ui.albums.FolderPickerNavigator
+import app.visto.ui.albums.FolderPickerScreen
+import app.visto.ui.albums.FolderPickerState
 import app.visto.ui.browser.BrowserNavigator
 import app.visto.ui.browser.BrowserScreen
 import app.visto.ui.browser.BrowserStateBuilder
@@ -227,6 +230,7 @@ private fun AlbumsHost(
     var albumDetail by remember { mutableStateOf<AlbumDetailUiState?>(null) }
     var viewerSession by remember { mutableStateOf<ViewerSession?>(null) }
     var showSettings by remember { mutableStateOf(false) }
+    var folderPicker by remember { mutableStateOf<FolderPickerState?>(null) }
     var pendingDelete by remember { mutableStateOf<AlbumSourceEntity?>(null) }
     var activeLoadJob by remember { mutableStateOf<Job?>(null) }
 
@@ -241,6 +245,30 @@ private fun AlbumsHost(
     }
 
     LaunchedEffect(summary.id) { refreshAlbumList() }
+
+    fun loadPickerPath(path: String) {
+        val normalized = FolderPickerNavigator.normalize(path)
+        folderPicker = FolderPickerState(currentPath = normalized, isLoading = true)
+        scope.launch {
+            try {
+                val folders = client.listDirectory(normalized)
+                    .filter { it.isDirectory }
+                    .sortedBy { it.name.lowercase() }
+                folderPicker = FolderPickerState(
+                    currentPath = normalized,
+                    folders = folders,
+                    isLoading = false,
+                )
+            } catch (e: Throwable) {
+                folderPicker = FolderPickerState(
+                    currentPath = normalized,
+                    folders = emptyList(),
+                    isLoading = false,
+                    errorMessage = AccountErrorMessages.forWebDavError(e),
+                )
+            }
+        }
+    }
 
     fun loadAlbum(target: AlbumSourceEntity) {
         activeLoadJob?.cancel()
@@ -276,6 +304,23 @@ private fun AlbumsHost(
             imageLoader = app.imageLoader,
             mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
             onClose = { viewerSession = null },
+        )
+        return
+    }
+
+    val picker = folderPicker
+    if (picker != null) {
+        FolderPickerScreen(
+            state = picker,
+            onBack = { folderPicker = null },
+            onGoUp = { loadPickerPath(FolderPickerNavigator.parentOf(picker.currentPath)) },
+            onOpenFolder = { folder -> loadPickerPath(folder.path) },
+            onSelectCurrent = {
+                listState = listState.copy(
+                    addDialog = AlbumAddFormReducer.updatePath(listState.addDialog, picker.currentPath),
+                )
+                folderPicker = null
+            },
         )
         return
     }
@@ -366,6 +411,10 @@ private fun AlbumsHost(
                     }
                 }
             }
+        },
+        onBrowsePathRequested = {
+            val start = listState.addDialog.path.trim().ifEmpty { summary.rootPath }
+            loadPickerPath(start)
         },
         onDeleteRequested = { album -> pendingDelete = album },
         onOpenSettings = { showSettings = true },
