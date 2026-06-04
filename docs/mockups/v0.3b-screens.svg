@@ -1,0 +1,326 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1820" viewBox="0 0 1240 1820" font-family="-apple-system, 'SF Pro Display', 'PingFang SC', 'Inter', system-ui, sans-serif">
+<defs>
+<linearGradient id="bgG" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#0E0F12"/>
+<stop offset="1" stop-color="#15171C"/>
+</linearGradient>
+<linearGradient id="thumbG" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#2A2D34"/>
+<stop offset="1" stop-color="#1F2127"/>
+</linearGradient>
+<linearGradient id="goldG" x1="0" y1="0" x2="1" y2="0">
+<stop offset="0" stop-color="#D6B981"/>
+<stop offset="1" stop-color="#C49B5A"/>
+</linearGradient>
+<!-- Material Icons (re-drawn as paths so they render in PNG without font deps) -->
+<symbol id="icArrowBack" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></symbol>
+<symbol id="icPhotoAlbum" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 3h2v6l-1-.75L11 11V5zm7 15H6V4h3v9l3-2.25L15 13V4h3v16z"/></symbol>
+<symbol id="icFolder" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></symbol>
+<symbol id="icFolderOpen" viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></symbol>
+<symbol id="icSettings" viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65A.488.488 0 0 0 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></symbol>
+<symbol id="icRefresh" viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></symbol>
+<symbol id="icAdd" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></symbol>
+<symbol id="icChevronRight" viewBox="0 0 24 24"><path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></symbol>
+<symbol id="icChevronUp" viewBox="0 0 24 24"><path d="m7.41 15.41 4.59-4.58 4.59 4.58L18 14l-6-6-6 6z"/></symbol>
+<symbol id="icCheck" viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></symbol>
+<symbol id="icPlay" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+<symbol id="icStorage" viewBox="0 0 24 24"><path d="M2 20h20v-4H2v4zm2-3h2v2H4v-2zM2 4v4h20V4H2zm4 3H4V5h2v2zm-4 7h20v-4H2v4zm2-3h2v2H4v-2z"/></symbol>
+<symbol id="icDelete" viewBox="0 0 24 24"><path d="M15 4V3H9v1H4v2h1v13c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V6h1V4h-5zm2 15H7V6h10v13zM9 8h2v9H9zm4 0h2v9h-2z"/></symbol>
+<style>
+.title { fill:#F5F1E8; font-size:22px; font-weight:600; letter-spacing:0.2px; }
+.h2 { fill:#F0EBDD; font-size:15px; font-weight:600; letter-spacing:0.4px; }
+.body { fill:#E7E2D3; font-size:14px; }
+.bodyB { fill:#F0EBDD; font-size:14px; font-weight:600; }
+.dim { fill:#8A8579; font-size:12px; }
+.label { fill:#9C9588; font-size:10.5px; letter-spacing:0.8px; }
+.gold { fill:#D6B981; }
+.tabActive { fill:#D6B981; font-size:11px; font-weight:600; }
+.tabInactive { fill:#6B6759; font-size:11px; font-weight:500; }
+.frameTitle { fill:#2C2A24; font-size:14px; font-weight:600; }
+.divider { stroke:#27292F; stroke-width:1; fill:none; }
+</style>
+</defs>
+<rect width="1240" height="1820" fill="#EFECE4"/>
+<text x="40" y="50" class="frameTitle">Visto v0.3b · 暗调 + 香槟金 · 底部 Tab · Material Icons（Apache 2.0）</text>
+<text x="40" y="74" fill="#5B5848" font-size="12">每项相册等高卡片，无大封面；52dp 图标位 + 单行省略；二级页面隐藏底栏</text>
+<!-- Frame 1: 相册首页（统一卡片，无大封面） -->
+<g transform="translate(40,110)">
+<text x="0" y="-12" class="frameTitle">① 相册（统一卡片列表）</text>
+<rect x="0" y="0" width="380" height="780" rx="42" fill="url(#bgG)" stroke="#2A2D34" stroke-width="2"/>
+<rect x="6" y="6" width="368" height="768" rx="38" fill="url(#bgG)"/>
+<text x="32" y="36" class="dim">9:41</text>
+<text x="348" y="36" class="dim" text-anchor="end">●●● 100%</text>
+<!-- top bar -->
+<text x="32" y="96" class="title">相册</text>
+<!-- 4 album cards, equal height/spacing -->
+<g transform="translate(20,128)">
+<!-- card 1 -->
+<rect x="0" y="0" width="340" height="84" rx="18" fill="#1B1D22"/>
+<rect x="14" y="16" width="52" height="52" rx="14" fill="#27292F"/>
+<use href="#icPhotoAlbum" x="26" y="28" width="28" height="28" fill="#D6B981"/>
+<text x="80" y="38" class="bodyB">家庭照片</text>
+<text x="80" y="58" class="dim">/Photos/Family</text>
+<use href="#icChevronRight" x="304" y="32" width="20" height="20" fill="#7C766A"/>
+<!-- card 2 -->
+<rect x="0" y="96" width="340" height="84" rx="18" fill="#1B1D22"/>
+<rect x="14" y="112" width="52" height="52" rx="14" fill="#27292F"/>
+<use href="#icPhotoAlbum" x="26" y="124" width="28" height="28" fill="#D6B981"/>
+<text x="80" y="134" class="bodyB">旅行 2024</text>
+<text x="80" y="154" class="dim">/Photos/Travel/2024</text>
+<use href="#icChevronRight" x="304" y="128" width="20" height="20" fill="#7C766A"/>
+<!-- card 3 -->
+<rect x="0" y="192" width="340" height="84" rx="18" fill="#1B1D22"/>
+<rect x="14" y="208" width="52" height="52" rx="14" fill="#27292F"/>
+<use href="#icPhotoAlbum" x="26" y="220" width="28" height="28" fill="#D6B981"/>
+<text x="80" y="230" class="bodyB">表情包</text>
+<text x="80" y="250" class="dim">/Backup/Memes</text>
+<use href="#icChevronRight" x="304" y="224" width="20" height="20" fill="#7C766A"/>
+<!-- card 4 -->
+<rect x="0" y="288" width="340" height="84" rx="18" fill="#1B1D22"/>
+<rect x="14" y="304" width="52" height="52" rx="14" fill="#27292F"/>
+<use href="#icPhotoAlbum" x="26" y="316" width="28" height="28" fill="#D6B981"/>
+<text x="80" y="326" class="bodyB">截图</text>
+<text x="80" y="346" class="dim">/Phone/Screenshots</text>
+<use href="#icChevronRight" x="304" y="320" width="20" height="20" fill="#7C766A"/>
+</g>
+<!-- FAB -->
+<circle cx="316" cy="638" r="28" fill="url(#goldG)"/>
+<use href="#icAdd" x="300" y="622" width="32" height="32" fill="#15171C"/>
+<!-- bottom tab -->
+<rect x="6" y="688" width="368" height="86" fill="#0B0C0F"/>
+<line x1="6" y1="688" x2="374" y2="688" stroke="#1F2127"/>
+<rect x="60" y="700" width="64" height="32" rx="16" fill="#D6B981" opacity="0.22"/>
+<use href="#icPhotoAlbum" x="80" y="704" width="24" height="24" fill="#D6B981"/>
+<text x="92" y="754" text-anchor="middle" class="tabActive">相册</text>
+<use href="#icFolder" x="178" y="704" width="24" height="24" fill="#6B6759"/>
+<text x="190" y="754" text-anchor="middle" class="tabInactive">浏览</text>
+<use href="#icSettings" x="276" y="704" width="24" height="24" fill="#6B6759"/>
+<text x="288" y="754" text-anchor="middle" class="tabInactive">设置</text>
+</g>
+<!-- Frame 2: 相册详情 -->
+<g transform="translate(460,110)">
+<text x="0" y="-12" class="frameTitle">② 相册详情 · 沉浸式（隐藏底栏）</text>
+<rect x="0" y="0" width="380" height="780" rx="42" fill="url(#bgG)" stroke="#2A2D34" stroke-width="2"/>
+<rect x="6" y="6" width="368" height="768" rx="38" fill="url(#bgG)"/>
+<text x="32" y="36" class="dim">9:41</text>
+<text x="348" y="36" class="dim" text-anchor="end">●●● 100%</text>
+<!-- top bar with icon buttons -->
+<use href="#icArrowBack" x="22" y="74" width="24" height="24" fill="#E7E2D3"/>
+<text x="60" y="93" class="title" font-size="18">家庭照片</text>
+<use href="#icRefresh" x="324" y="74" width="24" height="24" fill="#8A8579"/>
+<!-- progress -->
+<text x="32" y="124" class="label">已扫描 12 个目录 · 248 张</text>
+<!-- section 1 -->
+<text x="32" y="156" class="h2">根目录</text>
+<text x="32" y="174" class="dim">4 张</text>
+<g transform="translate(20,184)">
+<rect x="0"   y="0" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="112" y="0" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="224" y="0" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<text x="100" y="100" font-size="10" fill="#D6B981" text-anchor="end">GIF</text>
+</g>
+<!-- section 2 -->
+<text x="32" y="318" class="h2">2024 / Trip</text>
+<text x="32" y="336" class="dim">6 张</text>
+<g transform="translate(20,346)">
+<rect x="0"   y="0"   width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="112" y="0"   width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="224" y="0"   width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="0"   y="112" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="112" y="112" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="224" y="112" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<!-- video play overlay (centered, circular, translucent) -->
+<circle cx="166" cy="54" r="18" fill="#0E0F12" fill-opacity="0.68"/>
+<use href="#icPlay" x="156" y="44" width="20" height="20" fill="#F5F1E8"/>
+</g>
+<!-- section 3 -->
+<text x="32" y="602" class="h2">2024 / Trip / Beach</text>
+<text x="32" y="620" class="dim">10 张</text>
+<g transform="translate(20,630)">
+<rect x="0"   y="0" width="108" height="64" rx="10" fill="url(#thumbG)"/>
+<rect x="112" y="0" width="108" height="64" rx="10" fill="url(#thumbG)"/>
+<rect x="224" y="0" width="108" height="64" rx="10" fill="url(#thumbG)"/>
+</g>
+</g>
+<!-- Frame 3: 浏览 Tab -->
+<g transform="translate(880,110)">
+<text x="0" y="-12" class="frameTitle">③ 浏览（旧版目录浏览）</text>
+<rect x="0" y="0" width="380" height="780" rx="42" fill="url(#bgG)" stroke="#2A2D34" stroke-width="2"/>
+<rect x="6" y="6" width="368" height="768" rx="38" fill="url(#bgG)"/>
+<text x="32" y="36" class="dim">9:41</text>
+<text x="348" y="36" class="dim" text-anchor="end">●●● 100%</text>
+<!-- breadcrumb + actions -->
+<text x="32" y="82" class="label">家里 NAS</text>
+<text x="32" y="108" class="title" font-size="20">/Photos/2024</text>
+<use href="#icRefresh" x="324" y="88" width="24" height="24" fill="#8A8579"/>
+<!-- folders section -->
+<text x="32" y="150" class="h2">文件夹</text>
+<g transform="translate(20,166)">
+<!-- folder row 1 -->
+<rect x="0" y="0" width="340" height="60" rx="14" fill="#1B1D22"/>
+<rect x="14" y="14" width="32" height="32" rx="8" fill="#27292F"/>
+<use href="#icFolder" x="22" y="22" width="16" height="16" fill="#D6B981"/>
+<text x="58" y="38" class="bodyB" font-weight="600">Trip</text>
+<use href="#icChevronRight" x="308" y="22" width="16" height="16" fill="#7C766A"/>
+<!-- folder row 2 -->
+<rect x="0" y="68" width="340" height="60" rx="14" fill="#1B1D22"/>
+<rect x="14" y="82" width="32" height="32" rx="8" fill="#27292F"/>
+<use href="#icFolder" x="22" y="90" width="16" height="16" fill="#D6B981"/>
+<text x="58" y="106" class="bodyB">Beach</text>
+<use href="#icChevronRight" x="308" y="90" width="16" height="16" fill="#7C766A"/>
+<!-- folder row 3 -->
+<rect x="0" y="136" width="340" height="60" rx="14" fill="#1B1D22"/>
+<rect x="14" y="150" width="32" height="32" rx="8" fill="#27292F"/>
+<use href="#icFolder" x="22" y="158" width="16" height="16" fill="#D6B981"/>
+<text x="58" y="174" class="bodyB">Sakura</text>
+<use href="#icChevronRight" x="308" y="158" width="16" height="16" fill="#7C766A"/>
+</g>
+<!-- media grid -->
+<text x="32" y="280" class="h2">媒体</text>
+<g transform="translate(20,296)">
+<rect x="0" y="0" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="112" y="0" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="224" y="0" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<circle cx="166" cy="54" r="16" fill="#0E0F12" fill-opacity="0.68"/>
+<use href="#icPlay" x="156" y="44" width="20" height="20" fill="#F5F1E8"/>
+<rect x="0" y="112" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="112" y="112" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="224" y="112" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+</g>
+<!-- bottom tab (same as frame 1 but "浏览" highlighted) -->
+<rect x="6" y="688" width="368" height="86" fill="#0B0C0F"/>
+<line x1="6" y1="688" x2="374" y2="688" stroke="#1F2127"/>
+<use href="#icPhotoAlbum" x="80" y="704" width="24" height="24" fill="#6B6759"/>
+<text x="92" y="754" text-anchor="middle" class="tabInactive">相册</text>
+<rect x="168" y="700" width="52" height="32" rx="16" fill="#D6B981" opacity="0.22"/>
+<use href="#icFolder" x="178" y="704" width="24" height="24" fill="#D6B981"/>
+<text x="190" y="754" text-anchor="middle" class="tabActive">浏览</text>
+<use href="#icSettings" x="276" y="704" width="24" height="24" fill="#6B6759"/>
+<text x="288" y="754" text-anchor="middle" class="tabInactive">设置</text>
+</g>
+<!-- Frame 4: 设置 Tab -->
+<g transform="translate(40,940)">
+<text x="0" y="-12" class="frameTitle">④ 设置（分组卡片 Style）</text>
+<rect x="0" y="0" width="380" height="780" rx="42" fill="url(#bgG)" stroke="#2A2D34" stroke-width="2"/>
+<rect x="6" y="6" width="368" height="768" rx="38" fill="url(#bgG)"/>
+<text x="32" y="36" class="dim">9:41</text>
+<text x="348" y="36" class="dim" text-anchor="end">●●● 100%</text>
+<text x="32" y="96" class="title">设置</text>
+<!-- account card -->
+<text x="32" y="130" class="label">账号</text>
+<g transform="translate(20,142)">
+<rect x="0" y="0" width="340" height="84" rx="18" fill="#1B1D22"/>
+<use href="#icStorage" x="24" y="22" width="24" height="24" fill="#D6B981"/>
+<text x="58" y="38" class="bodyB">家里 NAS</text>
+<text x="58" y="58" class="dim">dav.example.com/photos · /</text>
+<use href="#icChevronRight" x="304" y="24" width="20" height="20" fill="#7C766A"/>
+</g>
+<!-- cache card -->
+<text x="32" y="248" class="label">本地</text>
+<g transform="translate(20,260)">
+<rect x="0" y="0" width="340" height="160" rx="18" fill="#1B1D22"/>
+<text x="20" y="32" class="body">本地缩略图占用</text>
+<text x="304" y="32" class="dim" text-anchor="end">12.4 MB</text>
+<line x1="20" y1="52" x2="320" y2="52" class="divider"/>
+<rect x="20" y="72" width="300" height="48" rx="14" fill="#27292F"/>
+<use href="#icDelete" x="46" y="82" width="16" height="16" fill="#D6B981"/>
+<text x="170" y="101" font-size="13" fill="#D6B981" text-anchor="middle">清除本地缩略图</text>
+</g>
+<!-- about card -->
+<text x="32" y="454" class="label">关于</text>
+<g transform="translate(20,466)">
+<rect x="0" y="0" width="340" height="60" rx="14" fill="#1B1D22"/>
+<text x="20" y="38" class="body">Visto · 调试构建</text>
+<use href="#icChevronRight" x="304" y="22" width="16" height="16" fill="#7C766A"/>
+</g>
+<!-- bottom tab (settings highlighted) -->
+<rect x="6" y="688" width="368" height="86" fill="#0B0C0F"/>
+<line x1="6" y1="688" x2="374" y2="688" stroke="#1F2127"/>
+<use href="#icPhotoAlbum" x="80" y="704" width="24" height="24" fill="#6B6759"/>
+<text x="92" y="754" text-anchor="middle" class="tabInactive">相册</text>
+<use href="#icFolder" x="178" y="704" width="24" height="24" fill="#6B6759"/>
+<text x="190" y="754" text-anchor="middle" class="tabInactive">浏览</text>
+<rect x="282" y="700" width="52" height="32" rx="16" fill="#D6B981" opacity="0.22"/>
+<use href="#icSettings" x="290" y="704" width="24" height="24" fill="#D6B981"/>
+<text x="304" y="754" text-anchor="middle" class="tabActive">设置</text>
+</g>
+
+<!-- Frame 5: 添加相册 底部弹层 -->
+<g transform="translate(460,940)">
+<text x="0" y="-12" class="frameTitle">⑤ 添加相册（Modal Bottom Sheet）</text>
+<rect x="0" y="0" width="380" height="780" rx="42" fill="url(#bgG)" stroke="#2A2D34" stroke-width="2"/>
+<rect x="6" y="6" width="368" height="768" rx="38" fill="url(#bgG)"/>
+<rect x="6" y="6" width="368" height="768" rx="38" fill="#000" opacity="0.55"/>
+<!-- sheet -->
+<rect x="6" y="340" width="368" height="434" rx="32" fill="#1B1D22"/>
+<rect x="168" y="352" width="32" height="4" rx="2" fill="#3B3D43"/>
+<text x="32" y="400" class="title" font-size="20">新建相册</text>
+<text x="32" y="424" class="dim">从你的 WebDAV 选择一个目录</text>
+<text x="32" y="464" class="label">WEBDAV 路径</text>
+<rect x="32" y="474" width="234" height="52" rx="14" fill="#15171C" stroke="#27292F"/>
+<text x="48" y="505" class="body">/Photos/Family</text>
+<rect x="274" y="474" width="74" height="52" rx="14" fill="#27292F"/>
+<use href="#icFolderOpen" x="286" y="490" width="16" height="16" fill="#D6B981"/>
+<text x="311" y="505" font-size="13" fill="#D6B981" text-anchor="middle">浏览</text>
+<text x="32" y="560" class="label">相册名称</text>
+<rect x="32" y="568" width="316" height="52" rx="14" fill="#15171C" stroke="#27292F"/>
+<text x="48" y="599" class="body">家庭照片</text>
+<!-- buttons -->
+<rect x="32" y="650" width="148" height="56" rx="28" fill="#27292F"/>
+<text x="106" y="683" font-size="14" fill="#C9C4B6" text-anchor="middle">取消</text>
+<rect x="200" y="650" width="148" height="56" rx="28" fill="url(#goldG)"/>
+<text x="274" y="683" font-size="14" fill="#1A1B1F" text-anchor="middle" font-weight="600">保存</text>
+</g>
+
+<!-- Frame 6: 路径选择器 -->
+<g transform="translate(880,940)">
+<text x="0" y="-12" class="frameTitle">⑥ 路径选择器（金色 CTA 常驻底部）</text>
+<rect x="0" y="0" width="380" height="780" rx="42" fill="url(#bgG)" stroke="#2A2D34" stroke-width="2"/>
+<rect x="6" y="6" width="368" height="768" rx="38" fill="url(#bgG)"/>
+<text x="32" y="36" class="dim">9:41</text>
+<text x="348" y="36" class="dim" text-anchor="end">●●● 100%</text>
+<use href="#icArrowBack" x="24" y="76" width="24" height="24" fill="#E7E2D3"/>
+<text x="170" y="97" class="title" font-size="18" text-anchor="middle">选择路径</text>
+<use href="#icRefresh" x="324" y="76" width="24" height="24" fill="#8A8579"/>
+<!-- breadcrumb -->
+<rect x="20" y="124" width="340" height="48" rx="14" fill="#15171C" stroke="#27292F"/>
+<text x="36" y="142" class="dim">当前位置</text>
+<text x="36" y="160" class="bodyB">/Photos/Family/2024</text>
+<!-- go up -->
+<g transform="translate(20,186)">
+<rect x="0" y="0" width="340" height="52" rx="14" fill="#1B1D22"/>
+<use href="#icChevronUp" x="14" y="16" width="20" height="20" fill="#D6B981"/>
+<text x="42" y="32" class="body">上一级</text>
+</g>
+<!-- folders -->
+<g transform="translate(20,252)">
+<rect x="0" y="0" width="340" height="60" rx="14" fill="#1B1D22"/>
+<rect x="14" y="14" width="32" height="32" rx="8" fill="#27292F"/>
+<use href="#icFolder" x="22" y="22" width="16" height="16" fill="#D6B981"/>
+<text x="58" y="38" class="bodyB">Beach</text>
+<use href="#icChevronRight" x="308" y="22" width="16" height="16" fill="#7C766A"/>
+<rect x="0" y="68" width="340" height="60" rx="14" fill="#1B1D22"/>
+<rect x="14" y="82" width="32" height="32" rx="8" fill="#27292F"/>
+<use href="#icFolder" x="22" y="90" width="16" height="16" fill="#D6B981"/>
+<text x="58" y="106" class="bodyB">Mountain</text>
+<use href="#icChevronRight" x="308" y="90" width="16" height="16" fill="#7C766A"/>
+<rect x="0" y="136" width="340" height="60" rx="14" fill="#1B1D22"/>
+<rect x="14" y="150" width="32" height="32" rx="8" fill="#27292F"/>
+<use href="#icFolder" x="22" y="158" width="16" height="16" fill="#D6B981"/>
+<text x="58" y="174" class="bodyB">Roadtrip</text>
+<use href="#icChevronRight" x="308" y="158" width="16" height="16" fill="#7C766A"/>
+<rect x="0" y="204" width="340" height="60" rx="14" fill="#1B1D22"/>
+<rect x="14" y="218" width="32" height="32" rx="8" fill="#27292F"/>
+<use href="#icFolder" x="22" y="226" width="16" height="16" fill="#D6B981"/>
+<text x="58" y="242" class="bodyB">Sakura</text>
+<use href="#icChevronRight" x="308" y="226" width="16" height="16" fill="#7C766A"/>
+</g>
+<!-- sticky bottom CTA -->
+<rect x="6" y="640" width="368" height="134" fill="#0E0F12"/>
+<line x1="6" y1="640" x2="374" y2="640" stroke="#1F2127"/>
+<rect x="32" y="662" width="316" height="60" rx="30" fill="url(#goldG)"/>
+<use href="#icCheck" x="90" y="678" width="28" height="28" fill="#1A1B1F"/>
+<text x="190" y="700" font-size="14" fill="#1A1B1F" text-anchor="middle" font-weight="700">选择当前目录</text>
+</g>
+
+</svg>

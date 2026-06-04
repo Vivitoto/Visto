@@ -1,0 +1,339 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1820" viewBox="0 0 1240 1820" font-family="-apple-system, 'SF Pro Display', 'PingFang SC', 'Inter', system-ui, sans-serif">
+<defs>
+<linearGradient id="bgG" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#0E0F12"/>
+<stop offset="1" stop-color="#15171C"/>
+</linearGradient>
+<linearGradient id="cardG" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#1B1D22"/>
+<stop offset="1" stop-color="#16181D"/>
+</linearGradient>
+<linearGradient id="thumbG" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#2A2D34"/>
+<stop offset="1" stop-color="#1F2127"/>
+</linearGradient>
+<linearGradient id="goldG" x1="0" y1="0" x2="1" y2="0">
+<stop offset="0" stop-color="#D6B981"/>
+<stop offset="1" stop-color="#C49B5A"/>
+</linearGradient>
+<style>
+.title { fill:#F5F1E8; font-size:22px; font-weight:600; letter-spacing:0.2px; }
+.h2 { fill:#F0EBDD; font-size:15px; font-weight:600; letter-spacing:0.4px; }
+.body { fill:#E7E2D3; font-size:14px; font-weight:400; }
+.dim { fill:#8A8579; font-size:12px; }
+.label { fill:#9C9588; font-size:11px; letter-spacing:0.6px; }
+.gold { fill:#D6B981; }
+.faint { fill:#5E5A4F; }
+.frameTitle { fill:#2C2A24; font-size:14px; font-weight:600; }
+.divider { stroke:#27292F; stroke-width:1; fill:none; }
+.tabActive { fill:#F5F1E8; font-size:11px; font-weight:600; }
+.tabInactive { fill:#6B6759; font-size:11px; font-weight:500; }
+.icon { fill:#D6CDB6; font-size:18px; }
+.iconDim { fill:#6B6759; font-size:18px; }
+</style>
+</defs>
+<rect width="1240" height="1820" fill="#EFECE4"/>
+<text x="40" y="50" class="frameTitle">Visto v0.3 概念稿 · 深色质感 · 底部 Tab 导航 · 金色点缀</text>
+<text x="40" y="74" fill="#5B5848" font-size="12">主色调：墨色 #0E0F12 · 卡面 #1B1D22 · 文字 #F5F1E8 · 点缀金 #D6B981 · 圆角 16px · 媒体格 1px 缝</text>
+<!-- Frame 1: 相册 Tab -->
+<g transform="translate(40,110)">
+<text x="0" y="-12" class="frameTitle">① 相册（Albums Tab）</text>
+<rect x="0" y="0" width="380" height="780" rx="42" fill="url(#bgG)" stroke="#2A2D34" stroke-width="2"/>
+<rect x="6" y="6" width="368" height="768" rx="38" fill="url(#bgG)"/>
+<!-- status bar -->
+<text x="32" y="36" class="dim">9:41</text>
+<text x="348" y="36" class="dim" text-anchor="end">●●● 100%</text>
+<!-- top bar -->
+<text x="32" y="92" class="title">相册</text>
+<text x="320" y="88" class="icon">⊕</text>
+<text x="350" y="88" class="iconDim">⋯</text>
+<!-- big featured card -->
+<rect x="24" y="116" width="332" height="180" rx="20" fill="url(#thumbG)"/>
+<rect x="24" y="116" width="332" height="180" rx="20" fill="#000" opacity="0.18"/>
+<text x="40" y="262" class="title" font-size="20">家庭照片</text>
+<text x="40" y="284" class="dim">/Photos/Family · 248 张</text>
+<circle cx="332" cy="276" r="14" fill="#D6B981" opacity="0.9"/>
+<text x="332" y="281" font-size="12" fill="#15171C" text-anchor="middle">›</text>
+<!-- album row 1 -->
+<g transform="translate(24,320)">
+<rect x="0" y="0" width="76" height="76" rx="14" fill="url(#thumbG)"/>
+<text x="92" y="28" class="h2">旅行 2024</text>
+<text x="92" y="52" class="dim">/Photos/Travel/2024</text>
+<text x="92" y="70" class="label">142 张 · 6 个文件夹</text>
+<text x="320" y="44" class="iconDim">›</text>
+<line x1="0" y1="92" x2="332" y2="92" class="divider"/>
+</g>
+<!-- album row 2 -->
+<g transform="translate(24,432)">
+<rect x="0" y="0" width="76" height="76" rx="14" fill="url(#thumbG)"/>
+<text x="92" y="28" class="h2">表情包</text>
+<text x="92" y="52" class="dim">/Backup/Memes</text>
+<text x="92" y="70" class="label">86 张 · 2 个文件夹</text>
+<text x="320" y="44" class="iconDim">›</text>
+<line x1="0" y1="92" x2="332" y2="92" class="divider"/>
+</g>
+<!-- album row 3 -->
+<g transform="translate(24,544)">
+<rect x="0" y="0" width="76" height="76" rx="14" fill="url(#thumbG)"/>
+<text x="92" y="28" class="h2">截图</text>
+<text x="92" y="52" class="dim">/Phone/Screenshots</text>
+<text x="92" y="70" class="label">312 张</text>
+<text x="320" y="44" class="iconDim">›</text>
+</g>
+<!-- bottom tab -->
+<rect x="6" y="688" width="368" height="86" rx="0" fill="#0B0C0F"/>
+<line x1="6" y1="688" x2="374" y2="688" stroke="#1F2127" stroke-width="1"/>
+<g transform="translate(40,716)"><text class="icon" font-size="20">▣</text><text x="0" y="32" class="tabActive">相册</text><rect x="-4" y="-22" width="36" height="3" rx="2" fill="#D6B981"/></g>
+<g transform="translate(170,716)"><text class="iconDim" font-size="20">▤</text><text x="0" y="32" class="tabInactive">浏览</text></g>
+<g transform="translate(300,716)"><text class="iconDim" font-size="20">◐</text><text x="0" y="32" class="tabInactive">设置</text></g>
+</g>
+<!-- Frame 2: 相册详情 -->
+<g transform="translate(460,110)">
+<text x="0" y="-12" class="frameTitle">② 相册详情 · 沉浸式</text>
+<rect x="0" y="0" width="380" height="780" rx="42" fill="url(#bgG)" stroke="#2A2D34" stroke-width="2"/>
+<rect x="6" y="6" width="368" height="768" rx="38" fill="url(#bgG)"/>
+<text x="32" y="36" class="dim">9:41</text>
+<text x="348" y="36" class="dim" text-anchor="end">●●● 100%</text>
+<!-- top bar -->
+<text x="32" y="92" class="icon">←</text>
+<text x="60" y="92" class="title" font-size="18">家庭照片</text>
+<text x="320" y="88" class="iconDim">⟳</text>
+<text x="350" y="88" class="iconDim">⋯</text>
+<!-- progress -->
+<text x="32" y="118" class="label">已扫描 12 个目录 · 248 张</text>
+<!-- section header -->
+<g transform="translate(0,140)">
+<text x="32" y="0" class="h2">根目录</text>
+<text x="32" y="18" class="dim">4 张</text>
+<g transform="translate(24,32)">
+<rect x="0"   y="0" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="112" y="0" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="224" y="0" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="92" y="86" width="14" height="14" rx="3" fill="#D6B981" opacity="0.85"/>
+<text x="99" y="97" font-size="8" fill="#15171C" text-anchor="middle">GIF</text>
+</g>
+</g>
+<!-- section 2 -->
+<g transform="translate(0,300)">
+<text x="32" y="0" class="h2">2024 / Trip</text>
+<text x="32" y="18" class="dim">6 张</text>
+<g transform="translate(24,32)">
+<rect x="0"   y="0"   width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="112" y="0"   width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="224" y="0"   width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="0"   y="112" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="112" y="112" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="224" y="112" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<circle cx="166" cy="54" r="14" fill="#15171C" opacity="0.65"/>
+<text x="166" y="60" font-size="14" fill="#F5F1E8" text-anchor="middle">▶</text>
+</g>
+</g>
+<!-- section 3 partial -->
+<g transform="translate(0,556)">
+<text x="32" y="0" class="h2">2024 / Trip / Beach</text>
+<text x="32" y="18" class="dim">10 张</text>
+<g transform="translate(24,32)">
+<rect x="0"   y="0" width="108" height="64" rx="10" fill="url(#thumbG)"/>
+<rect x="112" y="0" width="108" height="64" rx="10" fill="url(#thumbG)"/>
+<rect x="224" y="0" width="108" height="64" rx="10" fill="url(#thumbG)"/>
+</g>
+</g>
+<!-- bottom tab dimmed (detail page is full immersive) -->
+<rect x="6" y="688" width="368" height="86" rx="0" fill="#0B0C0F"/>
+<line x1="6" y1="688" x2="374" y2="688" stroke="#1F2127" stroke-width="1"/>
+<g transform="translate(40,716)"><text class="icon" font-size="20">▣</text><text x="0" y="32" class="tabActive">相册</text><rect x="-4" y="-22" width="36" height="3" rx="2" fill="#D6B981"/></g>
+<g transform="translate(170,716)"><text class="iconDim" font-size="20">▤</text><text x="0" y="32" class="tabInactive">浏览</text></g>
+<g transform="translate(300,716)"><text class="iconDim" font-size="20">◐</text><text x="0" y="32" class="tabInactive">设置</text></g>
+</g>
+<!-- Frame 3: 浏览 Tab -->
+<g transform="translate(880,110)">
+<text x="0" y="-12" class="frameTitle">③ 浏览（Browse Tab · 旧版目录浏览升级）</text>
+<rect x="0" y="0" width="380" height="780" rx="42" fill="url(#bgG)" stroke="#2A2D34" stroke-width="2"/>
+<rect x="6" y="6" width="368" height="768" rx="38" fill="url(#bgG)"/>
+<text x="32" y="36" class="dim">9:41</text>
+<text x="348" y="36" class="dim" text-anchor="end">●●● 100%</text>
+<!-- breadcrumb -->
+<text x="32" y="80" class="label">家里 NAS</text>
+<text x="32" y="106" class="title" font-size="20">/Photos/2024</text>
+<text x="320" y="100" class="iconDim">⟳</text>
+<text x="350" y="100" class="iconDim">⇄</text>
+<!-- segmented section -->
+<g transform="translate(0,138)">
+<text x="32" y="0" class="h2">文件夹</text>
+<g transform="translate(24,16)">
+<rect x="0" y="0" width="334" height="56" rx="14" fill="url(#cardG)"/>
+<rect x="14" y="14" width="28" height="28" rx="8" fill="#2A2D34"/>
+<text x="28" y="34" font-size="16" fill="#D6B981" text-anchor="middle">▤</text>
+<text x="54" y="34" class="body" font-weight="600">Trip</text>
+<text x="320" y="34" class="iconDim" text-anchor="end">›</text>
+<rect x="0" y="64" width="334" height="56" rx="14" fill="url(#cardG)"/>
+<rect x="14" y="78" width="28" height="28" rx="8" fill="#2A2D34"/>
+<text x="28" y="98" font-size="16" fill="#D6B981" text-anchor="middle">▤</text>
+<text x="54" y="98" class="body" font-weight="600">Beach</text>
+<text x="320" y="98" class="iconDim" text-anchor="end">›</text>
+<rect x="0" y="128" width="334" height="56" rx="14" fill="url(#cardG)"/>
+<rect x="14" y="142" width="28" height="28" rx="8" fill="#2A2D34"/>
+<text x="28" y="162" font-size="16" fill="#D6B981" text-anchor="middle">▤</text>
+<text x="54" y="162" class="body" font-weight="600">Sakura</text>
+<text x="320" y="162" class="iconDim" text-anchor="end">›</text>
+</g>
+</g>
+<!-- media -->
+<g transform="translate(0,366)">
+<text x="32" y="0" class="h2">媒体</text>
+<g transform="translate(24,16)">
+<rect x="0"   y="0"   width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="112" y="0"   width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="224" y="0"   width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="0"   y="112" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="112" y="112" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+<rect x="224" y="112" width="108" height="108" rx="10" fill="url(#thumbG)"/>
+</g>
+</g>
+<rect x="6" y="688" width="368" height="86" rx="0" fill="#0B0C0F"/>
+<line x1="6" y1="688" x2="374" y2="688" stroke="#1F2127" stroke-width="1"/>
+<g transform="translate(40,716)"><text class="iconDim" font-size="20">▣</text><text x="0" y="32" class="tabInactive">相册</text></g>
+<g transform="translate(170,716)"><text class="icon" font-size="20">▤</text><text x="0" y="32" class="tabActive">浏览</text><rect x="-4" y="-22" width="36" height="3" rx="2" fill="#D6B981"/></g>
+<g transform="translate(300,716)"><text class="iconDim" font-size="20">◐</text><text x="0" y="32" class="tabInactive">设置</text></g>
+</g>
+<!-- Frame 4: 添加相册 (沉浸式底部弹层) -->
+<g transform="translate(40,940)">
+<text x="0" y="-12" class="frameTitle">④ 添加相册 · 底部弹层（不再用 AlertDialog）</text>
+<rect x="0" y="0" width="380" height="780" rx="42" fill="url(#bgG)" stroke="#2A2D34" stroke-width="2"/>
+<rect x="6" y="6" width="368" height="768" rx="38" fill="url(#bgG)"/>
+<!-- background dim of album list peeking -->
+<rect x="6" y="6" width="368" height="768" rx="38" fill="#000" opacity="0.55"/>
+<!-- sheet -->
+<rect x="6" y="320" width="368" height="454" rx="32" fill="#1B1D22"/>
+<rect x="174" y="332" width="32" height="4" rx="2" fill="#3B3D43"/>
+<text x="32" y="380" class="title" font-size="20">新建相册</text>
+<text x="32" y="402" class="dim">从你的 WebDAV 选择一个目录</text>
+
+<!-- path field -->
+<text x="32" y="442" class="label">WEBDAV 路径</text>
+<rect x="32" y="450" width="234" height="52" rx="14" fill="#15171C" stroke="#27292F"/>
+<text x="48" y="482" class="body">/Photos/Family</text>
+<rect x="274" y="450" width="74" height="52" rx="14" fill="#27292F"/>
+<text x="311" y="482" font-size="13" fill="#D6B981" text-anchor="middle">浏览</text>
+
+<!-- name field -->
+<text x="32" y="540" class="label">相册名称</text>
+<rect x="32" y="548" width="316" height="52" rx="14" fill="#15171C" stroke="#27292F"/>
+<text x="48" y="580" class="body">家庭照片</text>
+
+<!-- buttons -->
+<rect x="32" y="636" width="148" height="56" rx="28" fill="#27292F"/>
+<text x="106" y="671" font-size="14" fill="#C9C4B6" text-anchor="middle">取消</text>
+<rect x="200" y="636" width="148" height="56" rx="28" fill="url(#goldG)"/>
+<text x="274" y="671" font-size="14" fill="#1A1B1F" text-anchor="middle" font-weight="600">保存</text>
+</g>
+<!-- Frame 5: 目录选择器 -->
+<g transform="translate(460,940)">
+<text x="0" y="-12" class="frameTitle">⑤ WebDAV 目录选择器</text>
+<rect x="0" y="0" width="380" height="780" rx="42" fill="url(#bgG)" stroke="#2A2D34" stroke-width="2"/>
+<rect x="6" y="6" width="368" height="768" rx="38" fill="url(#bgG)"/>
+<text x="32" y="36" class="dim">9:41</text>
+<text x="348" y="36" class="dim" text-anchor="end">●●● 100%</text>
+<text x="32" y="92" class="icon">✕</text>
+<text x="190" y="92" class="title" font-size="18" text-anchor="middle">选择路径</text>
+<text x="350" y="92" class="iconDim">⟳</text>
+<!-- breadcrumb path -->
+<rect x="24" y="118" width="332" height="56" rx="16" fill="#15171C" stroke="#27292F"/>
+<text x="40" y="140" class="label">当前位置</text>
+<text x="40" y="160" class="body" font-weight="600">/Photos/Family/2024</text>
+<!-- go up -->
+<g transform="translate(24,198)">
+<rect x="0" y="0" width="332" height="52" rx="14" fill="#1B1D22"/>
+<text x="20" y="34" font-size="16" fill="#D6B981">↑</text>
+<text x="44" y="34" class="body">上一级</text>
+</g>
+<!-- folder list -->
+<g transform="translate(24,272)">
+<rect x="0" y="0" width="332" height="60" rx="14" fill="#1B1D22"/>
+<rect x="16" y="14" width="32" height="32" rx="9" fill="#27292F"/>
+<text x="32" y="36" font-size="14" fill="#D6B981" text-anchor="middle">▤</text>
+<text x="60" y="38" class="body">Beach</text>
+<text x="316" y="38" class="iconDim" text-anchor="end">›</text>
+
+<rect x="0" y="68" width="332" height="60" rx="14" fill="#1B1D22"/>
+<rect x="16" y="82" width="32" height="32" rx="9" fill="#27292F"/>
+<text x="32" y="104" font-size="14" fill="#D6B981" text-anchor="middle">▤</text>
+<text x="60" y="106" class="body">Mountain</text>
+<text x="316" y="106" class="iconDim" text-anchor="end">›</text>
+
+<rect x="0" y="136" width="332" height="60" rx="14" fill="#1B1D22"/>
+<rect x="16" y="150" width="32" height="32" rx="9" fill="#27292F"/>
+<text x="32" y="172" font-size="14" fill="#D6B981" text-anchor="middle">▤</text>
+<text x="60" y="174" class="body">Roadtrip</text>
+<text x="316" y="174" class="iconDim" text-anchor="end">›</text>
+
+<rect x="0" y="204" width="332" height="60" rx="14" fill="#1B1D22"/>
+<rect x="16" y="218" width="32" height="32" rx="9" fill="#27292F"/>
+<text x="32" y="240" font-size="14" fill="#D6B981" text-anchor="middle">▤</text>
+<text x="60" y="242" class="body">Sakura</text>
+<text x="316" y="242" class="iconDim" text-anchor="end">›</text>
+</g>
+<!-- sticky bottom CTA -->
+<rect x="6" y="640" width="368" height="134" rx="38" fill="#0E0F12"/>
+<line x1="6" y1="640" x2="374" y2="640" stroke="#1F2127"/>
+<rect x="32" y="666" width="316" height="60" rx="30" fill="url(#goldG)"/>
+<text x="190" y="704" font-size="14" fill="#1A1B1F" text-anchor="middle" font-weight="700">选择当前目录</text>
+</g>
+<!-- Frame 6: 设置 -->
+<g transform="translate(880,940)">
+<text x="0" y="-12" class="frameTitle">⑥ 设置（Settings Tab）</text>
+<rect x="0" y="0" width="380" height="780" rx="42" fill="url(#bgG)" stroke="#2A2D34" stroke-width="2"/>
+<rect x="6" y="6" width="368" height="768" rx="38" fill="url(#bgG)"/>
+<text x="32" y="36" class="dim">9:41</text>
+<text x="348" y="36" class="dim" text-anchor="end">●●● 100%</text>
+<text x="32" y="92" class="title">设置</text>
+
+<!-- account card -->
+<g transform="translate(24,116)">
+<rect x="0" y="0" width="332" height="120" rx="20" fill="url(#cardG)"/>
+<circle cx="40" cy="60" r="22" fill="#27292F"/>
+<text x="40" y="66" font-size="16" fill="#D6B981" text-anchor="middle">家</text>
+<text x="76" y="50" class="h2">家里 NAS</text>
+<text x="76" y="72" class="dim">dav.example.com/photos</text>
+<text x="76" y="92" class="label">已连接 · 根路径 /</text>
+<text x="310" y="66" class="iconDim" text-anchor="end">›</text>
+</g>
+
+<!-- group: 浏览方式 -->
+<text x="32" y="266" class="label">浏览</text>
+<g transform="translate(24,278)">
+<rect x="0" y="0" width="332" height="116" rx="20" fill="url(#cardG)"/>
+<text x="20" y="40" class="body">浏览方式</text>
+<text x="20" y="74" class="body">默认排序</text>
+<text x="312" y="40" class="dim" text-anchor="end">相册</text>
+<text x="312" y="74" class="dim" text-anchor="end">名称 ↑</text>
+<line x1="20" y1="56" x2="312" y2="56" class="divider"/>
+</g>
+
+<!-- group: 缓存 -->
+<text x="32" y="424" class="label">本地</text>
+<g transform="translate(24,436)">
+<rect x="0" y="0" width="332" height="138" rx="20" fill="url(#cardG)"/>
+<text x="20" y="40" class="body">本地缩略图占用</text>
+<text x="312" y="40" class="dim" text-anchor="end">12.4 MB</text>
+<line x1="20" y1="56" x2="312" y2="56" class="divider"/>
+<rect x="20" y="74" width="292" height="48" rx="14" fill="#27292F"/>
+<text x="166" y="104" font-size="13" fill="#D6B981" text-anchor="middle">清除本地缩略图</text>
+</g>
+
+<!-- group: 关于 -->
+<text x="32" y="612" class="label">关于</text>
+<g transform="translate(24,624)">
+<rect x="0" y="0" width="332" height="50" rx="14" fill="url(#cardG)"/>
+<text x="20" y="32" class="body">Visto · v0.3 调试构建</text>
+<text x="312" y="32" class="dim" text-anchor="end">›</text>
+</g>
+
+<rect x="6" y="688" width="368" height="86" rx="0" fill="#0B0C0F"/>
+<line x1="6" y1="688" x2="374" y2="688" stroke="#1F2127" stroke-width="1"/>
+<g transform="translate(40,716)"><text class="iconDim" font-size="20">▣</text><text x="0" y="32" class="tabInactive">相册</text></g>
+<g transform="translate(170,716)"><text class="iconDim" font-size="20">▤</text><text x="0" y="32" class="tabInactive">浏览</text></g>
+<g transform="translate(300,716)"><text class="icon" font-size="20">◐</text><text x="0" y="32" class="tabActive">设置</text><rect x="-4" y="-22" width="36" height="3" rx="2" fill="#D6B981"/></g>
+</g>
+
+</svg>
