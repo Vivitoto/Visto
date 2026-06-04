@@ -3,12 +3,14 @@ package app.visto
 import android.app.Application
 import app.visto.data.account.AccountService
 import app.visto.data.account.CredentialStore
+import app.visto.data.account.VistoPreferences
 import app.visto.data.db.DavAccountDao
 import app.visto.data.db.RemoteEntryRepository
 import app.visto.data.db.VistoDatabase
 import app.visto.data.thumbnail.VistoImageLoaderFactory
 import app.visto.data.webdav.WebDavAuthInterceptor
 import coil.ImageLoader
+import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -42,6 +44,9 @@ class VistoApplication : Application() {
     lateinit var imageLoader: ImageLoader
         private set
 
+    lateinit var preferences: VistoPreferences
+        private set
+
     override fun onCreate() {
         super.onCreate()
         database = VistoDatabase.create(this)
@@ -49,7 +54,15 @@ class VistoApplication : Application() {
         credentialStore = CredentialStore(this)
         accountService = AccountService(accountDao, credentialStore)
         authInterceptor = WebDavAuthInterceptor()
+        val dispatcher = Dispatcher().apply {
+            // Be gentle with home NAS/WebDAV servers. Album scanning and
+            // thumbnail loading can otherwise pile up too many simultaneous
+            // requests against one host.
+            maxRequests = 12
+            maxRequestsPerHost = 6
+        }
         okHttpClient = OkHttpClient.Builder()
+            .dispatcher(dispatcher)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -57,5 +70,6 @@ class VistoApplication : Application() {
             .addInterceptor(authInterceptor)
             .build()
         imageLoader = VistoImageLoaderFactory.create(this, okHttpClient)
+        preferences = VistoPreferences(this)
     }
 }

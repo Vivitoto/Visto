@@ -16,9 +16,15 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -60,8 +66,8 @@ fun AlbumDetailScreen(
         topBar = {
             TopAppBar(
                 title = { Text(text = state.title) },
-                navigationIcon = { IconButton(onClick = onBack) { Text("←") } },
-                actions = { IconButton(onClick = onRefresh) { Text("⟳") } },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "返回") } },
+                actions = { IconButton(onClick = onRefresh) { Icon(Icons.Filled.Refresh, contentDescription = Strings.RETRY) } },
             )
         },
     ) { innerPadding: PaddingValues ->
@@ -73,9 +79,9 @@ fun AlbumDetailScreen(
             ProgressBar(state)
             when {
                 state.isEmpty -> EmptyAlbum()
-                state.errorMessage != null -> Text(
-                    text = state.errorMessage,
-                    modifier = Modifier.padding(16.dp),
+                state.errorMessage != null -> ErrorState(
+                    message = state.errorMessage,
+                    onRetry = onRefresh,
                 )
                 else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
                     state.sections.forEachIndexed { index, section ->
@@ -131,6 +137,20 @@ private fun EmptyAlbum() {
 }
 
 @Composable
+private fun ErrorState(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(text = message)
+        Button(onClick = onRetry) { Text(Strings.RETRY) }
+    }
+}
+
+@Composable
 private fun SectionHeader(section: AlbumDetailSection) {
     val display = if (section.title.isEmpty()) Strings.ALBUM_DETAIL_ROOT_SECTION else section.title
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -181,7 +201,7 @@ private fun AlbumMediaTile(
 ) {
     val badge = when (item.mediaType) {
         MediaType.ANIMATED_IMAGE -> "GIF"
-        MediaType.VIDEO -> "▶"
+        MediaType.VIDEO -> null
         else -> null
     }
     Box(
@@ -216,6 +236,18 @@ private fun AlbumMediaTile(
                 ) { Text(text = "!") }
             },
         )
-        badge?.let { Text(text = it, modifier = Modifier.padding(4.dp)) }
+        if (item.mediaType == MediaType.VIDEO) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.68f))
+                    .padding(8.dp),
+            ) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+            }
+        } else {
+            badge?.let { Text(text = it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(4.dp)) }
+        }
     }
 }

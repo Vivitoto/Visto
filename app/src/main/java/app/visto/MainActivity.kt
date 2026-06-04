@@ -5,7 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,7 +24,9 @@ import app.visto.data.db.AlbumSourceEntity
 import app.visto.data.db.RemoteEntryRepository
 import app.visto.data.webdav.WebDavClient
 import app.visto.data.webdav.WebDavCredentials
+import app.visto.ui.HomeTab
 import app.visto.ui.Strings
+import app.visto.ui.VistoBottomBar
 import app.visto.ui.account.AccountErrorMessages
 import app.visto.ui.account.AccountFormReducer
 import app.visto.ui.account.AccountFormState
@@ -45,9 +46,10 @@ import app.visto.ui.browser.BrowserNavigator
 import app.visto.ui.browser.BrowserScreen
 import app.visto.ui.browser.BrowserStateBuilder
 import app.visto.ui.browser.BrowserUiState
-import app.visto.ui.settings.BrowseMode
 import app.visto.ui.settings.SettingsScreen
 import app.visto.ui.settings.SettingsUiState
+import app.visto.ui.theme.ThemeMode
+import app.visto.ui.theme.VistoTheme
 import app.visto.ui.viewer.ViewerScreen
 import app.visto.ui.viewer.ViewerSession
 import kotlinx.coroutines.Job
@@ -57,9 +59,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
+            val app = applicationContext as VistoApplication
+            var themeMode by remember { mutableStateOf(app.preferences.themeMode) }
+            VistoTheme(themeMode = themeMode) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    VistoRoot()
+                    VistoRoot(
+                        themeMode = themeMode,
+                        onThemeModeChange = {
+                            themeMode = it
+                            app.preferences.themeMode = it
+                        },
+                    )
                 }
             }
         }
@@ -67,14 +77,17 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun VistoRoot() {
+fun VistoRoot(
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
+) {
     val context = LocalContext.current
     val app = remember(context) { context.applicationContext as VistoApplication }
 
     var screen by remember { mutableStateOf<Screen>(Screen.Loading) }
     var account by remember { mutableStateOf<AccountSummary?>(null) }
     var credentials by remember { mutableStateOf<WebDavCredentials?>(null) }
-    var browseMode by remember { mutableStateOf(BrowseMode.ALBUMS) }
+    var selectedTab by remember { mutableStateOf(HomeTab.ALBUMS) }
 
     LaunchedEffect(Unit) {
         val active = app.accountService.activeAccount()
@@ -115,19 +128,26 @@ fun VistoRoot() {
             val creds = credentials
             if (summary == null || creds == null) {
                 screen = Screen.Account
-            } else when (browseMode) {
-                BrowseMode.ALBUMS -> AlbumsHost(
+            } else when (selectedTab) {
+                HomeTab.ALBUMS -> AlbumsHost(
                     summary = summary,
                     credentials = creds,
-                    browseMode = browseMode,
-                    onBrowseModeChange = { browseMode = it },
+                    selectedTab = selectedTab,
+                    onTabSelected = { selectedTab = it },
                 )
-                BrowseMode.DIRECTORY -> BrowserHost(
+                HomeTab.BROWSER -> BrowserHost(
                     summary = summary,
                     credentials = creds,
                     repository = app.remoteRepository,
-                    browseMode = browseMode,
-                    onBrowseModeChange = { browseMode = it },
+                    selectedTab = selectedTab,
+                    onTabSelected = { selectedTab = it },
+                )
+                HomeTab.SETTINGS -> SettingsHost(
+                    summary = summary,
+                    themeMode = themeMode,
+                    onThemeModeChange = onThemeModeChange,
+                    selectedTab = selectedTab,
+                    onTabSelected = { selectedTab = it },
                 )
             }
         }
@@ -205,8 +225,8 @@ private fun AccountSetup(
 private fun AlbumsHost(
     summary: AccountSummary,
     credentials: WebDavCredentials,
-    browseMode: BrowseMode,
-    onBrowseModeChange: (BrowseMode) -> Unit,
+    selectedTab: HomeTab,
+    onTabSelected: (HomeTab) -> Unit,
 ) {
     val context = LocalContext.current
     val app = remember(context) { context.applicationContext as VistoApplication }
@@ -229,7 +249,6 @@ private fun AlbumsHost(
     var openedAlbum by remember { mutableStateOf<AlbumSourceEntity?>(null) }
     var albumDetail by remember { mutableStateOf<AlbumDetailUiState?>(null) }
     var viewerSession by remember { mutableStateOf<ViewerSession?>(null) }
-    var showSettings by remember { mutableStateOf(false) }
     var folderPicker by remember { mutableStateOf<FolderPickerState?>(null) }
     var pendingDelete by remember { mutableStateOf<AlbumSourceEntity?>(null) }
     var activeLoadJob by remember { mutableStateOf<Job?>(null) }
@@ -321,19 +340,7 @@ private fun AlbumsHost(
                 )
                 folderPicker = null
             },
-        )
-        return
-    }
-
-    if (showSettings) {
-        SettingsHost(
-            summary = summary,
-            browseMode = browseMode,
-            onBrowseModeChange = { mode ->
-                onBrowseModeChange(mode)
-                showSettings = false
-            },
-            onBack = { showSettings = false },
+            onRetry = { loadPickerPath(picker.currentPath) },
         )
         return
     }
@@ -417,7 +424,8 @@ private fun AlbumsHost(
             loadPickerPath(start)
         },
         onDeleteRequested = { album -> pendingDelete = album },
-        onOpenSettings = { showSettings = true },
+        onOpenSettings = { onTabSelected(HomeTab.SETTINGS) },
+        bottomBar = { VistoBottomBar(selected = selectedTab, onSelect = onTabSelected) },
     )
 
     val toDelete = pendingDelete
@@ -445,28 +453,29 @@ private fun AlbumsHost(
 @Composable
 private fun SettingsHost(
     summary: AccountSummary,
-    browseMode: BrowseMode,
-    onBrowseModeChange: (BrowseMode) -> Unit,
-    onBack: () -> Unit,
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    selectedTab: HomeTab,
+    onTabSelected: (HomeTab) -> Unit,
 ) {
     val context = LocalContext.current
     val app = remember(context) { context.applicationContext as VistoApplication }
     val scope = rememberCoroutineScope()
-    var settingsState by remember {
+    var settingsState by remember(themeMode) {
         mutableStateOf(
             SettingsUiState(
                 accountDisplayName = summary.displayName,
                 accountBaseUrl = summary.baseUrl,
                 accountRoot = summary.rootPath,
                 thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
+                themeMode = themeMode,
             )
         )
     }
     SettingsScreen(
         state = settingsState,
-        onBack = onBack,
-        browseMode = browseMode,
-        onBrowseModeChange = onBrowseModeChange,
+        bottomBar = { VistoBottomBar(selected = selectedTab, onSelect = onTabSelected) },
+        onThemeModeChange = onThemeModeChange,
         onClearCache = {
             scope.launch {
                 settingsState = settingsState.copy(isClearingCache = true, message = null)
@@ -487,15 +496,14 @@ private fun BrowserHost(
     summary: AccountSummary,
     credentials: WebDavCredentials,
     repository: RemoteEntryRepository,
-    browseMode: BrowseMode,
-    onBrowseModeChange: (BrowseMode) -> Unit,
+    selectedTab: HomeTab,
+    onTabSelected: (HomeTab) -> Unit,
 ) {
     val context = LocalContext.current
     val app = remember(context) { context.applicationContext as VistoApplication }
     val navigator = remember(summary.id) { BrowserNavigator(summary.rootPath) }
     var uiState by remember { mutableStateOf(BrowserUiState(currentPath = summary.rootPath)) }
     var viewerSession by remember { mutableStateOf<ViewerSession?>(null) }
-    var showSettings by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val client = remember(summary.id) {
         app.authInterceptor.setAccount(
@@ -553,19 +561,6 @@ private fun BrowserHost(
         return
     }
 
-    if (showSettings) {
-        SettingsHost(
-            summary = summary,
-            browseMode = browseMode,
-            onBrowseModeChange = { mode ->
-                onBrowseModeChange(mode)
-                showSettings = false
-            },
-            onBack = { showSettings = false },
-        )
-        return
-    }
-
     BackHandler(enabled = navigator.canGoBack) {
         if (navigator.back() != null) loadCurrent(forceRefresh = false)
     }
@@ -586,6 +581,7 @@ private fun BrowserHost(
             viewerSession = ViewerSession.build(all, opened.path)
         },
         onRefresh = { loadCurrent(forceRefresh = true) },
-        onOpenSettings = { showSettings = true },
+        onOpenSettings = { onTabSelected(HomeTab.SETTINGS) },
+        bottomBar = { VistoBottomBar(selected = selectedTab, onSelect = onTabSelected) },
     )
 }

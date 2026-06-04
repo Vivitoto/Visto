@@ -12,13 +12,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.PhotoAlbum
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -45,19 +55,28 @@ fun AlbumListScreen(
     onBrowsePathRequested: () -> Unit,
     onDeleteRequested: (AlbumSourceEntity) -> Unit,
     onOpenSettings: () -> Unit,
+    bottomBar: @Composable () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(Strings.ALBUMS_TITLE) },
                 actions = {
-                    IconButton(onClick = onOpenSettings) { Text("⚙") }
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = Strings.SETTINGS_TITLE)
+                    }
                 },
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddRequested) { Text("+") }
+            FloatingActionButton(onClick = onAddRequested) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = Strings.ALBUMS_ADD,
+                )
+            }
         },
+        bottomBar = bottomBar,
     ) { innerPadding: PaddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             when {
@@ -104,19 +123,42 @@ private fun AlbumRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Text(text = album.displayName, style = MaterialTheme.typography.titleMedium)
-        Text(
-            text = album.rootPath,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(end = 14.dp)
+                    .height(52.dp)
+                    .width(52.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.PhotoAlbum, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Text(text = album.displayName, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                Text(
+                    text = album.rootPath,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+        }
     }
 }
 
@@ -131,7 +173,10 @@ private fun EmptyState(onAddRequested: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = Strings.ALBUMS_EMPTY_SUBTITLE)
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = onAddRequested) { Text(text = "+ ${Strings.ALBUMS_ADD}") }
+        Button(onClick = onAddRequested) {
+            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+            Text(text = Strings.ALBUMS_ADD)
+        }
     }
 }
 
@@ -157,7 +202,10 @@ private fun AlbumAddDialog(
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = onBrowsePathRequested) { Text(Strings.ALBUMS_BROWSE) }
+                    TextButton(onClick = onBrowsePathRequested) {
+                        Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
+                        Text(Strings.ALBUMS_BROWSE)
+                    }
                 }
                 Text(
                     text = Strings.ALBUMS_PATH_HINT,

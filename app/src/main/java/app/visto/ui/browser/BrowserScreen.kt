@@ -18,8 +18,15 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,18 +60,20 @@ fun BrowserScreen(
     onOpenMedia: (RemoteEntry) -> Unit,
     onRefresh: () -> Unit,
     onOpenSettings: () -> Unit,
+    bottomBar: @Composable () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(text = state.currentPath) },
-                navigationIcon = { IconButton(onClick = onBack) { Text("←") } },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "返回") } },
                 actions = {
-                    IconButton(onClick = onRefresh) { Text("⟳") }
-                    IconButton(onClick = onOpenSettings) { Text("⚙") }
+                    IconButton(onClick = onRefresh) { Icon(Icons.Filled.Refresh, contentDescription = Strings.ALBUM_DETAIL_REFRESH) }
+                    IconButton(onClick = onOpenSettings) { Icon(Icons.Filled.Settings, contentDescription = Strings.SETTINGS_TITLE) }
                 },
             )
         },
+        bottomBar = bottomBar,
     ) { innerPadding: PaddingValues ->
         Column(
             modifier = Modifier
@@ -134,14 +143,16 @@ fun BrowserScreen(
 
 @Composable
 private fun FolderRow(folder: RemoteEntry, onClick: () -> Unit) {
-    Box(
+    androidx.compose.foundation.layout.Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
-        contentAlignment = Alignment.CenterStart,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = "📁  ${folder.name}")
+        Icon(Icons.Filled.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Text(text = folder.name, modifier = Modifier.weight(1f).padding(start = 12.dp))
+        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
     }
 }
 
@@ -154,7 +165,7 @@ private fun MediaTile(
 ) {
     val typeBadge = when (media.mediaType) {
         MediaType.ANIMATED_IMAGE -> "GIF"
-        MediaType.VIDEO -> "▶"
+        MediaType.VIDEO -> "VIDEO"
         else -> null
     }
     Column(

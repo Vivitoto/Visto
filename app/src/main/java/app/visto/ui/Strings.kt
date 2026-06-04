@@ -49,8 +49,8 @@ object Strings {
     const val ALBUMS_ADD = "添加相册"
     const val ALBUMS_ADD_DIALOG_TITLE = "添加相册"
     const val ALBUMS_NAME_LABEL = "相册名称"
-    const val ALBUMS_PATH_LABEL = "WebDAV 路径（例如 /Photos/Family）"
-    const val ALBUMS_PATH_HINT = "应用会递归读取该路径下的所有媒体"
+    const val ALBUMS_PATH_LABEL = "WebDAV 路径"
+    const val ALBUMS_PATH_HINT = "例如 /Photos/Family。应用会递归读取该路径下的所有媒体"
     const val ALBUMS_SAVE = "保存"
     const val ALBUMS_CANCEL = "取消"
     const val ALBUMS_BROWSE = "浏览…"
@@ -64,6 +64,7 @@ object Strings {
     // Album detail
     const val ALBUM_DETAIL_ROOT_SECTION = "根目录"
     const val ALBUM_DETAIL_REFRESH = "刷新"
+    const val RETRY = "重试"
     const val ALBUM_DETAIL_LOADING = "正在读取 WebDAV…"
     const val ALBUM_DETAIL_NO_MEDIA = "未找到媒体文件"
 

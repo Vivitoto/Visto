@@ -28,6 +28,6 @@ abstract class VistoDatabase : RoomDatabase() {
             context.applicationContext,
             VistoDatabase::class.java,
             DB_NAME,
-        ).fallbackToDestructiveMigration().build()
+        ).addMigrations(VistoMigrations.MIGRATION_1_2).build()
     }
 }
