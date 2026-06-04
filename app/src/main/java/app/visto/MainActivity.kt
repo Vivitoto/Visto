@@ -376,6 +376,12 @@ private fun AlbumsHost(
     val albumCovers = remember { mutableStateMapOf<Long, String?>() }
     val albumPreviews = remember { mutableStateMapOf<Long, List<String>>() }
     val coverLoadJobs = remember { mutableMapOf<Long, Job>() }
+    // Per-folder cover map: key is the folder's full WebDAV path, value is
+    // the path of a representative image inside it, or null if no image
+    // was found / probe failed. Used by FLAT icon grid to render folder
+    // thumbnails instead of a blank folder icon.
+    val folderCovers = remember { mutableStateMapOf<String, String?>() }
+    val folderCoverJobs = remember { mutableMapOf<String, Job>() }
 
     suspend fun refreshAlbumList() {
         listState = listState.copy(isLoading = true, errorMessage = null)
@@ -580,6 +586,25 @@ private fun AlbumsHost(
             imageLoader = app.imageLoader,
             mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
             mediaCacheKeyOf = { entry -> mediaCacheKeyScope(summary) + ":" + entry.path },
+            folderCoverPathOf = { folder ->
+                val key = folder.path
+                val cached = folderCovers[key]
+                if (cached == null && folderCoverJobs[key]?.isActive != true && !folderCovers.containsKey(key)) {
+                    folderCoverJobs[key] = scope.launch {
+                        try {
+                            val cover = coverFinder.findCoverImage(folder.path)
+                            folderCovers[key] = cover?.path
+                        } catch (ce: CancellationException) {
+                            throw ce
+                        } catch (_: Throwable) {
+                            // Leave entry missing so the next refresh retries.
+                        }
+                    }
+                }
+                cached
+            },
+            mediaUrlOfPath = { path -> client.mediaUrl(path) },
+            mediaCacheKeyOfPath = { path -> mediaCacheKeyScope(summary) + ":" + path },
             onBack = {
                 if (canGoUpInAlbum) {
                     val parent = DavPath.parent(detail.folderView.currentPath) ?: rootPath

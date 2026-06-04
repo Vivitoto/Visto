@@ -67,6 +67,9 @@ fun AlbumDetailScreen(
     imageLoader: ImageLoader,
     mediaUrlOf: (RemoteEntry) -> String,
     mediaCacheKeyOf: (RemoteEntry) -> String,
+    folderCoverPathOf: ((RemoteEntry) -> String?)? = null,
+    mediaUrlOfPath: ((String) -> String)? = null,
+    mediaCacheKeyOfPath: ((String) -> String)? = null,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onOpenFolder: (RemoteEntry) -> Unit,
@@ -137,6 +140,9 @@ fun AlbumDetailScreen(
                     imageLoader = imageLoader,
                     mediaUrlOf = mediaUrlOf,
                     mediaCacheKeyOf = mediaCacheKeyOf,
+                    folderCoverPathOf = folderCoverPathOf,
+                    mediaUrlOfPath = mediaUrlOfPath,
+                    mediaCacheKeyOfPath = mediaCacheKeyOfPath,
                     onOpenFolder = onOpenFolder,
                     onOpenMedia = onOpenMedia,
                 )
@@ -218,6 +224,9 @@ private fun FolderIconGrid(
     imageLoader: ImageLoader,
     mediaUrlOf: (RemoteEntry) -> String,
     mediaCacheKeyOf: (RemoteEntry) -> String,
+    folderCoverPathOf: ((RemoteEntry) -> String?)? = null,
+    mediaUrlOfPath: ((String) -> String)? = null,
+    mediaCacheKeyOfPath: ((String) -> String)? = null,
     onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
 ) {
@@ -229,7 +238,15 @@ private fun FolderIconGrid(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         items(folderView.folders, key = { "folder-icon:${it.path}" }) { folder ->
-            FolderIconTile(folder = folder, onClick = { onOpenFolder(folder) })
+            val coverPath = folderCoverPathOf?.invoke(folder)
+            FolderIconTile(
+                folder = folder,
+                imageLoader = imageLoader,
+                coverPath = coverPath,
+                coverUrl = coverPath?.let { p -> mediaUrlOfPath?.invoke(p) },
+                coverCacheKey = coverPath?.let { p -> mediaCacheKeyOfPath?.invoke(p) },
+                onClick = { onOpenFolder(folder) },
+            )
         }
         items(folderView.media, key = { "media:${it.path}" }) { item ->
             AlbumMediaTile(
@@ -244,7 +261,14 @@ private fun FolderIconGrid(
 }
 
 @Composable
-private fun FolderIconTile(folder: RemoteEntry, onClick: () -> Unit) {
+private fun FolderIconTile(
+    folder: RemoteEntry,
+    imageLoader: ImageLoader,
+    coverPath: String?,
+    coverUrl: String?,
+    coverCacheKey: String?,
+    onClick: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -262,12 +286,45 @@ private fun FolderIconTile(folder: RemoteEntry, onClick: () -> Unit) {
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = Icons.Filled.Folder,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.fillMaxSize(0.52f),
-            )
+            if (coverPath != null && coverUrl != null && coverCacheKey != null) {
+                val request = ImageRequest.Builder(LocalContext.current)
+                    .data(coverUrl)
+                    .memoryCacheKey(coverCacheKey)
+                    .diskCacheKey(coverCacheKey)
+                    .crossfade(true)
+                    .size(256)
+                    .build()
+                SubcomposeAsyncImage(
+                    model = request,
+                    imageLoader = imageLoader,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    loading = {
+                        Icon(
+                            imageVector = Icons.Filled.Folder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxSize(0.52f),
+                        )
+                    },
+                    error = {
+                        Icon(
+                            imageVector = Icons.Filled.Folder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxSize(0.52f),
+                        )
+                    },
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.Folder,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxSize(0.52f),
+                )
+            }
         }
         Text(
             text = folder.name,
