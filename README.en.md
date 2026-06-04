@@ -2,7 +2,7 @@
 
 Visto is a **read-only Android WebDAV gallery browser** for browsing photos, videos, and folders stored on a WebDAV server.
 
-> Current version: `v0.1.7`
+> Current version: `v0.1.8`
 > Package: `app.visto`
 
 [中文说明](README.md)
@@ -39,7 +39,7 @@ The recommended APK is available from GitHub Releases:
 
 - https://github.com/Vivitoto/Visto/releases/tag/latest
 
-Download `visto-v0_1_7.apk`.
+Download `visto-v0_1_8.apk`.
 
 ## Build
 

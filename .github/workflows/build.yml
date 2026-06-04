@@ -101,11 +101,7 @@ jobs:
         with:
           tag_name: latest
           name: Visto (latest)
-          body: |
-            Visto - 只读 WebDAV 相册查看器
-            - 浏览 WebDAV 相册、文件夹、图片和视频
-            - 默认不自动下载大原图
-            - 不上传、不删除、不移动远端文件
+          body_path: RELEASE_NOTES.md
           files: output/visto-v*.apk
           overwrite_files: true
           draft: false

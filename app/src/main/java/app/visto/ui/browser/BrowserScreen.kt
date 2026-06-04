@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -46,9 +47,11 @@ import androidx.compose.ui.unit.dp
 import app.visto.core.media.MediaType
 import app.visto.core.model.RemoteEntry
 import app.visto.ui.Strings
+import app.visto.ui.components.PausableAsyncImage
+import app.visto.ui.components.rememberThumbnailAnimationsEnabled
 import coil.ImageLoader
-import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
+import coil.size.Precision
 
 /**
  * Renders the directory browser: folders first, then a media grid.
@@ -73,6 +76,8 @@ fun BrowserScreen(
     canGoBack: Boolean = true,
     bottomBar: @Composable () -> Unit = {},
 ) {
+    val gridState = rememberLazyGridState()
+    val playThumbnailAnimations = rememberThumbnailAnimationsEnabled(gridState.isScrollInProgress)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -128,6 +133,7 @@ fun BrowserScreen(
             }
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 110.dp),
+                state = gridState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -146,13 +152,15 @@ fun BrowserScreen(
                     item(span = { GridItemSpan(maxLineSpan) }, key = "header-media") {
                         SectionHeader(Strings.BROWSER_MEDIA)
                     }
-                    items(state.media, key = { "media-${it.path}" }) { item ->
+                    itemsIndexed(state.media, key = { _, it -> "media-${it.path}" }) { index, item ->
                         MediaTile(
                             media = item,
                             imageLoader = imageLoader,
                             mediaUrl = mediaUrlOf(item),
                             mediaCacheKey = mediaCacheKeyOf(item),
                             blurThumbnails = blurThumbnails,
+                            playThumbnailAnimations = playThumbnailAnimations,
+                            resumeDelayMs = (index % 12) * 28L,
                             onClick = { onOpenMedia(item) },
                         )
                     }
@@ -201,6 +209,8 @@ private fun MediaTile(
     mediaUrl: String,
     mediaCacheKey: String,
     blurThumbnails: Boolean,
+    playThumbnailAnimations: Boolean,
+    resumeDelayMs: Long = 0,
     onClick: () -> Unit,
 ) {
     val isVideo = media.mediaType == MediaType.VIDEO
@@ -242,13 +252,17 @@ private fun MediaTile(
                     .data(mediaUrl)
                     .memoryCacheKey(mediaCacheKey)
                     .diskCacheKey(mediaCacheKey)
-                    .crossfade(true)
+                    .crossfade(false)
+                    .size(320)
+                    .precision(Precision.INEXACT)
                     .build()
-                SubcomposeAsyncImage(
+                PausableAsyncImage(
                     model = request,
                     imageLoader = imageLoader,
                     contentDescription = media.name,
                     contentScale = ContentScale.Crop,
+                    playAnimations = playThumbnailAnimations && !blurThumbnails,
+                    resumeDelayMs = resumeDelayMs,
                     modifier = Modifier.fillMaxSize().then(if (blurThumbnails) Modifier.blur(12.dp) else Modifier),
                     loading = {
                         Box(

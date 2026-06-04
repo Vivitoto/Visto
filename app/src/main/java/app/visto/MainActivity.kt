@@ -36,6 +36,7 @@ import app.visto.data.account.AccountSummary
 import app.visto.core.model.DavPath
 import app.visto.data.album.AlbumPreviewFinder
 import app.visto.data.album.AlbumCoverFinder
+import app.visto.data.cache.AlbumIndexCache
 import app.visto.data.db.AlbumSourceEntity
 import app.visto.data.db.RemoteEntryRepository
 import app.visto.data.update.AppUpdateService
@@ -473,10 +474,19 @@ private fun AlbumsHost(
             rootPath = DavPath.normalize(target.rootPath),
             viewMode = viewMode,
         )
-        albumDetail = AlbumDetailReducer.startFolder(baseState, normalizedPath, viewMode)
+        val cached = AlbumIndexCache.load(this, target.accountId, normalizedPath)
+        albumDetail = if (cached != null) {
+            AlbumDetailReducer.applyFolderContents(
+                AlbumDetailReducer.startFolder(baseState, normalizedPath, viewMode),
+                normalizedPath, cached
+            )
+        } else {
+            AlbumDetailReducer.startFolder(baseState, normalizedPath, viewMode)
+        }
         activeLoadJob = scope.launch {
             try {
                 val entries = client.listDirectory(normalizedPath)
+                AlbumIndexCache.save(this@MainActivity, target.accountId, normalizedPath, entries)
                 val current = albumDetail
                 if (generation != activeLoadGeneration || current?.folderView?.currentPath != normalizedPath) return@launch
                 albumDetail = AlbumDetailReducer.applyFolderContents(current, normalizedPath, entries)
@@ -500,10 +510,19 @@ private fun AlbumsHost(
             rootPath = DavPath.normalize(target.rootPath),
             viewMode = AlbumViewMode.FLAT,
         )
-        albumDetail = AlbumDetailReducer.startFolder(baseState, normalizedPath, AlbumViewMode.FLAT)
+        val cached = AlbumIndexCache.load(this, target.accountId, normalizedPath)
+        albumDetail = if (cached != null) {
+            AlbumDetailReducer.applyFolderContents(
+                AlbumDetailReducer.startFolder(baseState, normalizedPath, AlbumViewMode.FLAT),
+                normalizedPath, cached
+            )
+        } else {
+            AlbumDetailReducer.startFolder(baseState, normalizedPath, AlbumViewMode.FLAT)
+        }
         activeLoadJob = scope.launch {
             try {
                 val entries = client.listDirectory(normalizedPath)
+                AlbumIndexCache.save(this@MainActivity, target.accountId, normalizedPath, entries)
                 val current = albumDetail
                 if (generation != activeLoadGeneration || current?.folderView?.currentPath != normalizedPath) return@launch
                 albumDetail = AlbumDetailReducer.applyFolderContents(current, normalizedPath, entries)

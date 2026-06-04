@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -51,9 +52,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import app.visto.data.db.AlbumSourceEntity
 import app.visto.ui.Strings
+import app.visto.ui.components.PausableAsyncImage
+import app.visto.ui.components.rememberThumbnailAnimationsEnabled
 import coil.ImageLoader
-import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
+import coil.size.Precision
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -75,6 +78,8 @@ fun AlbumListScreen(
     onOpenSettings: () -> Unit,
     bottomBar: @Composable () -> Unit = {},
 ) {
+    val listState = rememberLazyListState()
+    val playThumbnailAnimations = rememberThumbnailAnimationsEnabled(listState.isScrollInProgress)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -103,18 +108,21 @@ fun AlbumListScreen(
                 }
                 state.albums.isEmpty() -> EmptyState(onAddRequested)
                 else -> LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 96.dp),
                 ) {
-                    items(state.albums, key = { it.id }) { album ->
+                    itemsIndexed(state.albums, key = { _, it -> it.id }) { index, album ->
                         AlbumRow(
                             album = album,
+                            resumeDelayMs = (index % 12) * 28L,
                             coverImagePath = coverImagePathOf(album),
                             coverPreviews = coverPreviewsOf(album),
                             mediaUrlOf = mediaUrlOf,
                             mediaCacheKeyOf = mediaCacheKeyOf,
                             imageLoader = imageLoader,
                             blurThumbnails = blurThumbnails,
+                            playThumbnailAnimations = playThumbnailAnimations,
                             onClick = { onOpenAlbum(album) },
                             onLongClick = { onDeleteRequested(album) },
                         )
@@ -153,6 +161,8 @@ private fun AlbumRow(
     mediaCacheKeyOf: (String) -> String,
     imageLoader: ImageLoader,
     blurThumbnails: Boolean,
+    playThumbnailAnimations: Boolean,
+    resumeDelayMs: Long = 0,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -179,6 +189,8 @@ private fun AlbumRow(
                 mediaCacheKeyOf = mediaCacheKeyOf,
                 imageLoader = imageLoader,
                 blurThumbnails = blurThumbnails,
+                playThumbnailAnimations = playThumbnailAnimations,
+                resumeDelayMs = resumeDelayMs,
             )
             Column(
                 modifier = Modifier
@@ -224,6 +236,8 @@ private fun AlbumThumbnail(
     mediaCacheKeyOf: (String) -> String,
     imageLoader: ImageLoader,
     blurThumbnails: Boolean,
+    playThumbnailAnimations: Boolean,
+    resumeDelayMs: Long = 0,
 ) {
     val THUMB_SIZE = 76.dp
     Box(
@@ -240,6 +254,8 @@ private fun AlbumThumbnail(
                 mediaCacheKeyOf = mediaCacheKeyOf,
                 imageLoader = imageLoader,
                 blurThumbnails = blurThumbnails,
+                playThumbnailAnimations = playThumbnailAnimations,
+                resumeDelayMs = resumeDelayMs,
             )
             coverImagePath != null -> SinglePreview(
                 path = coverImagePath,
@@ -247,6 +263,8 @@ private fun AlbumThumbnail(
                 mediaCacheKeyOf = mediaCacheKeyOf,
                 imageLoader = imageLoader,
                 blurThumbnails = blurThumbnails,
+                playThumbnailAnimations = playThumbnailAnimations,
+                resumeDelayMs = resumeDelayMs,
             )
             coverPreviews.size == 1 -> SinglePreview(
                 path = coverPreviews[0],
@@ -254,6 +272,8 @@ private fun AlbumThumbnail(
                 mediaCacheKeyOf = mediaCacheKeyOf,
                 imageLoader = imageLoader,
                 blurThumbnails = blurThumbnails,
+                playThumbnailAnimations = playThumbnailAnimations,
+                resumeDelayMs = resumeDelayMs,
             )
             else -> Icon(
                 imageVector = Icons.Filled.PhotoAlbum,
@@ -271,6 +291,8 @@ private fun CompactMosaic(
     mediaCacheKeyOf: (String) -> String,
     imageLoader: ImageLoader,
     blurThumbnails: Boolean,
+    playThumbnailAnimations: Boolean,
+    resumeDelayMs: Long = 0,
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -289,6 +311,8 @@ private fun CompactMosaic(
                             mediaCacheKeyOf = mediaCacheKeyOf,
                             imageLoader = imageLoader,
                             blurThumbnails = blurThumbnails,
+                            playThumbnailAnimations = playThumbnailAnimations,
+                            resumeDelayMs = resumeDelayMs,
                         )
                     }
                 }
@@ -305,22 +329,25 @@ private fun SinglePreview(
     mediaCacheKeyOf: (String) -> String,
     imageLoader: ImageLoader,
     blurThumbnails: Boolean,
+    playThumbnailAnimations: Boolean,
+    resumeDelayMs: Long = 0,
 ) {
     val request = ImageRequest.Builder(LocalContext.current)
         .data(mediaUrlOf(path))
         .memoryCacheKey(mediaCacheKeyOf(path))
         .diskCacheKey(mediaCacheKeyOf(path))
-        .crossfade(true)
-        .size(256)
+        .crossfade(false)
+        .size(320)
+        .precision(Precision.INEXACT)
         .build()
-    SubcomposeAsyncImage(
+    PausableAsyncImage(
         model = request,
         imageLoader = imageLoader,
         contentDescription = null,
         contentScale = ContentScale.Crop,
+        playAnimations = playThumbnailAnimations && !blurThumbnails,
+        resumeDelayMs = resumeDelayMs,
         modifier = Modifier.fillMaxSize().then(if (blurThumbnails) Modifier.blur(12.dp) else Modifier),
-        loading = { /* blank */ },
-        error = { /* blank */ },
     )
 }
 

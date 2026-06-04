@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -55,9 +56,11 @@ import app.visto.core.model.RemoteEntry
 import app.visto.core.sort.SortMode
 import app.visto.data.account.AlbumViewMode
 import app.visto.ui.Strings
+import app.visto.ui.components.PausableAsyncImage
+import app.visto.ui.components.rememberThumbnailAnimationsEnabled
 import coil.ImageLoader
-import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
+import coil.size.Precision
 
 /**
  * Renders an album with two interchangeable view modes:
@@ -182,8 +185,11 @@ private fun FolderGrid(
     onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
 ) {
+    val gridState = rememberLazyGridState()
+    val playThumbnailAnimations = rememberThumbnailAnimationsEnabled(gridState.isScrollInProgress)
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
+        state = gridState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -203,13 +209,15 @@ private fun FolderGrid(
                 }
             }
         }
-        items(folderView.media, key = { "media:${it.path}" }) { item ->
+        itemsIndexed(folderView.media, key = { _, it -> "media:${it.path}" }) { index, item ->
             AlbumMediaTile(
                 item = item,
                 imageLoader = imageLoader,
                 mediaUrl = mediaUrlOf(item),
                 mediaCacheKey = mediaCacheKeyOf(item),
                 blurThumbnails = blurThumbnails,
+                playThumbnailAnimations = playThumbnailAnimations,
+                resumeDelayMs = (index % 12) * 28L,
                 onClick = { onOpenMedia(item) },
             )
         }
@@ -255,14 +263,17 @@ private fun FolderIconGrid(
     onOpenMedia: (RemoteEntry) -> Unit,
 ) {
     // 2 columns: bigger tiles so the 2x2 mosaic is actually legible.
+    val gridState = rememberLazyGridState()
+    val playThumbnailAnimations = rememberThumbnailAnimationsEnabled(gridState.isScrollInProgress)
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
+        state = gridState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        items(folderView.folders, key = { "folder-icon:${it.path}" }) { folder ->
+        itemsIndexed(folderView.folders, key = { _, it -> "folder-icon:${it.path}" }) { index, folder ->
             val previewPaths = folderPreviewPathsOf?.invoke(folder).orEmpty()
             FolderMosaicTile(
                 folder = folder,
@@ -271,16 +282,20 @@ private fun FolderIconGrid(
                 previewUrls = previewPaths.mapNotNull { p -> mediaUrlOfPath?.invoke(p) },
                 previewCacheKeys = previewPaths.mapNotNull { p -> mediaCacheKeyOfPath?.invoke(p) },
                 blurThumbnails = blurThumbnails,
+                playThumbnailAnimations = playThumbnailAnimations,
+                resumeDelayMs = (index % 12) * 28L,
                 onClick = { onOpenFolder(folder) },
             )
         }
-        items(folderView.media, key = { "media:${it.path}" }) { item ->
+        itemsIndexed(folderView.media, key = { _, it -> "media:${it.path}" }) { index, item ->
             AlbumMediaTile(
                 item = item,
                 imageLoader = imageLoader,
                 mediaUrl = mediaUrlOf(item),
                 mediaCacheKey = mediaCacheKeyOf(item),
                 blurThumbnails = blurThumbnails,
+                playThumbnailAnimations = playThumbnailAnimations,
+                resumeDelayMs = (index % 12) * 28L,
                 onClick = { onOpenMedia(item) },
             )
         }
@@ -295,6 +310,8 @@ private fun FolderMosaicTile(
     previewUrls: List<String>,
     previewCacheKeys: List<String>,
     blurThumbnails: Boolean,
+    playThumbnailAnimations: Boolean,
+    resumeDelayMs: Long = 0,
     onClick: () -> Unit,
 ) {
     Column(
@@ -314,30 +331,39 @@ private fun FolderMosaicTile(
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
+            val previewCount = minOf(previewUrls.size, previewCacheKeys.size)
             when {
-                previewPaths.size >= 4 -> Mosaic2x2(
+                previewCount >= 4 -> Mosaic2x2(
                     urls = previewUrls.take(4),
                     keys = previewCacheKeys.take(4),
                     imageLoader = imageLoader,
                     blurThumbnails = blurThumbnails,
+                    playThumbnailAnimations = playThumbnailAnimations,
+                    resumeDelayMs = resumeDelayMs,
                 )
-                previewPaths.size == 3 -> Mosaic3(
+                previewCount == 3 -> Mosaic3(
                     urls = previewUrls.take(3),
                     keys = previewCacheKeys.take(3),
                     imageLoader = imageLoader,
                     blurThumbnails = blurThumbnails,
+                    playThumbnailAnimations = playThumbnailAnimations,
+                    resumeDelayMs = resumeDelayMs,
                 )
-                previewPaths.size == 2 -> Mosaic2(
+                previewCount == 2 -> Mosaic2(
                     urls = previewUrls.take(2),
                     keys = previewCacheKeys.take(2),
                     imageLoader = imageLoader,
                     blurThumbnails = blurThumbnails,
+                    playThumbnailAnimations = playThumbnailAnimations,
+                    resumeDelayMs = resumeDelayMs,
                 )
-                previewPaths.size == 1 -> MosaicSingle(
+                previewCount == 1 -> MosaicSingle(
                     url = previewUrls[0],
                     key = previewCacheKeys[0],
                     imageLoader = imageLoader,
                     blurThumbnails = blurThumbnails,
+                    playThumbnailAnimations = playThumbnailAnimations,
+                    resumeDelayMs = resumeDelayMs,
                 )
                 else -> Icon(
                     imageVector = Icons.Filled.Folder,
@@ -357,13 +383,14 @@ private fun FolderMosaicTile(
 }
 
 @Composable
-private fun Mosaic2x2(urls: List<String>, keys: List<String>, imageLoader: ImageLoader, blurThumbnails: Boolean) {
+private fun Mosaic2x2(urls: List<String>, keys: List<String>, imageLoader: ImageLoader, blurThumbnails: Boolean, playThumbnailAnimations: Boolean, resumeDelayMs: Long = 0) {
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        urls.chunked(2).forEach { row ->
+        urls.chunked(2).forEachIndexed { rowIndex, row ->
             Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                row.forEachIndexed { i, url ->
+                row.forEachIndexed { columnIndex, url ->
+                    val index = rowIndex * 2 + columnIndex
                     Box(modifier = Modifier.weight(1f).fillMaxSize()) {
-                        MosaicCell(url = url, key = keys.getOrNull(i) ?: url, imageLoader = imageLoader, blurThumbnails = blurThumbnails)
+                        MosaicCell(url = url, key = keys.getOrNull(index) ?: url, imageLoader = imageLoader, blurThumbnails = blurThumbnails, playThumbnailAnimations = playThumbnailAnimations, resumeDelayMs = resumeDelayMs)
                     }
                 }
             }
@@ -372,56 +399,58 @@ private fun Mosaic2x2(urls: List<String>, keys: List<String>, imageLoader: Image
 }
 
 @Composable
-private fun Mosaic3(urls: List<String>, keys: List<String>, imageLoader: ImageLoader, blurThumbnails: Boolean) {
+private fun Mosaic3(urls: List<String>, keys: List<String>, imageLoader: ImageLoader, blurThumbnails: Boolean, playThumbnailAnimations: Boolean, resumeDelayMs: Long = 0) {
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             Box(modifier = Modifier.weight(1f).fillMaxSize()) {
-                MosaicCell(url = urls[0], key = keys[0], imageLoader = imageLoader, blurThumbnails = blurThumbnails)
+                MosaicCell(url = urls[0], key = keys[0], imageLoader = imageLoader, blurThumbnails = blurThumbnails, playThumbnailAnimations = playThumbnailAnimations, resumeDelayMs = resumeDelayMs)
             }
             Box(modifier = Modifier.weight(1f).fillMaxSize()) {
-                MosaicCell(url = urls[1], key = keys[1], imageLoader = imageLoader, blurThumbnails = blurThumbnails)
+                MosaicCell(url = urls[1], key = keys[1], imageLoader = imageLoader, blurThumbnails = blurThumbnails, playThumbnailAnimations = playThumbnailAnimations, resumeDelayMs = resumeDelayMs)
             }
         }
         Box(modifier = Modifier.weight(1f).fillMaxSize()) {
-            MosaicCell(url = urls[2], key = keys[2], imageLoader = imageLoader, blurThumbnails = blurThumbnails)
+            MosaicCell(url = urls[2], key = keys[2], imageLoader = imageLoader, blurThumbnails = blurThumbnails, playThumbnailAnimations = playThumbnailAnimations, resumeDelayMs = resumeDelayMs)
         }
     }
 }
 
 @Composable
-private fun Mosaic2(urls: List<String>, keys: List<String>, imageLoader: ImageLoader, blurThumbnails: Boolean) {
+private fun Mosaic2(urls: List<String>, keys: List<String>, imageLoader: ImageLoader, blurThumbnails: Boolean, playThumbnailAnimations: Boolean, resumeDelayMs: Long = 0) {
     Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         urls.forEachIndexed { i, url ->
             Box(modifier = Modifier.weight(1f).fillMaxSize()) {
-                MosaicCell(url = url, key = keys[i], imageLoader = imageLoader, blurThumbnails = blurThumbnails)
+                MosaicCell(url = url, key = keys[i], imageLoader = imageLoader, blurThumbnails = blurThumbnails, playThumbnailAnimations = playThumbnailAnimations, resumeDelayMs = resumeDelayMs)
             }
         }
     }
 }
 
 @Composable
-private fun MosaicSingle(url: String, key: String, imageLoader: ImageLoader, blurThumbnails: Boolean) {
+private fun MosaicSingle(url: String, key: String, imageLoader: ImageLoader, blurThumbnails: Boolean, playThumbnailAnimations: Boolean, resumeDelayMs: Long = 0) {
     Box(modifier = Modifier.fillMaxSize()) {
-        MosaicCell(url = url, key = key, imageLoader = imageLoader, blurThumbnails = blurThumbnails)
+        MosaicCell(url = url, key = key, imageLoader = imageLoader, blurThumbnails = blurThumbnails, playThumbnailAnimations = playThumbnailAnimations, resumeDelayMs = resumeDelayMs)
     }
 }
 
 @Composable
-private fun MosaicCell(url: String, key: String, imageLoader: ImageLoader, blurThumbnails: Boolean) {
+private fun MosaicCell(url: String, key: String, imageLoader: ImageLoader, blurThumbnails: Boolean, playThumbnailAnimations: Boolean, resumeDelayMs: Long = 0) {
     val request = ImageRequest.Builder(LocalContext.current)
         .data(url)
         .memoryCacheKey(key)
         .diskCacheKey(key)
-        .crossfade(true)
-        .size(256)
+        .crossfade(false)
+        .size(320)
+        .precision(Precision.INEXACT)
         .build()
-    SubcomposeAsyncImage(
+    PausableAsyncImage(
         model = request,
         imageLoader = imageLoader,
         contentDescription = null,
         contentScale = ContentScale.Crop,
+        playAnimations = playThumbnailAnimations && !blurThumbnails,
+        resumeDelayMs = resumeDelayMs,
         modifier = Modifier.fillMaxSize().then(if (blurThumbnails) Modifier.blur(12.dp) else Modifier),
-        loading = { /* blank */ },
         error = {
             Icon(
                 imageVector = Icons.Filled.Folder,
@@ -506,6 +535,8 @@ private fun AlbumMediaTile(
     mediaUrl: String,
     mediaCacheKey: String,
     blurThumbnails: Boolean,
+    playThumbnailAnimations: Boolean,
+    resumeDelayMs: Long = 0,
     onClick: () -> Unit,
 ) {
     val isVideo = item.mediaType == MediaType.VIDEO
@@ -550,13 +581,17 @@ private fun AlbumMediaTile(
                 .data(mediaUrl)
                 .memoryCacheKey(mediaCacheKey)
                 .diskCacheKey(mediaCacheKey)
-                .crossfade(true)
+                .crossfade(false)
+                .size(320)
+                .precision(Precision.INEXACT)
                 .build()
-            SubcomposeAsyncImage(
+            PausableAsyncImage(
                 model = request,
                 imageLoader = imageLoader,
                 contentDescription = item.name,
                 contentScale = ContentScale.Crop,
+                playAnimations = playThumbnailAnimations && !blurThumbnails,
+                resumeDelayMs = resumeDelayMs,
                 modifier = Modifier.fillMaxSize().then(if (blurThumbnails) Modifier.blur(12.dp) else Modifier),
                 loading = {
                     Box(

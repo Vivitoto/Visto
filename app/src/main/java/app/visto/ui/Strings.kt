@@ -120,6 +120,7 @@ object Strings {
     const val SETTINGS_DOWNLOADING = "下载中…"
     const val SETTINGS_INSTALL_NOW = "立即安装"
     const val SETTINGS_NEW_VERSION = "发现新版本"
+    const val SETTINGS_RELEASE_NOTES = "更新内容"
     const val SETTINGS_OPEN_RELEASE_PAGE = "打开发布页"
     const val SETTINGS_UPDATE_SAVED_TO_DOWNLOADS = "APK 已下载到系统下载目录"
 

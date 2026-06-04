@@ -359,45 +359,58 @@ private fun AboutCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(
-            modifier = Modifier.padding(18.dp).fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = "Visto",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = "v${AppInfo.VERSION_NAME}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = "v${AppInfo.VERSION_NAME}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Button(
+                    onClick = onCheckUpdate,
+                    enabled = !update.isChecking && !update.isDownloading,
+                ) {
+                    Text(text = if (update.isChecking) Strings.SETTINGS_CHECKING_UPDATE else Strings.SETTINGS_CHECK_UPDATE)
+                }
+            }
 
             val info = update.info
             if (info != null && info.hasUpdate) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "${Strings.SETTINGS_NEW_VERSION}：v${info.latestVersion}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                val sizeText = info.apkSize?.let { " · ${formatBytes(it)}" } ?: ""
-                Text(
-                    text = "${info.apkName}$sizeText",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (info.releaseNotes.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(6.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = info.releaseNotes,
+                        text = "${Strings.SETTINGS_NEW_VERSION}：v${info.latestVersion}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    val sizeText = info.apkSize?.let { " · ${formatBytes(it)}" } ?: ""
+                    Text(
+                        text = "${info.apkName}$sizeText",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 8,
                     )
+                    if (info.releaseNotes.isNotBlank()) {
+                        Text(
+                            text = Strings.SETTINGS_RELEASE_NOTES,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                        Text(
+                            text = info.releaseNotes,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 10,
+                        )
+                    }
                 }
             } else if (info != null && !info.hasUpdate) {
-                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = Strings.SETTINGS_LATEST_VERSION_ALREADY,
                     style = MaterialTheme.typography.bodySmall,
@@ -406,7 +419,6 @@ private fun AboutCard(
             }
 
             if (update.isDownloading) {
-                Spacer(modifier = Modifier.height(10.dp))
                 val total = update.downloadTotalBytes
                 val received = update.downloadedBytes
                 if (total != null && total > 0) {
@@ -430,7 +442,6 @@ private fun AboutCard(
             }
 
             update.errorMessage?.let {
-                Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = it,
@@ -444,7 +455,6 @@ private fun AboutCard(
                 }
             }
             update.infoMessage?.let {
-                Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = it,
@@ -458,10 +468,12 @@ private fun AboutCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (info != null && info.hasUpdate) {
                 val downloaded = update.downloaded
-                if (info != null && info.hasUpdate) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     if (downloaded != null) {
                         Button(
                             onClick = onInstallUpdate,
@@ -480,14 +492,6 @@ private fun AboutCard(
                         onClick = onOpenReleasePage,
                         modifier = Modifier.weight(1f),
                     ) { Text(text = Strings.SETTINGS_OPEN_RELEASE_PAGE) }
-                } else {
-                    Button(
-                        onClick = onCheckUpdate,
-                        enabled = !update.isChecking,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(text = if (update.isChecking) Strings.SETTINGS_CHECKING_UPDATE else Strings.SETTINGS_CHECK_UPDATE)
-                    }
                 }
             }
         }
