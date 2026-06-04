@@ -756,8 +756,7 @@ private fun SettingsHost(
     val context = LocalContext.current
     val app = remember(context) { context.applicationContext as VistoApplication }
     val scope = rememberCoroutineScope()
-    var settingsState by remember(themeMode) {
-            var settingsState by remember(summary?.id) {
+    var settingsState by remember(summary?.id) {
         mutableStateOf(
             SettingsUiState(
                 activeAccountId = summary?.id,
