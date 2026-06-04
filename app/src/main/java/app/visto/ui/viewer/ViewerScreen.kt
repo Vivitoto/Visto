@@ -2,6 +2,7 @@ package app.visto.ui.viewer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -177,7 +178,7 @@ private fun ImagePage(
                 if (loaded) Modifier.pointerInput(item.path) {
                     // Double-tap toggles between fit (1x) and 2x zoom. When not
                     // zoomed, horizontal swipes pass through to HorizontalPager.
-                    androidx.compose.foundation.gestures.detectTapGestures(
+                    detectTapGestures(
                         onDoubleTap = {
                             if (scale > 1.01f) {
                                 scale = 1f; offsetX = 0f; offsetY = 0f

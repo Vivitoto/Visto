@@ -17,11 +17,11 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.automirrored.filled.List as ListIcon
-import androidx.compose.material.icons.automirrored.filled.Sort as SortIcon
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -120,7 +120,7 @@ fun AlbumDetailScreen(
                         }
                         AlbumViewMode.FLAT -> IconButton(onClick = onSwitchToFolders) {
                             Icon(
-                                ListIcon,
+                                Icons.AutoMirrored.Filled.List,
                                 contentDescription = Strings.ALBUM_VIEW_MODE_FOLDERS,
                             )
                         }
@@ -598,7 +598,7 @@ private fun SortMenuAction(sortMode: SortMode, onChange: (SortMode) -> Unit) {
     var open by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }) {
         Icon(
-            SortIcon,
+            Icons.AutoMirrored.Filled.Sort,
             contentDescription = "排序方式",
         )
     }
