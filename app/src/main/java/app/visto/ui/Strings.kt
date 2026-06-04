@@ -11,6 +11,8 @@ object Strings {
     // App-wide
     const val APP_NAME = "Visto"
     const val LOADING = "加载中…"
+    const val NO_SERVER_TITLE = "还没有 WebDAV 服务器"
+    const val NO_SERVER_SUBTITLE = "先进入应用没有问题；需要浏览相册时，在设置里添加一个 WebDAV 服务器。"
 
     // Account screen
     const val ACCOUNT_TITLE = "连接 WebDAV 账号"
@@ -90,6 +92,10 @@ object Strings {
     // Settings
     const val SETTINGS_TITLE = "设置"
     const val SETTINGS_ACCOUNT = "账号"
+    const val SETTINGS_ADD_SERVER = "添加 WebDAV 服务器"
+    const val SETTINGS_SET_ACTIVE_SERVER = "设为当前"
+    const val SETTINGS_ACTIVE_SERVER = "当前服务器"
+    const val SETTINGS_NO_SERVER = "还没有添加服务器"
     const val SETTINGS_ROOT_LABEL = "根路径："
     const val SETTINGS_APPEARANCE = "外观"
     const val SETTINGS_BROWSE_MODE = "浏览方式"

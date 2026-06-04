@@ -54,10 +54,12 @@ class AlbumCoverFinderTest {
     }
 
     @Test
-    fun returnsNullWhenOnlyImagesAreLargerThanCoverLimit() = runBlocking {
+    fun coverIsStillReturnedEvenWhenImagesAreLargerThanLegacyCoverLimit() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(207).setBody(MULTISTATUS_WITH_IMAGES))
+        // Legacy maxCoverBytes argument is now ignored: covers should
+        // still surface so 16+ MB webp/png/heic can be used as a thumbnail.
         val cover = AlbumCoverFinder(client(), maxCoverBytes = 512).findCoverImage("/Picture")
-        assertNull(cover)
+        assertEquals("/Picture/small.jpg", cover?.path)
     }
 
     @Test

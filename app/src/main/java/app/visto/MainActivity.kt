@@ -9,7 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -29,9 +32,8 @@ import app.visto.data.account.AlbumViewMode
 import app.visto.data.account.AccountService
 import app.visto.data.account.AccountSummary
 import app.visto.core.model.DavPath
-import app.visto.data.album.AlbumContents
+import app.visto.data.album.AlbumPreviewFinder
 import app.visto.data.album.AlbumCoverFinder
-import app.visto.data.album.AlbumLoader
 import app.visto.data.db.AlbumSourceEntity
 import app.visto.data.db.RemoteEntryRepository
 import app.visto.data.webdav.WebDavClient
@@ -99,23 +101,21 @@ fun VistoRoot(
 
     var screen by remember { mutableStateOf<Screen>(Screen.Loading) }
     var account by remember { mutableStateOf<AccountSummary?>(null) }
+    var accounts by remember { mutableStateOf<List<AccountSummary>>(emptyList()) }
     var credentials by remember { mutableStateOf<WebDavCredentials?>(null) }
     var selectedTab by remember { mutableStateOf(HomeTab.ALBUMS) }
+    val rootScope = rememberCoroutineScope()
+
+    suspend fun refreshAccounts() {
+        accounts = app.accountService.listAll()
+        val active = app.accountService.activeAccount()
+        account = active
+        credentials = active?.let { app.accountService.credentialsFor(it) }
+    }
 
     LaunchedEffect(Unit) {
-        val active = app.accountService.activeAccount()
-        if (active != null) {
-            val creds = app.accountService.credentialsFor(active)
-            if (creds != null) {
-                account = active
-                credentials = creds
-                screen = Screen.Home
-            } else {
-                screen = Screen.Account
-            }
-        } else {
-            screen = Screen.Account
-        }
+        refreshAccounts()
+        screen = Screen.Home
     }
 
     when (screen) {
@@ -136,26 +136,46 @@ fun VistoRoot(
             }
         }
         Screen.Account -> AccountSetup(
-            initial = account?.let {
-                AccountFormState(
-                    displayName = it.displayName,
-                    baseUrl = it.baseUrl,
-                    username = it.username,
-                    rootPath = it.rootPath,
-                )
-            } ?: AccountFormState(),
+            initial = AccountFormState(),
             onSaved = { savedSummary, savedCredentials ->
                 account = savedSummary
                 credentials = savedCredentials
+                accounts = accounts.filterNot { it.id == savedSummary.id } + savedSummary
                 screen = Screen.Home
             },
             accountService = app.accountService,
+            onCancel = { screen = Screen.Home },
         )
         Screen.Home -> {
             val summary = account
             val creds = credentials
-            if (summary == null || creds == null) {
-                screen = Screen.Account
+            if (summary == null || creds == null) when (selectedTab) {
+                HomeTab.ALBUMS, HomeTab.BROWSER -> NoAccountHome(
+                    selectedTab = selectedTab,
+                    onTabSelected = { selectedTab = it },
+                    onAddServer = { screen = Screen.Account },
+                )
+                HomeTab.SETTINGS -> SettingsHost(
+                    summary = null,
+                    accounts = accounts,
+                    themeMode = themeMode,
+                    onThemeModeChange = onThemeModeChange,
+                    selectedTab = selectedTab,
+                    onTabSelected = { selectedTab = it },
+                    onAddServer = { screen = Screen.Account },
+                    onSwitchAccount = { id ->
+                        rootScope.launch {
+                            app.accountService.switchActive(id)
+                            refreshAccounts()
+                        }
+                    },
+                    onDeleteAccount = { id ->
+                        rootScope.launch {
+                            app.accountService.deleteAccount(id)
+                            refreshAccounts()
+                        }
+                    },
+                )
             } else when (selectedTab) {
                 HomeTab.ALBUMS -> AlbumsHost(
                     summary = summary,
@@ -172,10 +192,24 @@ fun VistoRoot(
                 )
                 HomeTab.SETTINGS -> SettingsHost(
                     summary = summary,
+                    accounts = accounts,
                     themeMode = themeMode,
                     onThemeModeChange = onThemeModeChange,
                     selectedTab = selectedTab,
                     onTabSelected = { selectedTab = it },
+                    onAddServer = { screen = Screen.Account },
+                    onSwitchAccount = { id ->
+                        rootScope.launch {
+                            app.accountService.switchActive(id)
+                            refreshAccounts()
+                        }
+                    },
+                    onDeleteAccount = { id ->
+                        rootScope.launch {
+                            app.accountService.deleteAccount(id)
+                            refreshAccounts()
+                        }
+                    },
                 )
             }
         }
@@ -189,10 +223,49 @@ private sealed interface Screen {
 }
 
 @Composable
+private fun NoAccountHome(
+    selectedTab: HomeTab,
+    onTabSelected: (HomeTab) -> Unit,
+    onAddServer: () -> Unit,
+) {
+    Scaffold(
+        bottomBar = { VistoBottomBar(selected = selectedTab, onSelect = onTabSelected) },
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = Strings.NO_SERVER_TITLE,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = Strings.NO_SERVER_SUBTITLE,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Button(
+                onClick = onAddServer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 18.dp),
+            ) {
+                Text(Strings.SETTINGS_ADD_SERVER)
+            }
+        }
+    }
+}
+
+@Composable
 private fun AccountSetup(
     initial: AccountFormState,
     accountService: AccountService,
     onSaved: (AccountSummary, WebDavCredentials) -> Unit,
+    onCancel: () -> Unit,
 ) {
     var state by remember { mutableStateOf(initial) }
     val scope = rememberCoroutineScope()
@@ -258,6 +331,7 @@ private fun AccountSetup(
                 }
             }
         },
+        onCancel = onCancel,
     )
 }
 
@@ -283,8 +357,8 @@ private fun AlbumsHost(
             httpClient = app.okHttpClient,
         )
     }
-    val albumLoader = remember(client) { AlbumLoader(client) }
-    val coverFinder = remember(client) { AlbumCoverFinder(client, maxCoverBytes = app.preferences.maxGridThumbnailBytes) }
+    val coverFinder = remember(client) { AlbumCoverFinder(client) }
+    val previewFinder = remember(client) { AlbumPreviewFinder(client) }
 
     var listState by remember { mutableStateOf(AlbumListUiState()) }
     var openedAlbum by remember { mutableStateOf<AlbumSourceEntity?>(null) }
@@ -300,6 +374,7 @@ private fun AlbumsHost(
     // app restart so we don't need a schema migration just for first-run UI
     // polish. Value is null when no cover was found (negative cache).
     val albumCovers = remember { mutableStateMapOf<Long, String?>() }
+    val albumPreviews = remember { mutableStateMapOf<Long, List<String>>() }
     val coverLoadJobs = remember { mutableMapOf<Long, Job>() }
 
     suspend fun refreshAlbumList() {
@@ -312,8 +387,18 @@ private fun AlbumsHost(
                 if (!albumCovers.containsKey(album.id) && coverLoadJobs[album.id]?.isActive != true) {
                     coverLoadJobs[album.id] = scope.launch {
                         try {
-                            val cover = coverFinder.findCoverImage(album.rootPath)
-                            albumCovers[album.id] = cover?.path
+                            val previews = previewFinder.findPreviewImages(album.rootPath, targetCount = 4)
+                            if (previews.isNotEmpty()) {
+                                albumPreviews[album.id] = previews.map { it.path }
+                                albumCovers[album.id] = previews.first().path
+                            } else {
+                                // No images at the album level; fall back to
+                                // the original deeper cover probe so the card
+                                // can at least show one thumbnail.
+                                val cover = coverFinder.findCoverImage(album.rootPath)
+                                albumCovers[album.id] = cover?.path
+                                cover?.let { albumPreviews[album.id] = listOf(it.path) }
+                            }
                         } catch (ce: CancellationException) {
                             throw ce
                         } catch (_: Throwable) {
@@ -391,32 +476,28 @@ private fun AlbumsHost(
         }
     }
 
-    fun loadFlat(target: AlbumSourceEntity) {
+    fun loadIconGrid(target: AlbumSourceEntity, path: String) {
         activeLoadJob?.cancel()
         val generation = activeLoadGeneration + 1
         activeLoadGeneration = generation
+        val normalizedPath = DavPath.normalize(path)
         val baseState = albumDetail ?: AlbumDetailUiState(
             title = target.displayName,
             rootPath = DavPath.normalize(target.rootPath),
+            viewMode = AlbumViewMode.FLAT,
         )
-        albumDetail = AlbumDetailReducer.startFlat(baseState)
+        albumDetail = AlbumDetailReducer.startFolder(baseState, normalizedPath, AlbumViewMode.FLAT)
         activeLoadJob = scope.launch {
             try {
-                albumLoader.load(target.rootPath).collect { contents: AlbumContents ->
-                    if (generation != activeLoadGeneration) return@collect
-                    val current = albumDetail ?: return@collect
-                    albumDetail = AlbumDetailReducer.applyFlatContents(current, contents, stillLoading = true)
-                }
-                if (generation == activeLoadGeneration) {
-                    albumDetail = albumDetail?.let {
-                        it.copy(flatView = it.flatView.copy(isLoading = false))
-                    }
-                }
+                val entries = client.listDirectory(normalizedPath)
+                val current = albumDetail
+                if (generation != activeLoadGeneration || current?.folderView?.currentPath != normalizedPath) return@launch
+                albumDetail = AlbumDetailReducer.applyFolderContents(current, normalizedPath, entries)
             } catch (ce: CancellationException) {
                 throw ce
             } catch (e: Throwable) {
-                if (generation != activeLoadGeneration) return@launch
                 val current = albumDetail ?: return@launch
+                if (generation != activeLoadGeneration || current.folderView.currentPath != normalizedPath) return@launch
                 albumDetail = AlbumDetailReducer.applyError(current, AccountErrorMessages.forWebDavError(e))
             }
         }
@@ -433,7 +514,7 @@ private fun AlbumsHost(
         )
         when (initialMode) {
             AlbumViewMode.FOLDERS -> loadFolder(target, rootPath)
-            AlbumViewMode.FLAT -> loadFlat(target)
+            AlbumViewMode.FLAT -> loadIconGrid(target, rootPath)
         }
     }
 
@@ -478,13 +559,15 @@ private fun AlbumsHost(
     val detail = albumDetail
     if (opened != null && detail != null) {
         val rootPath = DavPath.normalize(opened.rootPath)
-        val canGoUpInFolderMode = detail.viewMode == AlbumViewMode.FOLDERS &&
-            detail.folderView.currentPath != rootPath
+        val canGoUpInAlbum = detail.folderView.currentPath != rootPath
         BackHandler {
-            if (canGoUpInFolderMode) {
+            if (canGoUpInAlbum) {
                 val parent = DavPath.parent(detail.folderView.currentPath) ?: rootPath
                 val target = if (isAtOrBelowPath(parent, rootPath)) parent else rootPath
-                loadFolder(opened, target)
+                when (detail.viewMode) {
+                    AlbumViewMode.FOLDERS -> loadFolder(opened, target)
+                    AlbumViewMode.FLAT -> loadIconGrid(opened, target)
+                }
             } else {
                 activeLoadJob?.cancel()
                 openedAlbum = null
@@ -497,12 +580,14 @@ private fun AlbumsHost(
             imageLoader = app.imageLoader,
             mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
             mediaCacheKeyOf = { entry -> mediaCacheKeyScope(summary) + ":" + entry.path },
-            maxGridThumbnailBytes = app.preferences.maxGridThumbnailBytes,
             onBack = {
-                if (canGoUpInFolderMode) {
+                if (canGoUpInAlbum) {
                     val parent = DavPath.parent(detail.folderView.currentPath) ?: rootPath
                     val target = if (isAtOrBelowPath(parent, rootPath)) parent else rootPath
-                    loadFolder(opened, target)
+                    when (detail.viewMode) {
+                        AlbumViewMode.FOLDERS -> loadFolder(opened, target)
+                        AlbumViewMode.FLAT -> loadIconGrid(opened, target)
+                    }
                 } else {
                     activeLoadJob?.cancel()
                     openedAlbum = null
@@ -512,10 +597,15 @@ private fun AlbumsHost(
             onRefresh = {
                 when (detail.viewMode) {
                     AlbumViewMode.FOLDERS -> loadFolder(opened, detail.folderView.currentPath)
-                    AlbumViewMode.FLAT -> loadFlat(opened)
+                    AlbumViewMode.FLAT -> loadIconGrid(opened, detail.folderView.currentPath)
                 }
             },
-            onOpenFolder = { folder -> loadFolder(opened, folder.path) },
+            onOpenFolder = { folder ->
+                when (detail.viewMode) {
+                    AlbumViewMode.FOLDERS -> loadFolder(opened, folder.path)
+                    AlbumViewMode.FLAT -> loadIconGrid(opened, folder.path)
+                }
+            },
             onOpenMedia = { entry ->
                 viewerSession = ViewerSession.build(detail.visibleMedia, entry.path)
             },
@@ -525,7 +615,7 @@ private fun AlbumsHost(
             },
             onSwitchToFlat = {
                 app.preferences.albumViewMode = AlbumViewMode.FLAT
-                loadFlat(opened)
+                loadIconGrid(opened, detail.folderView.currentPath.ifBlank { rootPath })
             },
         )
         return
@@ -534,6 +624,7 @@ private fun AlbumsHost(
     AlbumListScreen(
         state = listState,
         coverImagePathOf = { album -> albumCovers[album.id] },
+        coverPreviewsOf = { album -> albumPreviews[album.id].orEmpty() },
         mediaUrlOf = { path -> client.mediaUrl(path) },
         mediaCacheKeyOf = { path -> mediaCacheKeyScope(summary) + ":" + path },
         imageLoader = app.imageLoader,
@@ -615,11 +706,15 @@ private fun AlbumsHost(
 
 @Composable
 private fun SettingsHost(
-    summary: AccountSummary,
+    summary: AccountSummary?,
+    accounts: List<AccountSummary>,
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
     selectedTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
+    onAddServer: () -> Unit,
+    onSwitchAccount: (Long) -> Unit,
+    onDeleteAccount: (Long) -> Unit,
 ) {
     val context = LocalContext.current
     val app = remember(context) { context.applicationContext as VistoApplication }
@@ -627,9 +722,11 @@ private fun SettingsHost(
     var settingsState by remember(themeMode) {
         mutableStateOf(
             SettingsUiState(
-                accountDisplayName = summary.displayName,
-                accountBaseUrl = summary.baseUrl,
-                accountRoot = summary.rootPath,
+                activeAccountId = summary?.id,
+                accounts = accounts,
+                accountDisplayName = summary?.displayName.orEmpty(),
+                accountBaseUrl = summary?.baseUrl.orEmpty(),
+                accountRoot = summary?.rootPath.orEmpty(),
                 thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
                 themeMode = themeMode,
                 autoLoadOriginalImages = app.preferences.autoLoadOriginalImages,
@@ -637,9 +734,18 @@ private fun SettingsHost(
         )
     }
     SettingsScreen(
-        state = settingsState,
+        state = settingsState.copy(
+            activeAccountId = summary?.id,
+            accounts = accounts,
+            accountDisplayName = summary?.displayName.orEmpty(),
+            accountBaseUrl = summary?.baseUrl.orEmpty(),
+            accountRoot = summary?.rootPath.orEmpty(),
+        ),
         bottomBar = { VistoBottomBar(selected = selectedTab, onSelect = onTabSelected) },
         onThemeModeChange = onThemeModeChange,
+        onAddServer = onAddServer,
+        onSwitchAccount = onSwitchAccount,
+        onDeleteAccount = onDeleteAccount,
         onAutoLoadOriginalImagesChange = { enabled ->
             app.preferences.autoLoadOriginalImages = enabled
             settingsState = settingsState.copy(autoLoadOriginalImages = enabled)
@@ -774,7 +880,6 @@ private fun BrowserHost(
         },
         onRefresh = { loadCurrent(forceRefresh = true) },
         onOpenSettings = { onTabSelected(HomeTab.SETTINGS) },
-        maxGridThumbnailBytes = app.preferences.maxGridThumbnailBytes,
         canGoBack = navigator.canGoBack,
         bottomBar = { VistoBottomBar(selected = selectedTab, onSelect = onTabSelected) },
     )

@@ -39,6 +39,9 @@ fun SettingsScreen(
     onClearCache: () -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onAutoLoadOriginalImagesChange: (Boolean) -> Unit,
+    onAddServer: () -> Unit,
+    onSwitchAccount: (Long) -> Unit,
+    onDeleteAccount: (Long) -> Unit,
     bottomBar: @Composable () -> Unit = {},
 ) {
     Scaffold(
@@ -56,7 +59,12 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             SectionLabel(Strings.SETTINGS_ACCOUNT)
-            AccountCard(state)
+            AccountsSection(
+                state = state,
+                onAddServer = onAddServer,
+                onSwitchAccount = onSwitchAccount,
+                onDeleteAccount = onDeleteAccount,
+            )
 
             ThemeSection(state.themeMode, onThemeModeChange)
 
@@ -81,25 +89,74 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun AccountCard(state: SettingsUiState) {
+private fun AccountsSection(
+    state: SettingsUiState,
+    onAddServer: () -> Unit,
+    onSwitchAccount: (Long) -> Unit,
+    onDeleteAccount: (Long) -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Row(
+        Column(
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(
-                imageVector = Icons.Filled.Storage,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(end = 14.dp),
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = state.accountDisplayName, style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                Text(text = state.accountBaseUrl, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                Text(text = "${Strings.SETTINGS_ROOT_LABEL}${state.accountRoot}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            if (state.accounts.isEmpty()) {
+                Text(
+                    text = Strings.SETTINGS_NO_SERVER,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                state.accounts.forEach { account ->
+                    val active = account.id == state.activeAccountId
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Storage,
+                            contentDescription = null,
+                            tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (active) "${account.displayName} · ${Strings.SETTINGS_ACTIVE_SERVER}" else account.displayName,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                            )
+                            Text(
+                                text = account.baseUrl,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                            Text(
+                                text = "${Strings.SETTINGS_ROOT_LABEL}${account.rootPath}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                        }
+                        if (!active) {
+                            Button(onClick = { onSwitchAccount(account.id) }) {
+                                Text(Strings.SETTINGS_SET_ACTIVE_SERVER)
+                            }
+                        }
+                        Button(onClick = { onDeleteAccount(account.id) }) {
+                            Text(Strings.ALBUMS_DELETE)
+                        }
+                    }
+                }
+            }
+            Button(
+                onClick = onAddServer,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(Strings.SETTINGS_ADD_SERVER)
             }
         }
     }

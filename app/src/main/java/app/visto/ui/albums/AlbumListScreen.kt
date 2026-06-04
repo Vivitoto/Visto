@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -58,6 +59,7 @@ import coil.request.ImageRequest
 fun AlbumListScreen(
     state: AlbumListUiState,
     coverImagePathOf: (AlbumSourceEntity) -> String?,
+    coverPreviewsOf: (AlbumSourceEntity) -> List<String>,
     mediaUrlOf: (String) -> String,
     mediaCacheKeyOf: (String) -> String,
     imageLoader: ImageLoader,
@@ -106,6 +108,7 @@ fun AlbumListScreen(
                         AlbumRow(
                             album = album,
                             coverImagePath = coverImagePathOf(album),
+                            coverPreviews = coverPreviewsOf(album),
                             mediaUrlOf = mediaUrlOf,
                             mediaCacheKeyOf = mediaCacheKeyOf,
                             imageLoader = imageLoader,
@@ -142,6 +145,7 @@ fun AlbumListScreen(
 private fun AlbumRow(
     album: AlbumSourceEntity,
     coverImagePath: String?,
+    coverPreviews: List<String>,
     mediaUrlOf: (String) -> String,
     mediaCacheKeyOf: (String) -> String,
     imageLoader: ImageLoader,
@@ -155,22 +159,30 @@ private fun AlbumRow(
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
+        // Mosaic thumbnail area above the info row when previews exist.
+        if (coverPreviews.isNotEmpty()) {
+            AlbumMosaic(
+                previews = coverPreviews,
+                mediaUrlOf = mediaUrlOf,
+                mediaCacheKeyOf = mediaCacheKeyOf,
+                imageLoader = imageLoader,
+            )
+        } else if (coverImagePath != null) {
+            SimpleAlbumCover(
+                coverImagePath = coverImagePath,
+                mediaUrlOf = mediaUrlOf,
+                mediaCacheKeyOf = mediaCacheKeyOf,
+                imageLoader = imageLoader,
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AlbumCover(
-                coverImagePath = coverImagePath,
-                mediaUrlOf = mediaUrlOf,
-                mediaCacheKeyOf = mediaCacheKeyOf,
-                imageLoader = imageLoader,
-            )
             Column(
-                modifier = Modifier
-                    .padding(start = 14.dp)
-                    .weight(1f),
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Text(
@@ -194,60 +206,116 @@ private fun AlbumRow(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(
+                Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
 
 @Composable
-private fun AlbumCover(
-    coverImagePath: String?,
+private fun AlbumMosaic(
+    previews: List<String>,
+    mediaUrlOf: (String) -> String,
+    mediaCacheKeyOf: (String) -> String,
+    imageLoader: ImageLoader,
+) {
+    // 2x2 grid. For 3 images: first row 2 tiles, second row a full-width tile.
+    val display = previews.take(4)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        display.chunked(2).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                row.forEach { path ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(if (row.size == 1 && display.size == 3) 2f else 1f),
+                    ) {
+                        MosaicTile(
+                            path = path,
+                            mediaUrlOf = mediaUrlOf,
+                            mediaCacheKeyOf = mediaCacheKeyOf,
+                            imageLoader = imageLoader,
+                        )
+                    }
+                }
+                if (row.size == 1 && display.size != 1 && display.size != 3) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MosaicTile(
+    path: String,
     mediaUrlOf: (String) -> String,
     mediaCacheKeyOf: (String) -> String,
     imageLoader: ImageLoader,
 ) {
     Box(
         modifier = Modifier
-            .size(56.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.35f)),
-        contentAlignment = Alignment.Center,
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.25f)),
     ) {
-        if (coverImagePath != null) {
-            val request = ImageRequest.Builder(LocalContext.current)
-                .data(mediaUrlOf(coverImagePath))
-                .memoryCacheKey(mediaCacheKeyOf(coverImagePath))
-                .diskCacheKey(mediaCacheKeyOf(coverImagePath))
-                .crossfade(true)
-                .build()
-            SubcomposeAsyncImage(
-                model = request,
-                imageLoader = imageLoader,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                loading = {
-                    Icon(
-                        Icons.Filled.PhotoAlbum,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                error = {
-                    Icon(
-                        Icons.Filled.PhotoAlbum,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                },
-            )
-        } else {
-            Icon(
-                Icons.Filled.PhotoAlbum,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
+        val request = ImageRequest.Builder(LocalContext.current)
+            .data(mediaUrlOf(path))
+            .memoryCacheKey(mediaCacheKeyOf(path))
+            .diskCacheKey(mediaCacheKeyOf(path))
+            .crossfade(true)
+            .size(512)
+            .build()
+        SubcomposeAsyncImage(
+            model = request,
+            imageLoader = imageLoader,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+            loading = { /* blank while loading */ },
+            error = { /* blank on error */ },
+        )
+    }
+}
+
+@Composable
+private fun SimpleAlbumCover(
+    coverImagePath: String,
+    mediaUrlOf: (String) -> String,
+    mediaCacheKeyOf: (String) -> String,
+    imageLoader: ImageLoader,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(2.2f)
+            .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.25f)),
+    ) {
+        val request = ImageRequest.Builder(LocalContext.current)
+            .data(mediaUrlOf(coverImagePath))
+            .memoryCacheKey(mediaCacheKeyOf(coverImagePath))
+            .diskCacheKey(mediaCacheKeyOf(coverImagePath))
+            .crossfade(true)
+            .size(512)
+            .build()
+        SubcomposeAsyncImage(
+            model = request,
+            imageLoader = imageLoader,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+            loading = { /* blank */ },
+            error = { /* blank */ },
+        )
     }
 }
 

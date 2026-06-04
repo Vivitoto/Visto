@@ -67,7 +67,6 @@ fun AlbumDetailScreen(
     imageLoader: ImageLoader,
     mediaUrlOf: (RemoteEntry) -> String,
     mediaCacheKeyOf: (RemoteEntry) -> String,
-    maxGridThumbnailBytes: Long,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onOpenFolder: (RemoteEntry) -> Unit,
@@ -130,16 +129,15 @@ fun AlbumDetailScreen(
                     imageLoader = imageLoader,
                     mediaUrlOf = mediaUrlOf,
                     mediaCacheKeyOf = mediaCacheKeyOf,
-                    maxGridThumbnailBytes = maxGridThumbnailBytes,
                     onOpenFolder = onOpenFolder,
                     onOpenMedia = onOpenMedia,
                 )
-                state.viewMode == AlbumViewMode.FLAT -> AlbumGrid(
-                    flatView = state.flatView,
+                state.viewMode == AlbumViewMode.FLAT -> FolderIconGrid(
+                    folderView = state.folderView,
                     imageLoader = imageLoader,
                     mediaUrlOf = mediaUrlOf,
                     mediaCacheKeyOf = mediaCacheKeyOf,
-                    maxGridThumbnailBytes = maxGridThumbnailBytes,
+                    onOpenFolder = onOpenFolder,
                     onOpenMedia = onOpenMedia,
                 )
             }
@@ -153,7 +151,6 @@ private fun FolderGrid(
     imageLoader: ImageLoader,
     mediaUrlOf: (RemoteEntry) -> String,
     mediaCacheKeyOf: (RemoteEntry) -> String,
-    maxGridThumbnailBytes: Long,
     onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
 ) {
@@ -184,7 +181,6 @@ private fun FolderGrid(
                 imageLoader = imageLoader,
                 mediaUrl = mediaUrlOf(item),
                 mediaCacheKey = mediaCacheKeyOf(item),
-                maxThumbnailBytes = maxGridThumbnailBytes,
                 onClick = { onOpenMedia(item) },
             )
         }
@@ -217,12 +213,12 @@ private fun FolderRow(folder: RemoteEntry, onClick: () -> Unit) {
 }
 
 @Composable
-private fun AlbumGrid(
-    flatView: AlbumFlatViewState,
+private fun FolderIconGrid(
+    folderView: AlbumFolderViewState,
     imageLoader: ImageLoader,
     mediaUrlOf: (RemoteEntry) -> String,
     mediaCacheKeyOf: (RemoteEntry) -> String,
-    maxGridThumbnailBytes: Long,
+    onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
 ) {
     LazyVerticalGrid(
@@ -232,86 +228,77 @@ private fun AlbumGrid(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        flatView.warnings.firstOrNull()?.let { warning ->
-            item(span = { GridItemSpan(maxLineSpan) }, key = "warning") {
-                Text(
-                    text = warning,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                )
-            }
+        items(folderView.folders, key = { "folder-icon:${it.path}" }) { folder ->
+            FolderIconTile(folder = folder, onClick = { onOpenFolder(folder) })
         }
-        flatView.sections.forEachIndexed { index, section ->
-            item(span = { GridItemSpan(maxLineSpan) }, key = "header-${section.parentPath}") {
-                SectionHeader(section)
-            }
-            items(section.media, key = { "${section.parentPath}:${it.path}" }) { item ->
-                AlbumMediaTile(
-                    item = item,
-                    imageLoader = imageLoader,
-                    mediaUrl = mediaUrlOf(item),
-                    mediaCacheKey = mediaCacheKeyOf(item),
-                    maxThumbnailBytes = maxGridThumbnailBytes,
-                    onClick = { onOpenMedia(item) },
-                )
-            }
-            if (index != flatView.sections.lastIndex) {
-                item(span = { GridItemSpan(maxLineSpan) }, key = "divider-${section.parentPath}") {
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProgressBar(state: AlbumDetailUiState) {
-    if (!state.isLoading) return
-    when (state.viewMode) {
-        AlbumViewMode.FOLDERS -> {
-            // Folder-mode loads are usually quick (one PROPFIND); a quiet
-            // spinner is enough rather than the verbose recursive label.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CircularProgressIndicator(
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.padding(end = 8.dp),
-                )
-                Text(text = Strings.ALBUM_DETAIL_LOADING, style = MaterialTheme.typography.bodySmall)
-            }
-        }
-        AlbumViewMode.FLAT -> Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            Text(text = Strings.ALBUM_DETAIL_LOADING, style = MaterialTheme.typography.bodySmall)
-            Text(
-                text = Strings.albumDetailProgress(
-                    state.flatView.foldersVisited,
-                    state.flatView.foldersFailed,
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        items(folderView.media, key = { "media:${it.path}" }) { item ->
+            AlbumMediaTile(
+                item = item,
+                imageLoader = imageLoader,
+                mediaUrl = mediaUrlOf(item),
+                mediaCacheKey = mediaCacheKeyOf(item),
+                onClick = { onOpenMedia(item) },
             )
         }
     }
 }
 
 @Composable
+private fun FolderIconTile(folder: RemoteEntry, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Folder,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxSize(0.52f),
+            )
+        }
+        Text(
+            text = folder.name,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun ProgressBar(state: AlbumDetailUiState) {
+    if (!state.isLoading) return
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CircularProgressIndicator(
+            strokeWidth = 2.dp,
+            modifier = Modifier.padding(end = 8.dp),
+        )
+        Text(text = Strings.ALBUM_DETAIL_LOADING, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
 private fun EmptyAlbum(viewMode: AlbumViewMode) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(
-            text = when (viewMode) {
-                AlbumViewMode.FOLDERS -> Strings.ALBUM_FOLDER_EMPTY
-                AlbumViewMode.FLAT -> Strings.ALBUM_DETAIL_NO_MEDIA
-            },
-        )
+        Text(Strings.ALBUM_FOLDER_EMPTY)
     }
 }
 
@@ -363,12 +350,10 @@ private fun AlbumMediaTile(
     imageLoader: ImageLoader,
     mediaUrl: String,
     mediaCacheKey: String,
-    maxThumbnailBytes: Long,
     onClick: () -> Unit,
 ) {
     val isVideo = item.mediaType == MediaType.VIDEO
     val isAnimated = item.mediaType == MediaType.ANIMATED_IMAGE
-    val tooLarge = !isVideo && item.sizeBytes != null && item.sizeBytes > maxThumbnailBytes
     val badge = when {
         isAnimated -> "GIF"
         isVideo -> null
@@ -383,7 +368,7 @@ private fun AlbumMediaTile(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.BottomEnd,
     ) {
-        if (tooLarge || isVideo) {
+        if (isVideo) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -399,7 +384,7 @@ private fun AlbumMediaTile(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = if (isVideo) "VIDEO" else formatBytes(item.sizeBytes ?: 0L),
+                    text = "VIDEO",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -454,6 +439,7 @@ private fun AlbumMediaTile(
     }
 }
 
+@Suppress("unused")
 private fun formatBytes(bytes: Long): String {
     if (bytes <= 0) return "0 B"
     val units = arrayOf("B", "KB", "MB", "GB")

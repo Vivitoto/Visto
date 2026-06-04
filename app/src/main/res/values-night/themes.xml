@@ -1,9 +1,12 @@
 <resources>
+    <!--
+        Dark variant. Same principle as values/themes.xml: leave statusBar
+        and navigationBar to the system so the notification bar stays legible
+        on whatever wallpaper / dark surface the OS is using.
+    -->
     <style name="Theme.Visto" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBar">false</item>
         <item name="android:windowBackground">#0E0F12</item>
-        <item name="android:statusBarColor">#0E0F12</item>
-        <item name="android:navigationBarColor">#0E0F12</item>
     </style>
 </resources>

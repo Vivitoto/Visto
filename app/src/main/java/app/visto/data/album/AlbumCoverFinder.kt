@@ -25,7 +25,8 @@ import kotlinx.coroutines.CancellationException
 class AlbumCoverFinder(
     private val client: WebDavClient,
     private val maxSubdirsToProbe: Int = 4,
-    private val maxCoverBytes: Long = 8L * 1024 * 1024,
+    @Deprecated("No longer enforced; kept for binary/source compat.")
+    private val maxCoverBytes: Long = Long.MAX_VALUE,
 ) {
 
     /**
@@ -58,11 +59,11 @@ class AlbumCoverFinder(
     }
 
     private fun pickBestImage(entries: List<RemoteEntry>): RemoteEntry? {
-        val images = entries.filter {
-            !it.isDirectory &&
-                it.mediaType in IMAGE_TYPES &&
-                (it.sizeBytes == null || it.sizeBytes <= maxCoverBytes)
-        }
+        // No byte-size cap: large webp/heic/png are still valid covers and
+        // Coil's BitmapFactory subsampling handles decoding cheaply. We
+        // still prefer the smallest known size purely to favor faster
+        // first-paint covers, then alphabetical for determinism.
+        val images = entries.filter { !it.isDirectory && it.mediaType in IMAGE_TYPES }
         if (images.isEmpty()) return null
         return images.minWithOrNull(
             compareBy(

@@ -21,15 +21,49 @@ class AccountService(
 
     suspend fun activeAccount(): AccountSummary? {
         val entity = accountDao.getActive() ?: return null
-        return AccountSummary(
-            id = entity.id,
-            displayName = entity.displayName,
-            baseUrl = entity.baseUrl,
-            rootPath = entity.rootPath,
-            username = entity.username,
-            credentialRef = entity.credentialRef,
-        )
+        return entity.toSummary()
     }
+
+    suspend fun listAll(): List<AccountSummary> = accountDao.getAll().map { it.toSummary() }
+
+    suspend fun switchActive(id: Long): AccountSummary? {
+        val target = accountDao.getById(id) ?: return null
+        val now = clock()
+        database.withTransaction {
+            accountDao.clearActive()
+            accountDao.markActive(id, now)
+        }
+        return target.toSummary().copy()
+    }
+
+    /**
+     * Delete an account row and its stored password ref. Albums attached to
+     * the account are cascaded by the schema; cached thumbnails on disk
+     * stay because they are content-addressed by ETag/size, not account.
+     */
+    suspend fun deleteAccount(id: Long) {
+        val entity = accountDao.getById(id) ?: return
+        database.withTransaction {
+            accountDao.deleteById(id)
+            if (entity.isActive) {
+                val replacement = accountDao.getAll().firstOrNull()
+                if (replacement != null) {
+                    accountDao.clearActive()
+                    accountDao.markActive(replacement.id, clock())
+                }
+            }
+        }
+        credentialStore.deletePassword(entity.credentialRef)
+    }
+
+    private fun DavAccountEntity.toSummary(): AccountSummary = AccountSummary(
+        id = id,
+        displayName = displayName,
+        baseUrl = baseUrl,
+        rootPath = rootPath,
+        username = username,
+        credentialRef = credentialRef,
+    )
 
     suspend fun credentialsFor(summary: AccountSummary): WebDavCredentials? {
         val password = credentialStore.loadPassword(summary.credentialRef) ?: return null

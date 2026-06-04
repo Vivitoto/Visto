@@ -3,8 +3,6 @@ package app.visto.ui.albums
 import app.visto.core.media.MediaType
 import app.visto.core.model.RemoteEntry
 import app.visto.data.account.AlbumViewMode
-import app.visto.data.album.AlbumContents
-import app.visto.data.album.AlbumSection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -50,34 +48,28 @@ class AlbumDetailReducerTest {
     }
 
     @Test
-    fun startFlatSwitchesViewModeAndMarksFlatLoading() {
-        val next = AlbumDetailReducer.startFlat(baseState)
+    fun startFolderCanPreserveIconGridViewMode() {
+        val iconState = baseState.copy(viewMode = AlbumViewMode.FLAT)
+        val next = AlbumDetailReducer.startFolder(iconState, "/Picture/写真", AlbumViewMode.FLAT)
         assertEquals(AlbumViewMode.FLAT, next.viewMode)
-        assertTrue(next.flatView.isLoading)
+        assertEquals("/Picture/写真", next.folderView.currentPath)
+        assertTrue(next.folderView.isLoading)
     }
 
     @Test
-    fun applyFlatContentsPopulatesFlatSections() {
-        val contents = AlbumContents(
-            rootPath = "/Picture",
-            sections = listOf(
-                AlbumSection(
-                    title = "写真",
-                    parentPath = "/Picture/写真",
-                    media = listOf(image("/Picture/写真/a.jpg")),
-                ),
-            ),
-            totalMedia = 1,
-            foldersVisited = 1,
-            foldersFailed = 0,
-            warnings = emptyList(),
+    fun iconGridOnlyExposesCurrentFolderMediaForViewer() {
+        val entries = listOf(
+            folder("/Picture/写真/A"),
+            image("/Picture/写真/a.jpg"),
         )
-        val started = AlbumDetailReducer.startFlat(baseState)
-        val next = AlbumDetailReducer.applyFlatContents(started, contents, stillLoading = false)
+        val started = AlbumDetailReducer.startFolder(
+            baseState.copy(viewMode = AlbumViewMode.FLAT),
+            "/Picture/写真",
+            AlbumViewMode.FLAT,
+        )
+        val next = AlbumDetailReducer.applyFolderContents(started, "/Picture/写真", entries)
         assertEquals(AlbumViewMode.FLAT, next.viewMode)
-        assertFalse(next.flatView.isLoading)
-        assertEquals(1, next.flatView.sections.size)
-        assertEquals("/Picture/写真/a.jpg", next.visibleMedia.first().path)
+        assertEquals(listOf("a.jpg"), next.visibleMedia.map { it.name })
     }
 
     @Test

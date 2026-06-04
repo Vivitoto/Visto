@@ -2,20 +2,17 @@ package app.visto.ui.albums
 
 import app.visto.core.model.RemoteEntry
 import app.visto.data.account.AlbumViewMode
-import app.visto.data.album.AlbumContents
 
 /**
  * UI state for the album detail screen.
  *
- * The screen has two view modes:
- *  - FOLDERS: shows the album path as a navigable file browser; current
- *    directory's subdirectories and direct media files are rendered side
- *    by side. Backed by per-folder PROPFIND calls (cheap).
- *  - FLAT: recursively walks the album and groups every media file by its
- *    parent folder. Backed by the streaming AlbumLoader (more expensive).
+ * The screen has two view modes over the same current directory:
+ *  - FOLDERS: list-style folder rows followed by current-folder media.
+ *  - FLAT: icon-grid layout for folders and current-folder media.
  *
- * Both modes share the same screen container so users can switch between
- * them without losing the album context.
+ * Both modes use Depth:1 WebDAV listing only. They never recursively flatten
+ * child folders into the current view, so the album behaves like a normal
+ * file browser.
  */
 data class AlbumDetailUiState(
     val title: String,
@@ -26,28 +23,17 @@ data class AlbumDetailUiState(
     val errorMessage: String? = null,
 ) {
     val isLoading: Boolean
-        get() = when (viewMode) {
-            AlbumViewMode.FOLDERS -> folderView.isLoading
-            AlbumViewMode.FLAT -> flatView.isLoading
-        }
+        get() = folderView.isLoading
 
     val isEmpty: Boolean
-        get() = when (viewMode) {
-            AlbumViewMode.FOLDERS -> !folderView.isLoading &&
-                folderView.folders.isEmpty() &&
-                folderView.media.isEmpty() &&
-                errorMessage == null
-            AlbumViewMode.FLAT -> !flatView.isLoading &&
-                flatView.sections.isEmpty() &&
-                errorMessage == null
-        }
+        get() = !folderView.isLoading &&
+            folderView.folders.isEmpty() &&
+            folderView.media.isEmpty() &&
+            errorMessage == null
 
-    /** Flat list of all media currently visible, ordered for the viewer pager. */
+    /** Flat list of media currently visible in this folder, ordered for the viewer pager. */
     val visibleMedia: List<RemoteEntry>
-        get() = when (viewMode) {
-            AlbumViewMode.FOLDERS -> folderView.media
-            AlbumViewMode.FLAT -> flatView.sections.flatMap { it.media }
-        }
+        get() = folderView.media
 }
 
 /**
@@ -82,37 +68,13 @@ data class AlbumDetailSection(
 
 object AlbumDetailReducer {
 
-    fun startFlat(state: AlbumDetailUiState): AlbumDetailUiState =
-        state.copy(
-            viewMode = AlbumViewMode.FLAT,
-            flatView = state.flatView.copy(isLoading = true),
-            errorMessage = null,
-        )
-
-    fun applyFlatContents(
+    fun startFolder(
         state: AlbumDetailUiState,
-        contents: AlbumContents,
-        stillLoading: Boolean,
-    ): AlbumDetailUiState {
-        val sections = contents.sections.map {
-            AlbumDetailSection(title = it.title, parentPath = it.parentPath, media = it.media)
-        }
-        return state.copy(
-            viewMode = AlbumViewMode.FLAT,
-            flatView = AlbumFlatViewState(
-                sections = sections,
-                isLoading = stillLoading,
-                foldersVisited = contents.foldersVisited,
-                foldersFailed = contents.foldersFailed,
-                warnings = contents.warnings,
-            ),
-            errorMessage = null,
-        )
-    }
-
-    fun startFolder(state: AlbumDetailUiState, path: String): AlbumDetailUiState =
+        path: String,
+        viewMode: AlbumViewMode = state.viewMode,
+    ): AlbumDetailUiState =
         state.copy(
-            viewMode = AlbumViewMode.FOLDERS,
+            viewMode = viewMode,
             folderView = AlbumFolderViewState(currentPath = path, isLoading = true),
             errorMessage = null,
         )
@@ -127,7 +89,6 @@ object AlbumDetailReducer {
             .filter { !it.isDirectory && it.mediaType in MEDIA_FOR_GRID }
             .sortedBy { it.name.lowercase() }
         return state.copy(
-            viewMode = AlbumViewMode.FOLDERS,
             folderView = AlbumFolderViewState(
                 currentPath = path,
                 folders = folders,
@@ -139,16 +100,10 @@ object AlbumDetailReducer {
     }
 
     fun applyError(state: AlbumDetailUiState, message: String): AlbumDetailUiState =
-        when (state.viewMode) {
-            AlbumViewMode.FOLDERS -> state.copy(
-                folderView = state.folderView.copy(isLoading = false),
-                errorMessage = message,
-            )
-            AlbumViewMode.FLAT -> state.copy(
-                flatView = state.flatView.copy(isLoading = false),
-                errorMessage = message,
-            )
-        }
+        state.copy(
+            folderView = state.folderView.copy(isLoading = false),
+            errorMessage = message,
+        )
 
     private val MEDIA_FOR_GRID = setOf(
         app.visto.core.media.MediaType.IMAGE,

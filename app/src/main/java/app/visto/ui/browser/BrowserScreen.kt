@@ -68,7 +68,6 @@ fun BrowserScreen(
     onOpenMedia: (RemoteEntry) -> Unit,
     onRefresh: () -> Unit,
     onOpenSettings: () -> Unit,
-    maxGridThumbnailBytes: Long,
     canGoBack: Boolean = true,
     bottomBar: @Composable () -> Unit = {},
 ) {
@@ -151,7 +150,6 @@ fun BrowserScreen(
                             imageLoader = imageLoader,
                             mediaUrl = mediaUrlOf(item),
                             mediaCacheKey = mediaCacheKeyOf(item),
-                            maxThumbnailBytes = maxGridThumbnailBytes,
                             onClick = { onOpenMedia(item) },
                         )
                     }
@@ -199,11 +197,9 @@ private fun MediaTile(
     imageLoader: ImageLoader,
     mediaUrl: String,
     mediaCacheKey: String,
-    maxThumbnailBytes: Long,
     onClick: () -> Unit,
 ) {
     val isVideo = media.mediaType == MediaType.VIDEO
-    val tooLarge = !isVideo && media.sizeBytes != null && media.sizeBytes > maxThumbnailBytes
     val typeBadge = when (media.mediaType) {
         MediaType.ANIMATED_IMAGE -> "GIF"
         MediaType.VIDEO -> "VIDEO"
@@ -223,7 +219,7 @@ private fun MediaTile(
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.BottomEnd,
         ) {
-            if (tooLarge || isVideo) {
+            if (isVideo) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -232,7 +228,7 @@ private fun MediaTile(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        text = if (isVideo) "VIDEO" else formatBytes(media.sizeBytes ?: 0L),
+                        text = "VIDEO",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -285,6 +281,7 @@ private fun MediaTile(
     }
 }
 
+@Suppress("unused")
 private fun formatBytes(bytes: Long): String {
     if (bytes <= 0) return "0 B"
     val units = arrayOf("B", "KB", "MB", "GB")
