@@ -4,6 +4,7 @@ import app.visto.data.account.AccountSummary
 import app.visto.data.account.ThumbnailCacheLimit
 import app.visto.data.update.AppUpdateInfo
 import app.visto.data.update.DownloadedApk
+import app.visto.data.webdav.WebDavDiagnosticResult
 import app.visto.ui.theme.ThemeMode
 
 /** Update-section state. */
@@ -34,5 +35,7 @@ data class SettingsUiState(
     val thumbnailCacheLimit: ThumbnailCacheLimit = ThumbnailCacheLimit.DEFAULT,
     val isClearingCache: Boolean = false,
     val message: String? = null,
+    val isTestingConnection: Boolean = false,
+    val diagnostic: WebDavDiagnosticResult? = null,
     val update: UpdateUiState = UpdateUiState(),
 )

@@ -97,47 +97,78 @@ fun ViewerScreen(
     }
     val pagerState = rememberPagerState(initialPage = session.initialIndex) { session.items.size }
     val manualLoaded = remember { mutableStateMapOf<String, Boolean>() }
+    var chromeVisible by remember { mutableStateOf(true) }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    val current = session.items.getOrNull(pagerState.currentPage)
-                    Text(text = current?.name ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                },
-                navigationIcon = {
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Black,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White,
-                    actionIconContentColor = Color.White,
-                ),
-            )
+            if (chromeVisible) {
+                TopAppBar(
+                    title = {
+                        val current = session.items.getOrNull(pagerState.currentPage)
+                        Text(
+                            text = current?.let { "${it.name} · ${pagerState.currentPage + 1}/${session.items.size}" }.orEmpty(),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onClose) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "返回")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Black,
+                        titleContentColor = Color.White,
+                        navigationIconContentColor = Color.White,
+                        actionIconContentColor = Color.White,
+                    ),
+                )
+            }
         },
     ) { innerPadding: PaddingValues ->
-        HorizontalPager(
-            state = pagerState,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .background(Color.Black),
-        ) { page ->
-            val item = session.items[page]
-            when (item.mediaType) {
-                MediaType.VIDEO -> VideoPage(item, okHttpClient, mediaUrlOf(item))
-                else -> {
-                    val loaded = autoLoadOriginalImages || manualLoaded[item.path] == true
-                    ImagePage(
-                        item = item,
-                        imageLoader = imageLoader,
-                        url = mediaUrlOf(item),
-                        cacheKeyScope = cacheKeyScope,
-                        loaded = loaded,
-                        onLoadRequest = { manualLoaded[item.path] = true },
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+            ) { page ->
+                val item = session.items[page]
+                when (item.mediaType) {
+                    MediaType.VIDEO -> VideoPage(item, okHttpClient, mediaUrlOf(item))
+                    else -> {
+                        val loaded = autoLoadOriginalImages || manualLoaded[item.path] == true
+                        ImagePage(
+                            item = item,
+                            imageLoader = imageLoader,
+                            url = mediaUrlOf(item),
+                            cacheKeyScope = cacheKeyScope,
+                            loaded = loaded,
+                            onLoadRequest = { manualLoaded[item.path] = true },
+                            onToggleChrome = { chromeVisible = !chromeVisible },
+                        )
+                    }
+                }
+            }
+            if (chromeVisible) {
+                val current = session.items.getOrNull(pagerState.currentPage)
+                Surface(
+                    color = Color.Black.copy(alpha = 0.58f),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(18.dp),
+                ) {
+                    Text(
+                        text = current?.let { "${pagerState.currentPage + 1} / ${session.items.size}  ${it.name}" }.orEmpty(),
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     )
                 }
             }
@@ -153,6 +184,7 @@ private fun ImagePage(
     cacheKeyScope: String,
     loaded: Boolean,
     onLoadRequest: () -> Unit,
+    onToggleChrome: () -> Unit,
 ) {
     var scale by remember { mutableStateOf(1f) }
     var offsetX by remember { mutableStateOf(0f) }
@@ -197,6 +229,7 @@ private fun ImagePage(
                 // One-finger horizontal swipes at 1x still pass through to
                 // HorizontalPager; pinch zoom is handled above.
                 detectTapGestures(
+                    onTap = { onToggleChrome() },
                     onDoubleTap = {
                         if (scale > 1.01f) {
                             scale = 1f; offsetX = 0f; offsetY = 0f

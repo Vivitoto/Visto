@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.item
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -113,6 +114,9 @@ fun AlbumListScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 96.dp),
                 ) {
+                    item {
+                        AlbumHomeSummary(albumCount = state.albums.size)
+                    }
                     itemsIndexed(state.albums, key = { _, it -> it.id }) { index, album ->
                         AlbumRow(
                             album = album,
@@ -149,6 +153,32 @@ fun AlbumListScreen(
             onSubmit = onAddSubmit,
             onBrowsePathRequested = onBrowsePathRequested,
         )
+    }
+}
+
+@Composable
+private fun AlbumHomeSummary(albumCount: Int) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = "$albumCount 个相册",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Text(
+                text = "长按相册可复制路径或移除入口；不会修改 WebDAV 上的文件。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
+            )
+        }
     }
 }
 

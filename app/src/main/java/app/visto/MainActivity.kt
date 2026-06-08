@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -28,7 +30,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import app.visto.data.account.AlbumViewMode
 import app.visto.data.account.AccountService
@@ -42,6 +46,10 @@ import app.visto.data.db.RemoteEntryRepository
 import app.visto.data.update.AppUpdateService
 import app.visto.data.webdav.WebDavClient
 import app.visto.data.webdav.WebDavCredentials
+import app.visto.data.webdav.WebDavDiagnosticResult
+import app.visto.data.webdav.WebDavDiagnosticStatus
+import app.visto.data.webdav.WebDavDiagnosticStep
+import app.visto.data.webdav.WebDavDiagnosticsService
 import app.visto.ui.HomeTab
 import app.visto.ui.Strings
 import app.visto.ui.VistoBottomBar
@@ -286,19 +294,16 @@ private fun AccountSetup(
             scope.launch {
                 state = AccountFormReducer.setTesting(current, true)
                 try {
-                    val client = WebDavClient(
+                    val result = WebDavDiagnosticsService().diagnose(
                         credentials = WebDavCredentials(
                             baseUrl = current.baseUrl.trim(),
                             username = current.username,
                             password = current.password,
                         ),
                         accountId = 0L,
+                        rootPath = current.normalizedRootPath,
                     )
-                    client.listDirectory(current.normalizedRootPath)
-                    state = AccountFormReducer.setMessage(
-                        AccountFormReducer.setTesting(state, false),
-                        Strings.ACCOUNT_CONNECTION_OK,
-                    )
+                    state = AccountFormReducer.setDiagnostic(state, result)
                 } catch (ce: CancellationException) {
                     throw ce
                 } catch (e: Throwable) {
@@ -339,6 +344,7 @@ private fun AccountSetup(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AlbumsHost(
     summary: AccountSummary,
@@ -347,6 +353,7 @@ private fun AlbumsHost(
     onTabSelected: (HomeTab) -> Unit,
 ) {
     val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     val app = remember(context) { context.applicationContext as VistoApplication }
     val scope = rememberCoroutineScope()
     val client = remember(summary.id) {
@@ -745,23 +752,57 @@ private fun AlbumsHost(
 
     val toDelete = pendingDelete
     if (toDelete != null) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text(Strings.ALBUMS_DELETE_CONFIRM_TITLE) },
-            text = { Text(Strings.ALBUMS_DELETE_CONFIRM_MESSAGE) },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    scope.launch {
-                        app.database.albumSourceDao().deleteById(toDelete.id)
+        ModalBottomSheet(onDismissRequest = { pendingDelete = null }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = toDelete.displayName,
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                Text(
+                    text = toDelete.rootPath,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Button(
+                    onClick = {
                         pendingDelete = null
-                        refreshAlbumList()
-                    }
-                }) { Text(Strings.ALBUMS_DELETE) }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { pendingDelete = null }) { Text(Strings.ALBUMS_CANCEL) }
-            },
-        )
+                        openAlbum(toDelete)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(Strings.ALBUMS_OPEN) }
+                androidx.compose.material3.OutlinedButton(
+                    onClick = {
+                        clipboard.setText(AnnotatedString(toDelete.rootPath))
+                        pendingDelete = null
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(Strings.ALBUMS_COPY_PATH) }
+                Text(
+                    text = Strings.ALBUMS_REMOVE_LOCAL_HINT,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        scope.launch {
+                            app.database.albumSourceDao().deleteById(toDelete.id)
+                            pendingDelete = null
+                            refreshAlbumList()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(Strings.ALBUMS_REMOVE_LOCAL, color = MaterialTheme.colorScheme.error) }
+                androidx.compose.material3.TextButton(
+                    onClick = { pendingDelete = null },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(Strings.ALBUMS_CANCEL) }
+            }
+        }
     }
 }
 
@@ -814,6 +855,59 @@ private fun SettingsHost(
         onAddServer = onAddServer,
         onSwitchAccount = onSwitchAccount,
         onDeleteAccount = onDeleteAccount,
+        onTestActiveConnection = {
+            val active = summary ?: return@SettingsScreen
+            scope.launch {
+                settingsState = settingsState.copy(isTestingConnection = true, diagnostic = null)
+                try {
+                    val creds = app.accountService.credentialsFor(active)
+                    if (creds == null) {
+                        settingsState = settingsState.copy(
+                            isTestingConnection = false,
+                            diagnostic = WebDavDiagnosticResult(
+                                ok = false,
+                                summary = "无法读取账号凭据",
+                                steps = listOf(
+                                    WebDavDiagnosticStep(
+                                        title = "账号凭据",
+                                        status = WebDavDiagnosticStatus.FAIL,
+                                        detail = "请重新添加服务器。",
+                                    )
+                                ),
+                            ),
+                        )
+                        return@launch
+                    }
+                    val result = WebDavDiagnosticsService().diagnose(
+                        credentials = creds,
+                        accountId = active.id,
+                        rootPath = active.rootPath,
+                        clientFactory = { c, id -> WebDavClient(c, id, app.okHttpClient) },
+                    )
+                    settingsState = settingsState.copy(
+                        isTestingConnection = false,
+                        diagnostic = result,
+                    )
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (e: Throwable) {
+                    settingsState = settingsState.copy(
+                        isTestingConnection = false,
+                        diagnostic = WebDavDiagnosticResult(
+                            ok = false,
+                            summary = "WebDAV 连接失败",
+                            steps = listOf(
+                                WebDavDiagnosticStep(
+                                    title = "连接测试",
+                                    status = WebDavDiagnosticStatus.FAIL,
+                                    detail = AccountErrorMessages.forWebDavError(e),
+                                )
+                            ),
+                        ),
+                    )
+                }
+            }
+        },
         onAutoLoadOriginalImagesChange = { enabled ->
             app.preferences.autoLoadOriginalImages = enabled
             settingsState = settingsState.copy(autoLoadOriginalImages = enabled)

@@ -13,6 +13,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material.icons.Icons
@@ -22,6 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -34,6 +37,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import app.visto.data.webdav.WebDavDiagnosticResult
+import app.visto.data.webdav.WebDavDiagnosticStatus
 import app.visto.ui.Strings
 
 /**
@@ -118,8 +123,9 @@ fun AccountScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            state.errorMessage?.let { Text(text = it) }
+            state.errorMessage?.let { Text(text = it, color = MaterialTheme.colorScheme.error) }
             state.message?.let { Text(text = it) }
+            state.diagnostic?.let { DiagnosticResultCard(it) }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -145,6 +151,47 @@ fun AccountScreen(
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     } else {
                         Text(Strings.ACCOUNT_SAVE_AND_USE, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiagnosticResultCard(result: WebDavDiagnosticResult) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = result.summary,
+                style = MaterialTheme.typography.titleSmall,
+                color = if (result.ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            )
+            result.steps.forEach { step ->
+                val marker = if (step.status == WebDavDiagnosticStatus.PASS) "✓" else "!"
+                val color = if (step.status == WebDavDiagnosticStatus.PASS) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.error
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(text = marker, color = color)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = step.title, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            text = step.detail,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }

@@ -37,6 +37,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.visto.AppInfo
 import app.visto.data.account.ThumbnailCacheLimit
+import app.visto.data.webdav.WebDavDiagnosticResult
+import app.visto.data.webdav.WebDavDiagnosticStatus
 import app.visto.ui.Strings
 import app.visto.ui.theme.ThemeMode
 import kotlin.math.roundToInt
@@ -53,6 +55,7 @@ fun SettingsScreen(
     onAddServer: () -> Unit,
     onSwitchAccount: (Long) -> Unit,
     onDeleteAccount: (Long) -> Unit,
+    onTestActiveConnection: () -> Unit,
     onCheckUpdate: () -> Unit,
     onDownloadUpdate: () -> Unit,
     onInstallUpdate: () -> Unit,
@@ -80,6 +83,7 @@ fun SettingsScreen(
                 onAddServer = onAddServer,
                 onSwitchAccount = onSwitchAccount,
                 onDeleteAccount = onDeleteAccount,
+                onTestActiveConnection = onTestActiveConnection,
             )
 
             ThemeSection(state.themeMode, onThemeModeChange)
@@ -123,6 +127,7 @@ private fun AccountsSection(
     onAddServer: () -> Unit,
     onSwitchAccount: (Long) -> Unit,
     onDeleteAccount: (Long) -> Unit,
+    onTestActiveConnection: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -181,6 +186,16 @@ private fun AccountsSection(
                     }
                 }
             }
+            if (state.activeAccountId != null) {
+                OutlinedButton(
+                    onClick = onTestActiveConnection,
+                    enabled = !state.isTestingConnection,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (state.isTestingConnection) Strings.ACCOUNT_TESTING else Strings.ACCOUNT_TEST_CONNECTION)
+                }
+            }
+            state.diagnostic?.let { DiagnosticResultCard(it) }
             Button(
                 onClick = onAddServer,
                 modifier = Modifier.fillMaxWidth(),
@@ -214,6 +229,47 @@ private fun ThemeSection(current: ThemeMode, onChange: (ThemeMode) -> Unit) {
                 selected = current == ThemeMode.DARK,
                 onClick = { onChange(ThemeMode.DARK) },
             )
+        }
+    }
+}
+
+@Composable
+private fun DiagnosticResultCard(result: WebDavDiagnosticResult) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = result.summary,
+                style = MaterialTheme.typography.titleSmall,
+                color = if (result.ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            )
+            result.steps.forEach { step ->
+                val marker = if (step.status == WebDavDiagnosticStatus.PASS) "✓" else "!"
+                val color = if (step.status == WebDavDiagnosticStatus.PASS) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.error
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(text = marker, color = color)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = step.title, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            text = step.detail,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
         }
     }
 }

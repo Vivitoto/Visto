@@ -13,11 +13,14 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
+import java.net.UnknownHostException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONException
 import org.json.JSONObject
 
 /**
@@ -44,14 +47,25 @@ class AppUpdateService(
             .header("Accept", "application/vnd.github+json")
             .header("User-Agent", "Visto-Updater")
             .build()
-        client.newCall(request).execute().use { response ->
+        val response = try {
+            client.newCall(request).execute()
+        } catch (error: IOException) {
+            throw IOException(githubNetworkMessage(error), error)
+        }
+        response.use { response ->
             if (!response.isSuccessful) {
-                throw IOException("\u68c0\u67e5\u66f4\u65b0\u5931\u8d25: HTTP ${response.code}")
+                throw IOException(githubHttpMessage(response.code, response.body?.string().orEmpty()))
             }
-            val body = response.body?.string()
-                ?: throw IOException("\u68c0\u67e5\u66f4\u65b0\u5931\u8d25: \u54cd\u5e94\u4e3a\u7a7a")
-            val json = JSONObject(body)
-            val assets = json.optJSONArray("assets") ?: throw IOException("latest Release \u4e2d\u6ca1\u6709\u8d44\u4ea7")
+            val body = response.body?.string()?.trim().orEmpty()
+            if (body.isEmpty()) {
+                throw IOException("GitHub 返回空响应，可能是网络或代理异常。")
+            }
+            val json = try {
+                JSONObject(body)
+            } catch (error: JSONException) {
+                throw IOException("GitHub 返回异常内容，可能是代理或网络劫持。", error)
+            }
+            val assets = json.optJSONArray("assets") ?: throw IOException("latest 发布版本中没有资产。")
             var apkName = ""
             var apkUrl = ""
             var apkSize: Long? = null
@@ -66,7 +80,7 @@ class AppUpdateService(
                 }
             }
             if (apkName.isEmpty() || apkUrl.isEmpty()) {
-                throw IOException("latest Release \u4e2d\u6ca1\u6709 visto APK")
+                throw IOException("latest 发布版本中没有找到 Visto APK 安装包。")
             }
             val latestVersion = versionFromApkName(apkName) ?: AppInfo.VERSION_NAME
             AppUpdateInfo(
@@ -95,17 +109,32 @@ class AppUpdateService(
         onProgress: (received: Long, total: Long?) -> Unit,
     ): DownloadedApk = withContext(Dispatchers.IO) {
         val safeName = update.apkName.replace(Regex("[^A-Za-z0-9._-]"), "_")
-        val connection = (URL(update.apkUrl).openConnection() as HttpURLConnection).apply {
-            instanceFollowRedirects = true
-            connectTimeout = 30_000
-            readTimeout = 30_000
-            requestMethod = "GET"
-            setRequestProperty("User-Agent", "Visto-Updater")
+        val connection = try {
+            (URL(update.apkUrl).openConnection() as HttpURLConnection).apply {
+                instanceFollowRedirects = true
+                connectTimeout = 30_000
+                readTimeout = 30_000
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "Visto-Updater")
+            }
+        } catch (error: IOException) {
+            throw IOException(githubNetworkMessage(error), error)
         }
-        val expectedSize = update.apkSize ?: connection.contentLengthLong.takeIf { it > 0 }
-        if (connection.responseCode !in 200..299) {
+        val expectedSize = try {
+            update.apkSize ?: connection.contentLengthLong.takeIf { it > 0 }
+        } catch (error: IOException) {
             connection.disconnect()
-            throw IOException("\u4e0b\u8f7d\u66f4\u65b0\u5931\u8d25: HTTP ${connection.responseCode}")
+            throw IOException(githubNetworkMessage(error), error)
+        }
+        try {
+            if (connection.responseCode !in 200..299) {
+                val code = connection.responseCode
+                throw IOException("APK 下载失败：HTTP $code。请检查 GitHub 访问或稍后重试。")
+            }
+        } catch (error: IOException) {
+            connection.disconnect()
+            if (error.message?.startsWith("APK 下载失败") == true) throw error
+            throw IOException(githubNetworkMessage(error), error)
         }
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -206,7 +235,7 @@ class AppUpdateService(
         }
         output.flush()
         if (total != null && total > 0 && received != total) {
-            throw IOException("\u6587\u4ef6\u5927\u5c0f\u4e0d\u4e00\u81f4: \u671f\u671b $total \u5b9e\u9645 $received")
+            throw IOException("APK 下载不完整：期望 ${formatBytes(total)}，实际 ${formatBytes(received)}。请重新下载。")
         }
     }
 
@@ -225,6 +254,35 @@ class AppUpdateService(
             if (l != r) return l.compareTo(r)
         }
         return 0
+    }
+
+    private fun githubHttpMessage(code: Int, body: String): String = when (code) {
+        403 -> if (body.contains("rate limit", ignoreCase = true)) {
+            "GitHub API 请求次数受限，请稍后再试。"
+        } else {
+            "GitHub 拒绝了更新检查请求（HTTP 403），请检查网络或代理。"
+        }
+        404 -> "未找到 Visto 的 latest 发布版本。"
+        in 500..599 -> "GitHub 服务暂时不可用（HTTP $code），请稍后重试。"
+        else -> "检查更新失败：GitHub 返回 HTTP $code。"
+    }
+
+    private fun githubNetworkMessage(error: IOException): String = when (error) {
+        is SocketTimeoutException -> "连接 GitHub 超时，请检查网络或代理。"
+        is UnknownHostException -> "无法解析 GitHub 地址，请检查 DNS、网络或代理。"
+        else -> "连接 GitHub 失败：${error.message ?: error.javaClass.simpleName}"
+    }
+
+    private fun formatBytes(bytes: Long): String {
+        if (bytes <= 0) return "0 B"
+        val units = arrayOf("B", "KB", "MB", "GB")
+        var value = bytes.toDouble()
+        var unit = 0
+        while (value >= 1024 && unit < units.lastIndex) {
+            value /= 1024
+            unit++
+        }
+        return "%.1f %s".format(value, units[unit])
     }
 
     companion object {
