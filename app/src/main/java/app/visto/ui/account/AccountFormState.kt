@@ -77,7 +77,13 @@ object AccountFormReducer {
         state.copy(isSaving = saving)
 
     fun setError(state: AccountFormState, message: String): AccountFormState =
-        state.copy(errorMessage = message, isTesting = false, isSaving = false)
+        state.copy(
+            errorMessage = message,
+            message = null,
+            diagnostic = null,
+            isTesting = false,
+            isSaving = false,
+        )
 
     fun setMessage(state: AccountFormState, message: String): AccountFormState =
         state.copy(message = message, errorMessage = null)
