@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +37,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.visto.AppInfo
@@ -400,6 +402,7 @@ private fun SwitchRow(title: String, description: String, checked: Boolean, onCh
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CacheSection(state: SettingsUiState, onClearCache: () -> Unit, onCacheLimitChange: (ThumbnailCacheLimit) -> Unit) {
     SectionLabel(Strings.SETTINGS_LOCAL_CACHE)
