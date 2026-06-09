@@ -26,9 +26,10 @@ import androidx.compose.material.icons.filled.PhotoAlbum
 import androidx.compose.foundation.background
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -98,7 +99,8 @@ fun AlbumListScreen(
                 else -> LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = 10.dp, bottom = 96.dp),
+                    contentPadding = PaddingValues(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 104.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     itemsIndexed(state.albums, key = { _, it -> it.id }) { index, album ->
                         AlbumRow(
@@ -166,15 +168,17 @@ private fun AlbumRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 9.dp),
+                .padding(horizontal = 14.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AlbumThumbnail(
@@ -189,9 +193,9 @@ private fun AlbumRow(
             )
             Column(
                 modifier = Modifier
-                    .padding(start = 12.dp)
+                    .padding(start = 14.dp)
                     .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 Text(
                     text = album.displayName,
@@ -203,7 +207,7 @@ private fun AlbumRow(
                     text = album.rootPath,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -211,12 +215,9 @@ private fun AlbumRow(
                 Icons.Filled.ChevronRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
+                modifier = Modifier.size(28.dp),
             )
         }
-        HorizontalDivider(
-            modifier = Modifier.padding(start = 104.dp, end = 16.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
-        )
     }
 }
 
@@ -231,12 +232,12 @@ private fun AlbumThumbnail(
     playThumbnailAnimations: Boolean,
     resumeDelayMs: Long = 0,
 ) {
-    val THUMB_SIZE = 70.dp
+    val THUMB_SIZE = 96.dp
     Box(
         modifier = Modifier
             .size(THUMB_SIZE)
-            .clip(RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)),
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)),
         contentAlignment = Alignment.Center,
     ) {
         when {

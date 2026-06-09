@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -49,6 +48,18 @@ import app.visto.ui.Strings
 import app.visto.ui.theme.ThemeMode
 import kotlin.math.roundToInt
 
+private val SettingsPageHorizontalPadding = 16.dp
+private val SettingsPageTopPadding = 14.dp
+private val SettingsPageBottomPadding = 12.dp
+private val SettingsSectionGap = 12.dp
+private val SettingsTitleGap = 4.dp
+private val SettingsCardPadding = 10.dp
+private val SettingsItemGap = 8.dp
+private val SettingsDetailGap = 6.dp
+private val SettingsRadioRowVerticalPadding = 2.dp
+private val SettingsSliderThumbSize = 22.dp
+private val SettingsSliderThumbRadius = 11.dp
+
 @Composable
 fun SettingsScreen(
     state: SettingsUiState,
@@ -76,42 +87,63 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(innerPadding)
-                .padding(start = 16.dp, top = 20.dp, end = 16.dp, bottom = 16.dp)
+                .padding(
+                    start = SettingsPageHorizontalPadding,
+                    top = SettingsPageTopPadding,
+                    end = SettingsPageHorizontalPadding,
+                    bottom = SettingsPageBottomPadding,
+                )
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+            verticalArrangement = Arrangement.spacedBy(SettingsSectionGap),
         ) {
-            SectionLabel(Strings.SETTINGS_ACCOUNT)
-            AccountsSection(
-                state = state,
-                onAddServer = onAddServer,
-                onSwitchAccount = onSwitchAccount,
-                onDeleteAccount = onDeleteAccount,
-                onTestActiveConnection = onTestActiveConnection,
-            )
+            SettingsSection(Strings.SETTINGS_ACCOUNT) {
+                AccountsSection(
+                    state = state,
+                    onAddServer = onAddServer,
+                    onSwitchAccount = onSwitchAccount,
+                    onDeleteAccount = onDeleteAccount,
+                    onTestActiveConnection = onTestActiveConnection,
+                )
+            }
 
-            ThemeSection(state.themeMode, onThemeModeChange)
+            SettingsSection(Strings.SETTINGS_APPEARANCE) {
+                ThemeSection(state.themeMode, onThemeModeChange)
+            }
 
-            ViewerSection(
-                autoLoadOriginalImages = state.autoLoadOriginalImages,
-                blurThumbnails = state.blurThumbnails,
-                gridDensity = state.gridDensity,
-                onAutoLoadOriginalImagesChange = onAutoLoadOriginalImagesChange,
-                onBlurThumbnailsChange = onBlurThumbnailsChange,
-                onGridDensityChange = onGridDensityChange,
-            )
+            SettingsSection(Strings.SETTINGS_VIEWER) {
+                ViewerSection(
+                    autoLoadOriginalImages = state.autoLoadOriginalImages,
+                    blurThumbnails = state.blurThumbnails,
+                    gridDensity = state.gridDensity,
+                    onAutoLoadOriginalImagesChange = onAutoLoadOriginalImagesChange,
+                    onBlurThumbnailsChange = onBlurThumbnailsChange,
+                    onGridDensityChange = onGridDensityChange,
+                )
+            }
 
-            CacheSection(state, onClearCache, onCacheLimitChange)
+            SettingsSection(Strings.SETTINGS_LOCAL_CACHE) {
+                CacheSection(state, onClearCache, onCacheLimitChange)
+            }
 
-            SectionLabel(Strings.SETTINGS_ABOUT_TITLE)
-            AboutCard(
-                update = state.update,
-                onCheckUpdate = onCheckUpdate,
-                onDownloadUpdate = onDownloadUpdate,
-                onInstallUpdate = onInstallUpdate,
-                onOpenReleasePage = onOpenReleasePage,
-                onDismissUpdateMessage = onDismissUpdateMessage,
-            )
+            SettingsSection(Strings.SETTINGS_ABOUT_TITLE) {
+                AboutCard(
+                    update = state.update,
+                    onCheckUpdate = onCheckUpdate,
+                    onDownloadUpdate = onDownloadUpdate,
+                    onInstallUpdate = onInstallUpdate,
+                    onOpenReleasePage = onOpenReleasePage,
+                    onDismissUpdateMessage = onDismissUpdateMessage,
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun SettingsSection(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(SettingsTitleGap)) {
+        SectionLabel(title)
+        content()
     }
 }
 
@@ -122,7 +154,7 @@ private fun SectionLabel(text: String) {
         style = MaterialTheme.typography.bodyMedium,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
+        modifier = Modifier.padding(start = SettingsTitleGap),
     )
 }
 
@@ -139,8 +171,8 @@ private fun AccountsSection(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(SettingsCardPadding).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(SettingsItemGap),
         ) {
             if (state.accounts.isEmpty()) {
                 Text(
@@ -154,7 +186,7 @@ private fun AccountsSection(
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(SettingsItemGap),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Storage,
@@ -213,12 +245,11 @@ private fun AccountsSection(
 
 @Composable
 private fun ThemeSection(current: ThemeMode, onChange: (ThemeMode) -> Unit) {
-    SectionLabel(Strings.SETTINGS_APPEARANCE)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(SettingsCardPadding)) {
             RailsRadio(
                 label = "跟随系统",
                 selected = current == ThemeMode.SYSTEM,
@@ -245,8 +276,8 @@ private fun DiagnosticResultCard(result: WebDavDiagnosticResult) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(SettingsCardPadding),
+            verticalArrangement = Arrangement.spacedBy(SettingsDetailGap),
         ) {
             Text(
                 text = result.summary,
@@ -262,7 +293,7 @@ private fun DiagnosticResultCard(result: WebDavDiagnosticResult) {
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(SettingsItemGap),
                 ) {
                     Text(text = marker, color = color)
                     Column(modifier = Modifier.weight(1f)) {
@@ -285,7 +316,7 @@ private fun RailsRadio(label: String, selected: Boolean, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
+            .padding(vertical = SettingsRadioRowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(
@@ -295,7 +326,7 @@ private fun RailsRadio(label: String, selected: Boolean, onClick: () -> Unit) {
                 selectedColor = MaterialTheme.colorScheme.primary,
             ),
         )
-        Text(text = label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 8.dp))
+        Text(text = label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = SettingsItemGap))
     }
 }
 
@@ -308,7 +339,6 @@ private fun ViewerSection(
     onBlurThumbnailsChange: (Boolean) -> Unit,
     onGridDensityChange: (GridDensity) -> Unit,
 ) {
-    SectionLabel(Strings.SETTINGS_VIEWER)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -336,7 +366,11 @@ private fun ViewerSection(
 
 @Composable
 private fun GridDensityRow(current: GridDensity, onChange: (GridDensity) -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = SettingsCardPadding, vertical = SettingsItemGap),
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = Strings.SETTINGS_GRID_DENSITY, style = MaterialTheme.typography.bodyMedium)
@@ -353,8 +387,8 @@ private fun GridDensityRow(current: GridDensity, onChange: (GridDensity) -> Unit
             )
         }
         Row(
-            modifier = Modifier.padding(top = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = SettingsItemGap),
+            horizontalArrangement = Arrangement.spacedBy(SettingsItemGap),
         ) {
             GridDensity.entries.forEach { density ->
                 if (density == current) {
@@ -383,9 +417,9 @@ private fun SwitchRow(title: String, description: String, checked: Boolean, onCh
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onChange(!checked) }
-            .padding(16.dp),
+            .padding(horizontal = SettingsCardPadding, vertical = SettingsItemGap),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(SettingsItemGap),
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(text = title, style = MaterialTheme.typography.bodyMedium)
@@ -405,17 +439,16 @@ private fun SwitchRow(title: String, description: String, checked: Boolean, onCh
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CacheSection(state: SettingsUiState, onClearCache: () -> Unit, onCacheLimitChange: (ThumbnailCacheLimit) -> Unit) {
-    SectionLabel(Strings.SETTINGS_LOCAL_CACHE)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(SettingsCardPadding)) {
             Text(text = Strings.thumbnailsOnDisk(formatBytes(state.thumbnailCacheBytes)), style = MaterialTheme.typography.bodyMedium)
 
             val limits = ThumbnailCacheLimit.entries
             Row(
-                modifier = Modifier.padding(top = 14.dp),
+                modifier = Modifier.padding(top = SettingsItemGap),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -430,8 +463,8 @@ private fun CacheSection(state: SettingsUiState, onClearCache: () -> Unit, onCac
                 )
             }
             Column(
-                modifier = Modifier.padding(top = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(top = SettingsDetailGap),
+                verticalArrangement = Arrangement.spacedBy(SettingsDetailGap),
             ) {
                 val selectedIndex = limits.indexOf(state.thumbnailCacheLimit).coerceAtLeast(0)
                 Slider(
@@ -450,13 +483,13 @@ private fun CacheSection(state: SettingsUiState, onClearCache: () -> Unit, onCac
                     thumb = {
                         Box(
                             modifier = Modifier
-                                .size(22.dp)
-                                .clip(RoundedCornerShape(11.dp))
+                                .size(SettingsSliderThumbSize)
+                                .clip(RoundedCornerShape(SettingsSliderThumbRadius))
                                 .background(MaterialTheme.colorScheme.primary)
                                 .border(
                                     width = 3.dp,
                                     color = MaterialTheme.colorScheme.surfaceVariant,
-                                    shape = RoundedCornerShape(11.dp),
+                                    shape = RoundedCornerShape(SettingsSliderThumbRadius),
                                 ),
                         )
                     },
@@ -487,9 +520,9 @@ private fun CacheSection(state: SettingsUiState, onClearCache: () -> Unit, onCac
                 enabled = !state.isClearingCache,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 14.dp),
+                    .padding(top = SettingsItemGap),
             ) {
-                Icon(Icons.Filled.DeleteSweep, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                Icon(Icons.Filled.DeleteSweep, contentDescription = null, modifier = Modifier.padding(end = SettingsItemGap))
                 Text(text = if (state.isClearingCache) Strings.SETTINGS_CLEARING else Strings.SETTINGS_CLEAR_THUMBNAILS)
             }
         }
@@ -510,13 +543,13 @@ private fun AboutCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(SettingsCardPadding).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(SettingsItemGap),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(SettingsItemGap),
             ) {
                 Text(
                     text = "v${AppInfo.VERSION_NAME}",
@@ -534,7 +567,7 @@ private fun AboutCard(
 
             val info = update.info
             if (info != null && info.hasUpdate) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(SettingsTitleGap)) {
                     Text(
                         text = "${Strings.SETTINGS_NEW_VERSION}：v${info.latestVersion}",
                         style = MaterialTheme.typography.bodyMedium,
@@ -552,7 +585,7 @@ private fun AboutCard(
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(top = 4.dp),
+                            modifier = Modifier.padding(top = SettingsTitleGap),
                         )
                         Text(
                             text = info.releaseNotes,
@@ -624,7 +657,7 @@ private fun AboutCard(
                 val downloaded = update.downloaded
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(SettingsItemGap),
                 ) {
                     if (downloaded != null) {
                         Button(
