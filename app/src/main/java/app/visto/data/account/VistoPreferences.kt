@@ -2,6 +2,7 @@ package app.visto.data.account
 
 import android.content.Context
 import android.content.SharedPreferences
+import app.visto.core.sort.SortMode
 import app.visto.ui.theme.ThemeMode
 import androidx.core.content.edit
 
@@ -52,6 +53,11 @@ class VistoPreferences(context: Context) {
         get() = AlbumViewMode.fromStorage(prefs.getString(KEY_ALBUM_VIEW_MODE, AlbumViewMode.FOLDERS.storageKey))
         set(mode) = prefs.edit { putString(KEY_ALBUM_VIEW_MODE, mode.storageKey) }
 
+    /** Last user-selected sort mode for album folders/grids. */
+    var albumSortMode: SortMode
+        get() = SortMode.fromStorage(prefs.getString(KEY_ALBUM_SORT_MODE, SortMode.DEFAULT.storageKey))
+        set(mode) = prefs.edit { putString(KEY_ALBUM_SORT_MODE, mode.storageKey) }
+
     /** Default grid density for album detail and WebDAV browser thumbnails. */
     var gridDensity: GridDensity
         get() = GridDensity.fromStorage(prefs.getString(KEY_GRID_DENSITY, GridDensity.STANDARD.storageKey))
@@ -73,6 +79,7 @@ class VistoPreferences(context: Context) {
         private const val KEY_BLUR_THUMBNAILS = "blur_thumbnails"
         private const val KEY_MAX_GRID_THUMBNAIL_BYTES = "max_grid_thumbnail_bytes"
         private const val KEY_ALBUM_VIEW_MODE = "album_view_mode"
+        private const val KEY_ALBUM_SORT_MODE = "album_sort_mode"
         private const val KEY_GRID_DENSITY = "grid_density"
         private const val KEY_THUMBNAIL_CACHE_LIMIT = "thumbnail_cache_limit"
         const val DEFAULT_MAX_GRID_THUMBNAIL_BYTES: Long = 8L * 1024 * 1024
@@ -125,8 +132,8 @@ enum class GridDensity(
     val folderColumns: Int,
 ) {
     COMFORTABLE("comfortable", "舒适", mediaColumns = 2, folderColumns = 2),
-    STANDARD("standard", "标准", mediaColumns = 3, folderColumns = 2),
-    COMPACT("compact", "紧凑", mediaColumns = 4, folderColumns = 3);
+    STANDARD("standard", "标准", mediaColumns = 3, folderColumns = 3),
+    COMPACT("compact", "紧凑", mediaColumns = 5, folderColumns = 5);
 
     fun next(): GridDensity = when (this) {
         COMFORTABLE -> STANDARD
@@ -140,4 +147,14 @@ enum class GridDensity(
             return entries.firstOrNull { it.storageKey == value } ?: STANDARD
         }
     }
+}
+
+/**
+ * Album icon-grid cycles through the visible column counts, then returns to the
+ * list view. Returning null means the next visible state is the list view.
+ */
+fun GridDensity.nextAlbumFolderGridDensityOrNull(): GridDensity? = when (this) {
+    GridDensity.COMFORTABLE -> GridDensity.STANDARD
+    GridDensity.STANDARD -> GridDensity.COMPACT
+    GridDensity.COMPACT -> null
 }

@@ -566,11 +566,13 @@ private fun AlbumsHost(
     fun openAlbum(target: AlbumSourceEntity) {
         openedAlbum = target
         val initialMode = app.preferences.albumViewMode
+        val initialSortMode = app.preferences.albumSortMode
         val rootPath = DavPath.normalize(target.rootPath)
         albumDetail = AlbumDetailUiState(
             title = target.displayName,
             rootPath = rootPath,
             viewMode = initialMode,
+            sortMode = initialSortMode,
         )
         when (initialMode) {
             AlbumViewMode.FOLDERS -> loadFolder(target, rootPath)
@@ -667,6 +669,7 @@ private fun AlbumsHost(
             mediaCacheKeyOfPath = { path -> mediaCacheKeyScope(summary) + ":" + path },
             sortMode = detail.sortMode,
             onSortModeChange = { mode ->
+                app.preferences.albumSortMode = mode
                 albumDetail = AlbumDetailReducer.applySort(detail, mode)
             },
             onBack = {

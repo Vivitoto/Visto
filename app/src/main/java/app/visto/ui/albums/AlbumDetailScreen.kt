@@ -62,6 +62,7 @@ import app.visto.core.model.RemoteEntry
 import app.visto.core.sort.SortMode
 import app.visto.data.account.AlbumViewMode
 import app.visto.data.account.GridDensity
+import app.visto.data.account.nextAlbumFolderGridDensityOrNull
 import app.visto.ui.Strings
 import app.visto.ui.components.PausableAsyncImage
 import app.visto.ui.components.rememberThumbnailAnimationsEnabled
@@ -184,6 +185,7 @@ private fun ViewCycleAction(
     onSwitchToFlat: () -> Unit,
 ) {
     val isList = viewMode == AlbumViewMode.FOLDERS
+    val nextGridDensity = gridDensity.nextAlbumFolderGridDensityOrNull()
     Box(
         modifier = Modifier
             .padding(horizontal = 4.dp)
@@ -203,8 +205,7 @@ private fun ViewCycleAction(
                             onGridDensityChange(GridDensity.COMFORTABLE)
                             onSwitchToFlat()
                         }
-                        gridDensity == GridDensity.COMFORTABLE -> onGridDensityChange(GridDensity.STANDARD)
-                        gridDensity == GridDensity.STANDARD -> onGridDensityChange(GridDensity.COMPACT)
+                        nextGridDensity != null -> onGridDensityChange(nextGridDensity)
                         else -> onSwitchToFolders()
                     }
                 },
@@ -216,8 +217,7 @@ private fun ViewCycleAction(
             tint = if (isList) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimaryContainer,
             contentDescription = when {
                 isList -> "切换到网格：舒适"
-                gridDensity == GridDensity.COMFORTABLE -> "切换到网格：标准"
-                gridDensity == GridDensity.STANDARD -> "切换到网格：紧凑"
+                nextGridDensity != null -> "切换到网格：${nextGridDensity.displayLabel}"
                 else -> Strings.ALBUM_VIEW_MODE_FOLDERS
             },
             modifier = Modifier.size(22.dp),
