@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items as listItems
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -41,6 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -149,6 +152,7 @@ fun AlbumDetailScreen(
                 state.isEmpty -> EmptyAlbum(state.viewMode)
                 state.viewMode == AlbumViewMode.FOLDERS -> FolderGrid(
                     folderView = state.folderView,
+                    sortMode = sortMode,
                     onOpenFolder = onOpenFolder,
                     onOpenMedia = onOpenMedia,
                 )
@@ -157,6 +161,7 @@ fun AlbumDetailScreen(
                     imageLoader = imageLoader,
                     blurThumbnails = blurThumbnails,
                     gridDensity = gridDensity,
+                    sortMode = sortMode,
                     mediaUrlOf = mediaUrlOf,
                     mediaCacheKeyOf = mediaCacheKeyOf,
                     folderPreviewPathsOf = folderPreviewPathsOf,
@@ -179,27 +184,43 @@ private fun ViewCycleAction(
     onSwitchToFlat: () -> Unit,
 ) {
     val isList = viewMode == AlbumViewMode.FOLDERS
-    IconButton(
-        onClick = {
-            when {
-                isList -> {
-                    onGridDensityChange(GridDensity.COMFORTABLE)
-                    onSwitchToFlat()
-                }
-                gridDensity == GridDensity.COMFORTABLE -> onGridDensityChange(GridDensity.STANDARD)
-                gridDensity == GridDensity.STANDARD -> onGridDensityChange(GridDensity.COMPACT)
-                else -> onSwitchToFolders()
-            }
-        },
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 4.dp)
+            .size(44.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                if (isList) {
+                    MaterialTheme.colorScheme.surfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primaryContainer
+                },
+            )
+            .clickable(
+                onClick = {
+                    when {
+                        isList -> {
+                            onGridDensityChange(GridDensity.COMFORTABLE)
+                            onSwitchToFlat()
+                        }
+                        gridDensity == GridDensity.COMFORTABLE -> onGridDensityChange(GridDensity.STANDARD)
+                        gridDensity == GridDensity.STANDARD -> onGridDensityChange(GridDensity.COMPACT)
+                        else -> onSwitchToFolders()
+                    }
+                },
+            ),
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = if (isList) Icons.Filled.GridView else Icons.AutoMirrored.Filled.List,
+            tint = if (isList) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimaryContainer,
             contentDescription = when {
                 isList -> "切换到网格：舒适"
                 gridDensity == GridDensity.COMFORTABLE -> "切换到网格：标准"
                 gridDensity == GridDensity.STANDARD -> "切换到网格：紧凑"
                 else -> Strings.ALBUM_VIEW_MODE_FOLDERS
             },
+            modifier = Modifier.size(22.dp),
         )
     }
 }
@@ -255,10 +276,16 @@ private fun AlbumDetailSkeleton() {
 @Composable
 private fun FolderGrid(
     folderView: AlbumFolderViewState,
+    sortMode: SortMode,
     onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(folderView.currentPath, sortMode) {
+        listState.scrollToItem(0)
+    }
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
     ) {
@@ -315,7 +342,7 @@ private fun AlbumMediaRow(item: RemoteEntry, onClick: () -> Unit) {
         Text(
             text = item.name,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -340,7 +367,7 @@ private fun FolderRow(folder: RemoteEntry, onClick: () -> Unit) {
         )
         Text(
             text = folder.name,
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -353,6 +380,7 @@ private fun FolderIconGrid(
     imageLoader: ImageLoader,
     blurThumbnails: Boolean,
     gridDensity: GridDensity,
+    sortMode: SortMode,
     mediaUrlOf: (RemoteEntry) -> String,
     mediaCacheKeyOf: (RemoteEntry) -> String,
     folderPreviewPathsOf: ((RemoteEntry) -> List<String>)? = null,
@@ -362,6 +390,9 @@ private fun FolderIconGrid(
     onOpenMedia: (RemoteEntry) -> Unit,
 ) {
     val gridState = rememberLazyGridState()
+    LaunchedEffect(folderView.currentPath, sortMode) {
+        gridState.scrollToItem(0)
+    }
     val playThumbnailAnimations = rememberThumbnailAnimationsEnabled(gridState.isScrollInProgress)
     LazyVerticalGrid(
         columns = GridCells.Fixed(gridDensity.folderColumns),
@@ -573,7 +604,7 @@ private fun ProgressBar(state: AlbumDetailUiState) {
             strokeWidth = 2.dp,
             modifier = Modifier.padding(end = 8.dp),
         )
-        Text(text = Strings.ALBUM_DETAIL_LOADING, style = MaterialTheme.typography.bodySmall)
+        Text(text = Strings.ALBUM_DETAIL_LOADING, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -617,7 +648,7 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
 private fun SectionHeader(section: AlbumDetailSection) {
     val display = if (section.title.isEmpty()) Strings.ALBUM_DETAIL_ROOT_SECTION else section.title
     Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
-        Text(text = display, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text = display, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(
             text = Strings.albumDetailSectionCount(section.media.size),
             style = MaterialTheme.typography.bodySmall,
@@ -663,7 +694,7 @@ private fun AlbumMediaTile(
             ) {
                 Text(
                     text = item.name,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,

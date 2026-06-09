@@ -195,7 +195,7 @@ private fun AlbumRow(
             ) {
                 Text(
                     text = album.displayName,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

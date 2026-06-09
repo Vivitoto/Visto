@@ -211,7 +211,7 @@ private fun BrowserPathRow(
         ) {
             Text(
                 text = folderName,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.84f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -243,7 +243,7 @@ private fun SectionHeader(text: String) {
     Text(
         text = text,
         modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
-        style = MaterialTheme.typography.labelLarge,
+        style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
@@ -263,6 +263,7 @@ private fun FolderRow(folder: RemoteEntry, onClick: () -> Unit) {
             modifier = Modifier
                 .weight(1f)
                 .padding(start = 12.dp),
+            style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -298,6 +299,7 @@ private fun MediaFileRow(media: RemoteEntry, onClick: () -> Unit) {
         Text(
             text = media.name,
             modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

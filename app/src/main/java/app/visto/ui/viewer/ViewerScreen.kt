@@ -158,19 +158,14 @@ fun ViewerScreen(
             }
             if (chromeVisible) {
                 val current = session.items.getOrNull(pagerState.currentPage)
-                val currentLoaded = current?.let { autoLoadOriginalImages || manualLoaded[it.path] == true } ?: true
                 ViewerInfoBar(
                     current = current,
                     page = pagerState.currentPage + 1,
                     total = session.items.size,
                     onClose = onClose,
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(
-                            start = 18.dp,
-                            end = 18.dp,
-                            bottom = if (current?.mediaType == MediaType.VIDEO || currentLoaded) 18.dp else 84.dp,
-                        ),
+                        .align(Alignment.TopStart)
+                        .padding(start = 12.dp, top = 12.dp, end = 12.dp),
                 )
             }
         }
@@ -188,7 +183,7 @@ private fun ViewerInfoBar(
     Surface(
         color = Color.Black.copy(alpha = 0.56f),
         shape = RoundedCornerShape(24.dp),
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(0.88f),
     ) {
         Row(
             modifier = Modifier.padding(start = 4.dp, end = 14.dp, top = 4.dp, bottom = 4.dp),
@@ -201,7 +196,7 @@ private fun ViewerInfoBar(
                 Text(
                     text = current?.name.orEmpty(),
                     color = Color.White,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

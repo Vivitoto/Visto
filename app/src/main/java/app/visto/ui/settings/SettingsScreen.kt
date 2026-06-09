@@ -1,15 +1,19 @@
 package app.visto.ui.settings
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteSweep
@@ -25,6 +29,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -112,7 +117,7 @@ fun SettingsScreen(
 private fun SectionLabel(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleMedium,
+        style = MaterialTheme.typography.bodyMedium,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
@@ -157,7 +162,7 @@ private fun AccountsSection(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = if (active) "${account.displayName} · ${Strings.SETTINGS_ACTIVE_SERVER}" else account.displayName,
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.bodyMedium,
                                 maxLines = 1,
                             )
                             Text(
@@ -243,7 +248,7 @@ private fun DiagnosticResultCard(result: WebDavDiagnosticResult) {
         ) {
             Text(
                 text = result.summary,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = if (result.ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
             )
             result.steps.forEach { step ->
@@ -288,7 +293,7 @@ private fun RailsRadio(label: String, selected: Boolean, onClick: () -> Unit) {
                 selectedColor = MaterialTheme.colorScheme.primary,
             ),
         )
-        Text(text = label, modifier = Modifier.padding(start = 8.dp))
+        Text(text = label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 8.dp))
     }
 }
 
@@ -332,7 +337,7 @@ private fun GridDensityRow(current: GridDensity, onChange: (GridDensity) -> Unit
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = Strings.SETTINGS_GRID_DENSITY, style = MaterialTheme.typography.titleMedium)
+                Text(text = Strings.SETTINGS_GRID_DENSITY, style = MaterialTheme.typography.bodyMedium)
                 Text(
                     text = Strings.SETTINGS_GRID_DENSITY_DESC,
                     style = MaterialTheme.typography.bodySmall,
@@ -341,7 +346,7 @@ private fun GridDensityRow(current: GridDensity, onChange: (GridDensity) -> Unit
             }
             Text(
                 text = current.displayLabel,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
         }
@@ -350,12 +355,20 @@ private fun GridDensityRow(current: GridDensity, onChange: (GridDensity) -> Unit
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             GridDensity.entries.forEach { density ->
-                OutlinedButton(
-                    onClick = { onChange(density) },
-                    modifier = Modifier.weight(1f),
-                    enabled = density != current,
-                ) {
-                    Text(density.displayLabel)
+                if (density == current) {
+                    Button(
+                        onClick = { onChange(density) },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(density.displayLabel)
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = { onChange(density) },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(density.displayLabel)
+                    }
                 }
             }
         }
@@ -373,7 +386,7 @@ private fun SwitchRow(title: String, description: String, checked: Boolean, onCh
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Text(text = title, style = MaterialTheme.typography.bodyMedium)
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodySmall,
@@ -395,34 +408,74 @@ private fun CacheSection(state: SettingsUiState, onClearCache: () -> Unit, onCac
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = Strings.thumbnailsOnDisk(formatBytes(state.thumbnailCacheBytes)))
+            Text(text = Strings.thumbnailsOnDisk(formatBytes(state.thumbnailCacheBytes)), style = MaterialTheme.typography.bodyMedium)
 
             val limits = ThumbnailCacheLimit.entries
-            val selectedIndex = limits.indexOf(state.thumbnailCacheLimit).coerceAtLeast(0)
             Row(
                 modifier = Modifier.padding(top = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = Strings.SETTINGS_CACHE_LIMIT_LABEL,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
                     text = state.thumbnailCacheLimit.displayLabel,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
-            Slider(
-                value = selectedIndex.toFloat(),
-                onValueChange = { value ->
-                    onCacheLimitChange(limits[value.roundToInt().coerceIn(0, limits.lastIndex)])
-                },
-                valueRange = 0f..limits.lastIndex.toFloat(),
-                steps = (limits.size - 2).coerceAtLeast(0),
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Column(
+                modifier = Modifier.padding(top = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                val selectedIndex = limits.indexOf(state.thumbnailCacheLimit).coerceAtLeast(0)
+                Slider(
+                    value = selectedIndex.toFloat(),
+                    onValueChange = { value ->
+                        val index = value.roundToInt().coerceIn(0, limits.lastIndex)
+                        onCacheLimitChange(limits[index])
+                    },
+                    valueRange = 0f..limits.lastIndex.toFloat(),
+                    steps = (limits.size - 2).coerceAtLeast(0),
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                        inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant,
+                    ),
+                    thumb = {
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clip(RoundedCornerShape(11.dp))
+                                .background(MaterialTheme.colorScheme.primary)
+                                .border(
+                                    width = 3.dp,
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = RoundedCornerShape(11.dp),
+                                ),
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    limits.forEachIndexed { index, limit ->
+                        Text(
+                            text = limit.displayLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (index == selectedIndex) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+                }
+            }
             state.message?.let {
                 Text(text = it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -464,7 +517,7 @@ private fun AboutCard(
             ) {
                 Text(
                     text = "v${AppInfo.VERSION_NAME}",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
@@ -481,7 +534,7 @@ private fun AboutCard(
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         text = "${Strings.SETTINGS_NEW_VERSION}：v${info.latestVersion}",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
                     val sizeText = info.apkSize?.let { " · ${formatBytes(it)}" } ?: ""
@@ -493,7 +546,8 @@ private fun AboutCard(
                     if (info.releaseNotes.isNotBlank()) {
                         Text(
                             text = Strings.SETTINGS_RELEASE_NOTES,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(top = 4.dp),
                         )
