@@ -13,8 +13,8 @@ android {
         applicationId = "app.visto"
         minSdk = 26
         targetSdk = 35
-        versionCode = 15
-        versionName = "1.0.2"
+        versionCode = 16
+        versionName = "1.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -71,6 +71,7 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
     implementation(libs.media3.datasource.okhttp)
+    implementation(libs.webp.android)
 
     debugImplementation(libs.androidx.ui.tooling)
 

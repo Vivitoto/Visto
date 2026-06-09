@@ -60,6 +60,11 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import app.visto.core.media.MediaType
 import app.visto.core.model.RemoteEntry
+import app.visto.data.thumbnail.AnimatedThumbnailCache
+import app.visto.data.thumbnail.GeneratedThumbnailCache
+import app.visto.data.thumbnail.ThumbnailCacheKey
+import app.visto.ui.components.AnimatedThumbnailImage
+import app.visto.ui.components.GeneratedThumbnailImage
 import coil.ImageLoader
 import coil.compose.SubcomposeAsyncImage
 import coil.request.CachePolicy
@@ -87,6 +92,7 @@ fun ViewerScreen(
     okHttpClient: OkHttpClient,
     mediaUrlOf: (RemoteEntry) -> String,
     cacheKeyScope: String,
+    thumbnailCacheLimitBytes: Long,
     autoLoadOriginalImages: Boolean,
     onClose: () -> Unit,
 ) {
@@ -107,14 +113,30 @@ fun ViewerScreen(
             val item = session.items[page]
             if (item.mediaType != MediaType.VIDEO) {
                 val url = mediaUrlOf(item)
-                imageLoader.enqueue(
-                    ImageRequest.Builder(context)
-                        .data(url)
-                        .memoryCacheKey("$cacheKeyScope:${item.path}")
-                        .diskCacheKey("$cacheKeyScope:${item.path}")
-                        .size(1024)
-                        .build(),
-                )
+                val cacheKey = "$cacheKeyScope:${ThumbnailCacheKey.forEntry(item)}"
+                if (item.mediaType == MediaType.ANIMATED_IMAGE) {
+                    runCatching {
+                        AnimatedThumbnailCache.ensure(
+                            context = context.applicationContext,
+                            okHttpClient = okHttpClient,
+                            url = url,
+                            cacheKey = cacheKey,
+                            kind = AnimatedThumbnailCache.Kind.PREVIEW,
+                            maxBytes = thumbnailCacheLimitBytes,
+                        )
+                    }
+                } else {
+                    runCatching {
+                        GeneratedThumbnailCache.ensure(
+                            context = context.applicationContext,
+                            imageLoader = imageLoader,
+                            url = url,
+                            cacheKey = cacheKey,
+                            kind = GeneratedThumbnailCache.Kind.PREVIEW,
+                            maxBytes = thumbnailCacheLimitBytes,
+                        )
+                    }
+                }
                 if (autoLoadOriginalImages) {
                     imageLoader.enqueue(
                         ImageRequest.Builder(context)
@@ -147,8 +169,10 @@ fun ViewerScreen(
                         ImagePage(
                             item = item,
                             imageLoader = imageLoader,
+                            okHttpClient = okHttpClient,
                             url = mediaUrlOf(item),
                             cacheKeyScope = cacheKeyScope,
+                            thumbnailCacheLimitBytes = thumbnailCacheLimitBytes,
                             loaded = loaded,
                             onLoadRequest = { manualLoaded[item.path] = true },
                             onToggleChrome = { chromeVisible = !chromeVisible },
@@ -223,8 +247,10 @@ private fun ViewerInfoBar(
 private fun ImagePage(
     item: RemoteEntry,
     imageLoader: ImageLoader,
+    okHttpClient: OkHttpClient,
     url: String,
     cacheKeyScope: String,
+    thumbnailCacheLimitBytes: Long,
     loaded: Boolean,
     onLoadRequest: () -> Unit,
     onToggleChrome: () -> Unit,
@@ -310,8 +336,10 @@ private fun ImagePage(
                     ThumbnailBackdrop(
                         item = item,
                         imageLoader = imageLoader,
+                        okHttpClient = okHttpClient,
                         url = url,
                         cacheKeyScope = cacheKeyScope,
+                        thumbnailCacheLimitBytes = thumbnailCacheLimitBytes,
                     )
                     Column(
                         modifier = Modifier.fillMaxSize(),
@@ -331,8 +359,10 @@ private fun ImagePage(
                     ThumbnailBackdrop(
                         item = item,
                         imageLoader = imageLoader,
+                        okHttpClient = okHttpClient,
                         url = url,
                         cacheKeyScope = cacheKeyScope,
+                        thumbnailCacheLimitBytes = thumbnailCacheLimitBytes,
                     )
                     Column(
                         modifier = Modifier
@@ -375,8 +405,10 @@ private fun ImagePage(
             ThumbnailBackdrop(
                 item = item,
                 imageLoader = imageLoader,
+                okHttpClient = okHttpClient,
                 url = url,
                 cacheKeyScope = cacheKeyScope,
+                thumbnailCacheLimitBytes = thumbnailCacheLimitBytes,
                 modifier = Modifier.graphicsLayer(
                     scaleX = scale,
                     scaleY = scale,
@@ -393,26 +425,41 @@ private fun ImagePage(
 private fun ThumbnailBackdrop(
     item: RemoteEntry,
     imageLoader: ImageLoader,
+    okHttpClient: OkHttpClient,
     url: String,
     cacheKeyScope: String,
+    thumbnailCacheLimitBytes: Long,
     modifier: Modifier = Modifier,
 ) {
-    val request = ImageRequest.Builder(LocalContext.current)
-        .data(url)
-        .memoryCacheKey("$cacheKeyScope:${item.path}")
-        .diskCacheKey("$cacheKeyScope:${item.path}")
-        .crossfade(true)
-        .size(1024) // thumbnail size that Coil will downsample to
-        .build()
-    SubcomposeAsyncImage(
-        model = request,
-        imageLoader = imageLoader,
-        contentDescription = item.name,
-        contentScale = ContentScale.Fit,
-        modifier = Modifier.fillMaxSize().then(modifier),
-        loading = { /* blank — page just stays black briefly */ },
-        error = { /* blank */ },
-    )
+    val cacheKey = "$cacheKeyScope:${ThumbnailCacheKey.forEntry(item)}"
+    if (item.mediaType == MediaType.ANIMATED_IMAGE) {
+        AnimatedThumbnailImage(
+            url = url,
+            cacheKey = cacheKey,
+            kind = AnimatedThumbnailCache.Kind.PREVIEW,
+            imageLoader = imageLoader,
+            okHttpClient = okHttpClient,
+            contentDescription = item.name,
+            contentScale = ContentScale.Fit,
+            cacheLimitBytes = thumbnailCacheLimitBytes,
+            modifier = Modifier.fillMaxSize().then(modifier),
+            loading = { /* blank — page just stays black briefly */ },
+            error = { /* blank */ },
+        )
+    } else {
+        GeneratedThumbnailImage(
+            url = url,
+            cacheKey = cacheKey,
+            kind = GeneratedThumbnailCache.Kind.PREVIEW,
+            imageLoader = imageLoader,
+            contentDescription = item.name,
+            contentScale = ContentScale.Fit,
+            cacheLimitBytes = thumbnailCacheLimitBytes,
+            modifier = Modifier.fillMaxSize().then(modifier),
+            loading = { /* blank — page just stays black briefly */ },
+            error = { /* blank */ },
+        )
+    }
 }
 
 @Composable

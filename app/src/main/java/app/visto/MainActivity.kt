@@ -44,6 +44,9 @@ import app.visto.data.album.AlbumCoverFinder
 import app.visto.data.cache.AlbumIndexCache
 import app.visto.data.db.AlbumSourceEntity
 import app.visto.data.db.RemoteEntryRepository
+import app.visto.data.thumbnail.AnimatedThumbnailCache
+import app.visto.data.thumbnail.GeneratedThumbnailCache
+import app.visto.data.thumbnail.ThumbnailCacheKey
 import app.visto.data.update.AppUpdateService
 import app.visto.data.webdav.WebDavClient
 import app.visto.data.webdav.WebDavCredentials
@@ -590,6 +593,7 @@ private fun AlbumsHost(
             okHttpClient = app.okHttpClient,
             mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
             cacheKeyScope = mediaCacheKeyScope(summary),
+            thumbnailCacheLimitBytes = app.preferences.thumbnailCacheLimit.bytes,
             autoLoadOriginalImages = app.preferences.autoLoadOriginalImages,
             onClose = { viewerSession = null },
         )
@@ -641,11 +645,13 @@ private fun AlbumsHost(
             state = detail,
             albumRootPath = rootPath,
             imageLoader = app.imageLoader,
+            okHttpClient = app.okHttpClient,
             blurThumbnails = app.preferences.blurThumbnails,
             gridDensity = gridDensity,
+            thumbnailCacheLimitBytes = app.preferences.thumbnailCacheLimit.bytes,
             onGridDensityChange = onGridDensityChange,
             mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
-            mediaCacheKeyOf = { entry -> mediaCacheKeyScope(summary) + ":" + entry.path },
+            mediaCacheKeyOf = { entry -> mediaCacheKeyScope(summary) + ":" + ThumbnailCacheKey.forEntry(entry) },
             folderPreviewPathsOf = { folder ->
                 val key = folder.path
                 val cached = folderPreviews[key]
@@ -856,7 +862,7 @@ private fun SettingsHost(
                 accountDisplayName = summary?.displayName.orEmpty(),
                 accountBaseUrl = summary?.baseUrl.orEmpty(),
                 accountRoot = summary?.rootPath.orEmpty(),
-                thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
+                thumbnailCacheBytes = thumbnailCacheBytes(app),
                 themeMode = themeMode,
                 autoLoadOriginalImages = app.preferences.autoLoadOriginalImages,
                 blurThumbnails = app.preferences.blurThumbnails,
@@ -953,9 +959,11 @@ private fun SettingsHost(
                 settingsState = settingsState.copy(isClearingCache = true, message = null)
                 app.imageLoader.memoryCache?.clear()
                 app.imageLoader.diskCache?.clear()
+                GeneratedThumbnailCache.clear(app)
+                AnimatedThumbnailCache.clear(app)
                 settingsState = settingsState.copy(
                     isClearingCache = false,
-                    thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
+                    thumbnailCacheBytes = thumbnailCacheBytes(app),
                     message = Strings.SETTINGS_CACHE_CLEARED,
                 )
             }
@@ -965,7 +973,7 @@ private fun SettingsHost(
             app.rebuildImageLoader(limit.bytes)
             settingsState = settingsState.copy(
                 thumbnailCacheLimit = limit,
-                thumbnailCacheBytes = app.imageLoader.diskCache?.size ?: 0L,
+                thumbnailCacheBytes = thumbnailCacheBytes(app),
                 message = null,
             )
         },
@@ -1077,6 +1085,11 @@ private fun isAtOrBelowPath(path: String, root: String): Boolean {
 private fun mediaCacheKeyScope(summary: AccountSummary): String =
     "account:${summary.id}:${summary.credentialRef}"
 
+private fun thumbnailCacheBytes(app: VistoApplication): Long =
+    (app.imageLoader.diskCache?.size ?: 0L) +
+        GeneratedThumbnailCache.sizeBytes(app) +
+        AnimatedThumbnailCache.sizeBytes(app)
+
 @Composable
 private fun BrowserHost(
     summary: AccountSummary,
@@ -1159,6 +1172,7 @@ private fun BrowserHost(
             okHttpClient = app.okHttpClient,
             mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
             cacheKeyScope = mediaCacheKeyScope(summary),
+            thumbnailCacheLimitBytes = app.preferences.thumbnailCacheLimit.bytes,
             autoLoadOriginalImages = app.preferences.autoLoadOriginalImages,
             onClose = { viewerSession = null },
         )

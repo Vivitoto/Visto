@@ -63,12 +63,17 @@ import app.visto.core.sort.SortMode
 import app.visto.data.account.AlbumViewMode
 import app.visto.data.account.GridDensity
 import app.visto.data.account.nextAlbumFolderGridDensityOrNull
+import app.visto.data.thumbnail.AnimatedThumbnailCache
+import app.visto.data.thumbnail.GeneratedThumbnailCache
 import app.visto.ui.Strings
+import app.visto.ui.components.AnimatedThumbnailImage
+import app.visto.ui.components.GeneratedThumbnailImage
 import app.visto.ui.components.PausableAsyncImage
 import app.visto.ui.components.rememberThumbnailAnimationsEnabled
 import coil.ImageLoader
 import coil.request.ImageRequest
 import coil.size.Precision
+import okhttp3.OkHttpClient
 
 /**
  * Renders an album with two interchangeable view modes:
@@ -86,8 +91,10 @@ fun AlbumDetailScreen(
     state: AlbumDetailUiState,
     albumRootPath: String,
     imageLoader: ImageLoader,
+    okHttpClient: OkHttpClient,
     blurThumbnails: Boolean,
     gridDensity: GridDensity,
+    thumbnailCacheLimitBytes: Long,
     mediaUrlOf: (RemoteEntry) -> String,
     mediaCacheKeyOf: (RemoteEntry) -> String,
     folderPreviewPathsOf: ((RemoteEntry) -> List<String>)? = null,
@@ -420,8 +427,10 @@ private fun FolderIconGrid(
             AlbumMediaTile(
                 item = item,
                 imageLoader = imageLoader,
+                okHttpClient = okHttpClient,
                 mediaUrl = mediaUrlOf(item),
                 mediaCacheKey = mediaCacheKeyOf(item),
+                thumbnailCacheLimitBytes = thumbnailCacheLimitBytes,
                 blurThumbnails = blurThumbnails,
                 playThumbnailAnimations = playThumbnailAnimations,
                 resumeDelayMs = (index % 12) * 28L,
@@ -661,8 +670,10 @@ private fun SectionHeader(section: AlbumDetailSection) {
 private fun AlbumMediaTile(
     item: RemoteEntry,
     imageLoader: ImageLoader,
+    okHttpClient: OkHttpClient,
     mediaUrl: String,
     mediaCacheKey: String,
+    thumbnailCacheLimitBytes: Long,
     blurThumbnails: Boolean,
     playThumbnailAnimations: Boolean,
     resumeDelayMs: Long = 0,
@@ -705,21 +716,41 @@ private fun AlbumMediaTile(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        } else if (isAnimated) {
+            AnimatedThumbnailImage(
+                url = mediaUrl,
+                cacheKey = mediaCacheKey,
+                kind = AnimatedThumbnailCache.Kind.GRID,
+                imageLoader = imageLoader,
+                okHttpClient = okHttpClient,
+                contentDescription = item.name,
+                contentScale = ContentScale.Crop,
+                cacheLimitBytes = thumbnailCacheLimitBytes,
+                playAnimations = playThumbnailAnimations && !blurThumbnails,
+                resumeDelayMs = resumeDelayMs,
+                modifier = Modifier.fillMaxSize().then(if (blurThumbnails) Modifier.blur(12.dp) else Modifier),
+                loading = {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) { CircularProgressIndicator() }
+                },
+                error = {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) { Text(text = "!") }
+                },
+            )
         } else {
-            val request = ImageRequest.Builder(LocalContext.current)
-                .data(mediaUrl)
-                .memoryCacheKey(mediaCacheKey)
-                .diskCacheKey(mediaCacheKey)
-                .crossfade(false)
-                .size(320)
-                .precision(Precision.INEXACT)
-                .build()
-            PausableAsyncImage(
-                model = request,
+            GeneratedThumbnailImage(
+                url = mediaUrl,
+                cacheKey = mediaCacheKey,
+                kind = GeneratedThumbnailCache.Kind.GRID,
                 imageLoader = imageLoader,
                 contentDescription = item.name,
                 contentScale = ContentScale.Crop,
-                playAnimations = playThumbnailAnimations && !blurThumbnails,
+                cacheLimitBytes = thumbnailCacheLimitBytes,
                 resumeDelayMs = resumeDelayMs,
                 modifier = Modifier.fillMaxSize().then(if (blurThumbnails) Modifier.blur(12.dp) else Modifier),
                 loading = {
