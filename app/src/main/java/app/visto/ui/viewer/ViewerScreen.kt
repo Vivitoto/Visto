@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,8 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -98,34 +97,38 @@ fun ViewerScreen(
     val pagerState = rememberPagerState(initialPage = session.initialIndex) { session.items.size }
     val manualLoaded = remember { mutableStateMapOf<String, Boolean>() }
     var chromeVisible by remember { mutableStateOf(true) }
+    val context = LocalContext.current
 
-    Scaffold(
-        topBar = {
-            if (chromeVisible) {
-                TopAppBar(
-                    title = {
-                        val current = session.items.getOrNull(pagerState.currentPage)
-                        Text(
-                            text = current?.let { "${it.name} · ${pagerState.currentPage + 1}/${session.items.size}" }.orEmpty(),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onClose) {
-                            Icon(Icons.Filled.ArrowBack, contentDescription = "返回")
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Black,
-                        titleContentColor = Color.White,
-                        navigationIconContentColor = Color.White,
-                        actionIconContentColor = Color.White,
-                    ),
+    LaunchedEffect(pagerState.currentPage, autoLoadOriginalImages, session.items) {
+        val currentPage = pagerState.currentPage
+        val neighbors = ((currentPage - 2)..(currentPage + 2))
+            .filter { it in session.items.indices && it != currentPage }
+        neighbors.forEach { page ->
+            val item = session.items[page]
+            if (item.mediaType != MediaType.VIDEO) {
+                val url = mediaUrlOf(item)
+                imageLoader.enqueue(
+                    ImageRequest.Builder(context)
+                        .data(url)
+                        .memoryCacheKey("$cacheKeyScope:${item.path}")
+                        .diskCacheKey("$cacheKeyScope:${item.path}")
+                        .size(1024)
+                        .build(),
                 )
+                if (autoLoadOriginalImages) {
+                    imageLoader.enqueue(
+                        ImageRequest.Builder(context)
+                            .data(url)
+                            .memoryCacheKey("$cacheKeyScope:${item.path}:original:0")
+                            .diskCachePolicy(CachePolicy.DISABLED)
+                            .build(),
+                    )
+                }
             }
-        },
-    ) { innerPadding: PaddingValues ->
+        }
+    }
+
+    Scaffold { innerPadding: PaddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -155,22 +158,67 @@ fun ViewerScreen(
             }
             if (chromeVisible) {
                 val current = session.items.getOrNull(pagerState.currentPage)
-                Surface(
-                    color = Color.Black.copy(alpha = 0.58f),
-                    shape = RoundedCornerShape(20.dp),
+                val currentLoaded = current?.let { autoLoadOriginalImages || manualLoaded[it.path] == true } ?: true
+                ViewerInfoBar(
+                    current = current,
+                    page = pagerState.currentPage + 1,
+                    total = session.items.size,
+                    onClose = onClose,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(18.dp),
-                ) {
-                    Text(
-                        text = current?.let { "${pagerState.currentPage + 1} / ${session.items.size}  ${it.name}" }.orEmpty(),
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                    )
-                }
+                        .padding(
+                            start = 18.dp,
+                            end = 18.dp,
+                            bottom = if (current?.mediaType == MediaType.VIDEO || currentLoaded) 18.dp else 84.dp,
+                        ),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ViewerInfoBar(
+    current: RemoteEntry?,
+    page: Int,
+    total: Int,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = Color.Black.copy(alpha = 0.56f),
+        shape = RoundedCornerShape(24.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 4.dp, end = 14.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
+                Icon(Icons.Filled.ArrowBack, contentDescription = "返回", tint = Color.White)
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = current?.name.orEmpty(),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = current?.let {
+                        val type = when (it.mediaType) {
+                            MediaType.VIDEO -> "VIDEO"
+                            MediaType.ANIMATED_IMAGE -> "GIF"
+                            else -> null
+                        }
+                        if (type == null) "$page / $total" else "$page / $total · $type"
+                    }.orEmpty(),
+                    color = Color.White.copy(alpha = 0.68f),
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }

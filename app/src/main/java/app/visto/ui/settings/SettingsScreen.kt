@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -29,13 +28,13 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.visto.AppInfo
+import app.visto.data.account.GridDensity
 import app.visto.data.account.ThumbnailCacheLimit
 import app.visto.data.webdav.WebDavDiagnosticResult
 import app.visto.data.webdav.WebDavDiagnosticStatus
@@ -43,7 +42,6 @@ import app.visto.ui.Strings
 import app.visto.ui.theme.ThemeMode
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     state: SettingsUiState,
@@ -52,6 +50,7 @@ fun SettingsScreen(
     onThemeModeChange: (ThemeMode) -> Unit,
     onAutoLoadOriginalImagesChange: (Boolean) -> Unit,
     onBlurThumbnailsChange: (Boolean) -> Unit,
+    onGridDensityChange: (GridDensity) -> Unit,
     onAddServer: () -> Unit,
     onSwitchAccount: (Long) -> Unit,
     onDeleteAccount: (Long) -> Unit,
@@ -64,16 +63,13 @@ fun SettingsScreen(
     bottomBar: @Composable () -> Unit = {},
 ) {
     Scaffold(
-        topBar = {
-            TopAppBar(title = { Text(text = Strings.SETTINGS_TITLE) })
-        },
         bottomBar = bottomBar,
     ) { innerPadding: PaddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(innerPadding)
-                .padding(16.dp)
+                .padding(start = 16.dp, top = 20.dp, end = 16.dp, bottom = 16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
@@ -91,8 +87,10 @@ fun SettingsScreen(
             ViewerSection(
                 autoLoadOriginalImages = state.autoLoadOriginalImages,
                 blurThumbnails = state.blurThumbnails,
+                gridDensity = state.gridDensity,
                 onAutoLoadOriginalImagesChange = onAutoLoadOriginalImagesChange,
                 onBlurThumbnailsChange = onBlurThumbnailsChange,
+                onGridDensityChange = onGridDensityChange,
             )
 
             CacheSection(state, onClearCache, onCacheLimitChange)
@@ -298,8 +296,10 @@ private fun RailsRadio(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun ViewerSection(
     autoLoadOriginalImages: Boolean,
     blurThumbnails: Boolean,
+    gridDensity: GridDensity,
     onAutoLoadOriginalImagesChange: (Boolean) -> Unit,
     onBlurThumbnailsChange: (Boolean) -> Unit,
+    onGridDensityChange: (GridDensity) -> Unit,
 ) {
     SectionLabel(Strings.SETTINGS_VIEWER)
     Card(
@@ -319,6 +319,45 @@ private fun ViewerSection(
                 checked = blurThumbnails,
                 onChange = onBlurThumbnailsChange,
             )
+            GridDensityRow(
+                current = gridDensity,
+                onChange = onGridDensityChange,
+            )
+        }
+    }
+}
+
+@Composable
+private fun GridDensityRow(current: GridDensity, onChange: (GridDensity) -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = Strings.SETTINGS_GRID_DENSITY, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = Strings.SETTINGS_GRID_DENSITY_DESC,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = current.displayLabel,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Row(
+            modifier = Modifier.padding(top = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            GridDensity.entries.forEach { density ->
+                OutlinedButton(
+                    onClick = { onChange(density) },
+                    modifier = Modifier.weight(1f),
+                    enabled = density != current,
+                ) {
+                    Text(density.displayLabel)
+                }
+            }
         }
     }
 }

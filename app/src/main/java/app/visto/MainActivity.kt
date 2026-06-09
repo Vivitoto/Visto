@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import app.visto.data.account.AlbumViewMode
 import app.visto.data.account.AccountService
 import app.visto.data.account.AccountSummary
+import app.visto.data.account.GridDensity
 import app.visto.core.model.DavPath
 import app.visto.data.album.AlbumPreviewFinder
 import app.visto.data.album.AlbumCoverFinder
@@ -88,13 +89,19 @@ class MainActivity : ComponentActivity() {
         setContent {
             val app = applicationContext as VistoApplication
             var themeMode by remember { mutableStateOf(app.preferences.themeMode) }
+            var gridDensity by remember { mutableStateOf(app.preferences.gridDensity) }
             VistoTheme(themeMode = themeMode) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     VistoRoot(
                         themeMode = themeMode,
+                        gridDensity = gridDensity,
                         onThemeModeChange = {
                             themeMode = it
                             app.preferences.themeMode = it
+                        },
+                        onGridDensityChange = {
+                            gridDensity = it
+                            app.preferences.gridDensity = it
                         },
                     )
                 }
@@ -106,7 +113,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun VistoRoot(
     themeMode: ThemeMode,
+    gridDensity: GridDensity,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onGridDensityChange: (GridDensity) -> Unit,
 ) {
     val context = LocalContext.current
     val app = remember(context) { context.applicationContext as VistoApplication }
@@ -116,6 +125,7 @@ fun VistoRoot(
     var accounts by remember { mutableStateOf<List<AccountSummary>>(emptyList()) }
     var credentials by remember { mutableStateOf<WebDavCredentials?>(null) }
     var selectedTab by remember { mutableStateOf(HomeTab.ALBUMS) }
+    val rememberedBrowserPaths = remember { mutableStateMapOf<Long, String>() }
     val rootScope = rememberCoroutineScope()
 
     suspend fun refreshAccounts() {
@@ -171,7 +181,9 @@ fun VistoRoot(
                     summary = null,
                     accounts = accounts,
                     themeMode = themeMode,
+                    gridDensity = gridDensity,
                     onThemeModeChange = onThemeModeChange,
+                    onGridDensityChange = onGridDensityChange,
                     selectedTab = selectedTab,
                     onTabSelected = { selectedTab = it },
                     onAddServer = { screen = Screen.Account },
@@ -192,6 +204,8 @@ fun VistoRoot(
                 HomeTab.ALBUMS -> AlbumsHost(
                     summary = summary,
                     credentials = creds,
+                    gridDensity = gridDensity,
+                    onGridDensityChange = onGridDensityChange,
                     selectedTab = selectedTab,
                     onTabSelected = { selectedTab = it },
                 )
@@ -199,6 +213,8 @@ fun VistoRoot(
                     summary = summary,
                     credentials = creds,
                     repository = app.remoteRepository,
+                    initialPath = rememberedBrowserPaths[summary.id]?.takeIf { isAtOrBelowPath(it, summary.rootPath) } ?: summary.rootPath,
+                    onPathChanged = { rememberedBrowserPaths[summary.id] = it },
                     selectedTab = selectedTab,
                     onTabSelected = { selectedTab = it },
                 )
@@ -206,7 +222,9 @@ fun VistoRoot(
                     summary = summary,
                     accounts = accounts,
                     themeMode = themeMode,
+                    gridDensity = gridDensity,
                     onThemeModeChange = onThemeModeChange,
+                    onGridDensityChange = onGridDensityChange,
                     selectedTab = selectedTab,
                     onTabSelected = { selectedTab = it },
                     onAddServer = { screen = Screen.Account },
@@ -349,6 +367,8 @@ private fun AccountSetup(
 private fun AlbumsHost(
     summary: AccountSummary,
     credentials: WebDavCredentials,
+    gridDensity: GridDensity,
+    onGridDensityChange: (GridDensity) -> Unit,
     selectedTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
 ) {
@@ -620,6 +640,8 @@ private fun AlbumsHost(
             albumRootPath = rootPath,
             imageLoader = app.imageLoader,
             blurThumbnails = app.preferences.blurThumbnails,
+            gridDensity = gridDensity,
+            onGridDensityChange = onGridDensityChange,
             mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
             mediaCacheKeyOf = { entry -> mediaCacheKeyScope(summary) + ":" + entry.path },
             folderPreviewPathsOf = { folder ->
@@ -746,7 +768,6 @@ private fun AlbumsHost(
             loadPickerPath(start)
         },
         onDeleteRequested = { album -> pendingDelete = album },
-        onOpenSettings = { onTabSelected(HomeTab.SETTINGS) },
         bottomBar = { VistoBottomBar(selected = selectedTab, onSelect = onTabSelected) },
     )
 
@@ -811,7 +832,9 @@ private fun SettingsHost(
     summary: AccountSummary?,
     accounts: List<AccountSummary>,
     themeMode: ThemeMode,
+    gridDensity: GridDensity,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onGridDensityChange: (GridDensity) -> Unit,
     selectedTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
     onAddServer: () -> Unit,
@@ -834,6 +857,7 @@ private fun SettingsHost(
                 themeMode = themeMode,
                 autoLoadOriginalImages = app.preferences.autoLoadOriginalImages,
                 blurThumbnails = app.preferences.blurThumbnails,
+                gridDensity = gridDensity,
                 thumbnailCacheLimit = app.preferences.thumbnailCacheLimit,
             )
         )
@@ -846,6 +870,7 @@ private fun SettingsHost(
             accountBaseUrl = summary?.baseUrl.orEmpty(),
             accountRoot = summary?.rootPath.orEmpty(),
             themeMode = themeMode,
+            gridDensity = gridDensity,
         ),
         bottomBar = { VistoBottomBar(selected = selectedTab, onSelect = onTabSelected) },
         onThemeModeChange = { mode ->
@@ -915,6 +940,10 @@ private fun SettingsHost(
         onBlurThumbnailsChange = { enabled ->
             app.preferences.blurThumbnails = enabled
             settingsState = settingsState.copy(blurThumbnails = enabled)
+        },
+        onGridDensityChange = { density ->
+            settingsState = settingsState.copy(gridDensity = density)
+            onGridDensityChange(density)
         },
         onClearCache = {
             scope.launch {
@@ -1050,13 +1079,17 @@ private fun BrowserHost(
     summary: AccountSummary,
     credentials: WebDavCredentials,
     repository: RemoteEntryRepository,
+    initialPath: String,
+    onPathChanged: (String) -> Unit,
     selectedTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
 ) {
     val context = LocalContext.current
     val app = remember(context) { context.applicationContext as VistoApplication }
-    val navigator = remember(summary.id) { BrowserNavigator(summary.rootPath) }
-    var uiState by remember { mutableStateOf(BrowserUiState(currentPath = summary.rootPath)) }
+    val navigator = remember(summary.id) {
+        BrowserNavigator(initialPath = initialPath, rootPath = summary.rootPath)
+    }
+    var uiState by remember(summary.id) { mutableStateOf(BrowserUiState(currentPath = initialPath)) }
     var viewerSession by remember { mutableStateOf<ViewerSession?>(null) }
     var activeBrowserLoadJob by remember { mutableStateOf<Job?>(null) }
     var activeBrowserLoadGeneration by remember { mutableStateOf(0) }
@@ -1080,6 +1113,7 @@ private fun BrowserHost(
         activeBrowserLoadGeneration = generation
         activeBrowserLoadJob = scope.launch {
             val currentPath = navigator.currentPath
+            onPathChanged(currentPath)
             val cached = repository.entriesForParent(summary.id, currentPath)
             if (generation != activeBrowserLoadGeneration || navigator.currentPath != currentPath) return@launch
             uiState = BrowserStateBuilder.apply(
@@ -1129,20 +1163,29 @@ private fun BrowserHost(
     }
 
     BackHandler(enabled = navigator.canGoBack) {
-        if (navigator.back() != null) loadCurrent(forceRefresh = false)
+        if (navigator.back() != null) {
+            onPathChanged(navigator.currentPath)
+            loadCurrent(forceRefresh = false)
+        }
     }
 
     BrowserScreen(
         state = uiState,
-        imageLoader = app.imageLoader,
-        blurThumbnails = app.preferences.blurThumbnails,
-        mediaUrlOf = { entry -> client.mediaUrl(entry.path) },
-        mediaCacheKeyOf = { entry -> mediaCacheKeyScope(summary) + ":" + entry.path },
         onBack = {
-            if (navigator.back() != null) loadCurrent(forceRefresh = false)
+            if (navigator.back() != null) {
+                onPathChanged(navigator.currentPath)
+                loadCurrent(forceRefresh = false)
+            }
+        },
+        onGoRoot = {
+            if (navigator.goRoot() != null) {
+                onPathChanged(navigator.currentPath)
+                loadCurrent(forceRefresh = false)
+            }
         },
         onOpenFolder = { folder ->
             navigator.open(folder.path)
+            onPathChanged(navigator.currentPath)
             loadCurrent(forceRefresh = false)
         },
         onOpenMedia = { opened ->
@@ -1150,8 +1193,8 @@ private fun BrowserHost(
             viewerSession = ViewerSession.build(all, opened.path)
         },
         onRefresh = { loadCurrent(forceRefresh = true) },
-        onOpenSettings = { onTabSelected(HomeTab.SETTINGS) },
         canGoBack = navigator.canGoBack,
+        canGoRoot = navigator.canGoRoot,
         bottomBar = { VistoBottomBar(selected = selectedTab, onSelect = onTabSelected) },
     )
 }

@@ -42,4 +42,25 @@ class BrowserNavigatorTest {
         nav.open("/Photos")
         assertFalse(nav.canGoBack)
     }
+
+    @Test
+    fun rememberedChildPathCanBackToRootPath() {
+        val nav = BrowserNavigator(initialPath = "/Photos/Travel", rootPath = "/Photos")
+        assertEquals("/Photos/Travel", nav.currentPath)
+        assertTrue(nav.canGoBack)
+        assertEquals("/Photos", nav.back())
+        assertFalse(nav.canGoBack)
+    }
+
+    @Test
+    fun goRootClearsStackToConfiguredRoot() {
+        val nav = BrowserNavigator(initialPath = "/Photos/Travel", rootPath = "/Photos")
+        nav.open("/Photos/Travel/Japan")
+        assertTrue(nav.canGoRoot)
+        assertEquals("/Photos", nav.goRoot())
+        assertEquals("/Photos", nav.currentPath)
+        assertFalse(nav.canGoBack)
+        assertFalse(nav.canGoRoot)
+        assertNull(nav.goRoot())
+    }
 }

@@ -16,32 +16,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PhotoAlbum
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.foundation.background
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,7 +52,7 @@ import coil.ImageLoader
 import coil.request.ImageRequest
 import coil.size.Precision
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AlbumListScreen(
     state: AlbumListUiState,
@@ -76,22 +69,11 @@ fun AlbumListScreen(
     onAddSubmit: () -> Unit,
     onBrowsePathRequested: () -> Unit,
     onDeleteRequested: (AlbumSourceEntity) -> Unit,
-    onOpenSettings: () -> Unit,
     bottomBar: @Composable () -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val playThumbnailAnimations = rememberThumbnailAnimationsEnabled(listState.isScrollInProgress)
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(Strings.ALBUMS_TITLE) },
-                actions = {
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Filled.Settings, contentDescription = Strings.SETTINGS_TITLE)
-                    }
-                },
-            )
-        },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddRequested) {
                 Icon(
@@ -100,7 +82,12 @@ fun AlbumListScreen(
                 )
             }
         },
-        bottomBar = bottomBar,
+        bottomBar = {
+            if (!state.isLoading) {
+                AlbumCountFooter(albumCount = state.albums.size)
+            }
+            bottomBar()
+        },
     ) { innerPadding: PaddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             when {
@@ -111,11 +98,8 @@ fun AlbumListScreen(
                 else -> LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 96.dp),
+                    contentPadding = PaddingValues(top = 10.dp, bottom = 96.dp),
                 ) {
-                    item {
-                        AlbumHomeSummary(albumCount = state.albums.size)
-                    }
                     itemsIndexed(state.albums, key = { _, it -> it.id }) { index, album ->
                         AlbumRow(
                             album = album,
@@ -156,29 +140,15 @@ fun AlbumListScreen(
 }
 
 @Composable
-private fun AlbumHomeSummary(albumCount: Int) {
-    Card(
+private fun AlbumCountFooter(albumCount: Int) {
+    Text(
+        text = "共 $albumCount 个相册 · 长按可操作",
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = "$albumCount 个相册",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Text(
-                text = "长按相册可复制路径或移除入口；不会修改 WebDAV 上的文件。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
-            )
-        }
-    }
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -196,20 +166,15 @@ private fun AlbumRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
-    // Compact album row: small mosaic/cover thumbnail on the left + name/path
-    // + actions on the right. Matches the sub-folder row density inside the
-    // album so the home list does not feel oversized.
-    Card(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AlbumThumbnail(
@@ -242,19 +207,16 @@ private fun AlbumRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            IconButton(onClick = onLongClick) {
-                Icon(
-                    Icons.Filled.Delete,
-                    contentDescription = Strings.ALBUMS_DELETE,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
             Icon(
                 Icons.Filled.ChevronRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
             )
         }
+        HorizontalDivider(
+            modifier = Modifier.padding(start = 104.dp, end = 16.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
+        )
     }
 }
 
@@ -269,12 +231,12 @@ private fun AlbumThumbnail(
     playThumbnailAnimations: Boolean,
     resumeDelayMs: Long = 0,
 ) {
-    val THUMB_SIZE = 76.dp
+    val THUMB_SIZE = 70.dp
     Box(
         modifier = Modifier
             .size(THUMB_SIZE)
             .clip(RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.18f)),
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)),
         contentAlignment = Alignment.Center,
     ) {
         when {
@@ -399,7 +361,6 @@ private fun EmptyState(onAddRequested: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AlbumAddDialog(
     form: AlbumAddFormState,

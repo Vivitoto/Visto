@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.items
@@ -56,6 +58,7 @@ import app.visto.core.media.MediaType
 import app.visto.core.model.RemoteEntry
 import app.visto.core.sort.SortMode
 import app.visto.data.account.AlbumViewMode
+import app.visto.data.account.GridDensity
 import app.visto.ui.Strings
 import app.visto.ui.components.PausableAsyncImage
 import app.visto.ui.components.rememberThumbnailAnimationsEnabled
@@ -80,6 +83,7 @@ fun AlbumDetailScreen(
     albumRootPath: String,
     imageLoader: ImageLoader,
     blurThumbnails: Boolean,
+    gridDensity: GridDensity,
     mediaUrlOf: (RemoteEntry) -> String,
     mediaCacheKeyOf: (RemoteEntry) -> String,
     folderPreviewPathsOf: ((RemoteEntry) -> List<String>)? = null,
@@ -87,6 +91,7 @@ fun AlbumDetailScreen(
     mediaCacheKeyOfPath: ((String) -> String)? = null,
     sortMode: SortMode = SortMode.DEFAULT,
     onSortModeChange: (SortMode) -> Unit = {},
+    onGridDensityChange: (GridDensity) -> Unit = {},
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onOpenFolder: (RemoteEntry) -> Unit,
@@ -115,22 +120,13 @@ fun AlbumDetailScreen(
                         sortMode = sortMode,
                         onChange = onSortModeChange,
                     )
-                    // Clear icons: list-mode shows GridView (“switch to grid”);
-                    // grid-mode shows List (“switch back to list”).
-                    when (state.viewMode) {
-                        AlbumViewMode.FOLDERS -> IconButton(onClick = onSwitchToFlat) {
-                            Icon(
-                                Icons.Filled.GridView,
-                                contentDescription = Strings.ALBUM_VIEW_MODE_FLAT,
-                            )
-                        }
-                        AlbumViewMode.FLAT -> IconButton(onClick = onSwitchToFolders) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.List,
-                                contentDescription = Strings.ALBUM_VIEW_MODE_FOLDERS,
-                            )
-                        }
-                    }
+                    ViewCycleAction(
+                        viewMode = state.viewMode,
+                        gridDensity = gridDensity,
+                        onGridDensityChange = onGridDensityChange,
+                        onSwitchToFolders = onSwitchToFolders,
+                        onSwitchToFlat = onSwitchToFlat,
+                    )
                     IconButton(onClick = onRefresh) {
                         Icon(Icons.Filled.Refresh, contentDescription = Strings.ALBUM_DETAIL_REFRESH)
                     }
@@ -145,6 +141,7 @@ fun AlbumDetailScreen(
         ) {
             ProgressBar(state)
             when {
+                state.isLoading && state.folderView.folders.isEmpty() && state.folderView.media.isEmpty() -> AlbumDetailSkeleton()
                 state.errorMessage != null -> ErrorState(
                     message = state.errorMessage,
                     onRetry = onRefresh,
@@ -152,10 +149,6 @@ fun AlbumDetailScreen(
                 state.isEmpty -> EmptyAlbum(state.viewMode)
                 state.viewMode == AlbumViewMode.FOLDERS -> FolderGrid(
                     folderView = state.folderView,
-                    imageLoader = imageLoader,
-                    blurThumbnails = blurThumbnails,
-                    mediaUrlOf = mediaUrlOf,
-                    mediaCacheKeyOf = mediaCacheKeyOf,
                     onOpenFolder = onOpenFolder,
                     onOpenMedia = onOpenMedia,
                 )
@@ -163,6 +156,7 @@ fun AlbumDetailScreen(
                     folderView = state.folderView,
                     imageLoader = imageLoader,
                     blurThumbnails = blurThumbnails,
+                    gridDensity = gridDensity,
                     mediaUrlOf = mediaUrlOf,
                     mediaCacheKeyOf = mediaCacheKeyOf,
                     folderPreviewPathsOf = folderPreviewPathsOf,
@@ -177,51 +171,154 @@ fun AlbumDetailScreen(
 }
 
 @Composable
+private fun ViewCycleAction(
+    viewMode: AlbumViewMode,
+    gridDensity: GridDensity,
+    onGridDensityChange: (GridDensity) -> Unit,
+    onSwitchToFolders: () -> Unit,
+    onSwitchToFlat: () -> Unit,
+) {
+    val isList = viewMode == AlbumViewMode.FOLDERS
+    IconButton(
+        onClick = {
+            when {
+                isList -> {
+                    onGridDensityChange(GridDensity.COMFORTABLE)
+                    onSwitchToFlat()
+                }
+                gridDensity == GridDensity.COMFORTABLE -> onGridDensityChange(GridDensity.STANDARD)
+                gridDensity == GridDensity.STANDARD -> onGridDensityChange(GridDensity.COMPACT)
+                else -> onSwitchToFolders()
+            }
+        },
+    ) {
+        Icon(
+            imageVector = if (isList) Icons.Filled.GridView else Icons.AutoMirrored.Filled.List,
+            contentDescription = when {
+                isList -> "切换到网格：舒适"
+                gridDensity == GridDensity.COMFORTABLE -> "切换到网格：标准"
+                gridDensity == GridDensity.STANDARD -> "切换到网格：紧凑"
+                else -> Strings.ALBUM_VIEW_MODE_FOLDERS
+            },
+        )
+    }
+}
+
+@Composable
+private fun AlbumDetailSkeleton() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        repeat(2) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f)),
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            repeat(3) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.56f)),
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            repeat(3) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun FolderGrid(
     folderView: AlbumFolderViewState,
-    imageLoader: ImageLoader,
-    blurThumbnails: Boolean,
-    mediaUrlOf: (RemoteEntry) -> String,
-    mediaCacheKeyOf: (RemoteEntry) -> String,
     onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
 ) {
-    val gridState = rememberLazyGridState()
-    val playThumbnailAnimations = rememberThumbnailAnimationsEnabled(gridState.isScrollInProgress)
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
-        state = gridState,
+    LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
     ) {
         if (folderView.folders.isNotEmpty()) {
-            items(
+            listItems(
                 folderView.folders,
-                span = { GridItemSpan(maxLineSpan) },
                 key = { "folder:${it.path}" },
             ) { folder ->
                 FolderRow(folder = folder, onClick = { onOpenFolder(folder) })
+                HorizontalDivider()
             }
             if (folderView.media.isNotEmpty()) {
-                item(span = { GridItemSpan(maxLineSpan) }, key = "folder-media-divider") {
+                item(key = "folder-media-divider") {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                 }
             }
         }
-        itemsIndexed(folderView.media, key = { _, it -> "media:${it.path}" }) { index, item ->
-            AlbumMediaTile(
+        listItems(folderView.media, key = { "media:${it.path}" }) { item ->
+            AlbumMediaRow(
                 item = item,
-                imageLoader = imageLoader,
-                mediaUrl = mediaUrlOf(item),
-                mediaCacheKey = mediaCacheKeyOf(item),
-                blurThumbnails = blurThumbnails,
-                playThumbnailAnimations = playThumbnailAnimations,
-                resumeDelayMs = (index % 12) * 28L,
                 onClick = { onOpenMedia(item) },
             )
+            HorizontalDivider()
         }
+    }
+}
+
+@Composable
+private fun AlbumMediaRow(item: RemoteEntry, onClick: () -> Unit) {
+    val typeLabel = when (item.mediaType) {
+        MediaType.IMAGE -> "IMG"
+        MediaType.ANIMATED_IMAGE -> "GIF"
+        MediaType.VIDEO -> "VID"
+        else -> "FILE"
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = typeLabel,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
+                .padding(horizontal = 7.dp, vertical = 4.dp),
+        )
+        Text(
+            text = item.name,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -255,6 +352,7 @@ private fun FolderIconGrid(
     folderView: AlbumFolderViewState,
     imageLoader: ImageLoader,
     blurThumbnails: Boolean,
+    gridDensity: GridDensity,
     mediaUrlOf: (RemoteEntry) -> String,
     mediaCacheKeyOf: (RemoteEntry) -> String,
     folderPreviewPathsOf: ((RemoteEntry) -> List<String>)? = null,
@@ -263,11 +361,10 @@ private fun FolderIconGrid(
     onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
 ) {
-    // 2 columns: bigger tiles so the 2x2 mosaic is actually legible.
     val gridState = rememberLazyGridState()
     val playThumbnailAnimations = rememberThumbnailAnimationsEnabled(gridState.isScrollInProgress)
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Fixed(gridDensity.folderColumns),
         state = gridState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),

@@ -7,27 +7,23 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,91 +31,64 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.visto.core.media.MediaType
 import app.visto.core.model.RemoteEntry
 import app.visto.ui.Strings
-import app.visto.ui.components.PausableAsyncImage
-import app.visto.ui.components.rememberThumbnailAnimationsEnabled
-import coil.ImageLoader
-import coil.request.ImageRequest
-import coil.size.Precision
 
 /**
- * Renders the directory browser: folders first, then a media grid.
+ * Renders the WebDAV browser as a plain file/path list.
  *
- * Implemented as a single LazyVerticalGrid so the folder list and media
- * grid live inside one scroll container. Headers and folder rows span all
- * columns; only media tiles fill grid cells.
+ * The browser is intentionally not a gallery: folders and supported media are
+ * shown as rows so it behaves like a lightweight path picker/file explorer.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BrowserScreen(
     state: BrowserUiState,
-    imageLoader: ImageLoader,
-    blurThumbnails: Boolean,
-    mediaUrlOf: (RemoteEntry) -> String,
-    mediaCacheKeyOf: (RemoteEntry) -> String,
     onBack: () -> Unit,
+    onGoRoot: () -> Unit,
     onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
     onRefresh: () -> Unit,
-    onOpenSettings: () -> Unit,
     canGoBack: Boolean = true,
+    canGoRoot: Boolean = false,
     bottomBar: @Composable () -> Unit = {},
 ) {
-    val gridState = rememberLazyGridState()
-    val playThumbnailAnimations = rememberThumbnailAnimationsEnabled(gridState.isScrollInProgress)
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(text = state.currentPath, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    if (canGoBack) {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.Filled.ArrowBack, contentDescription = "返回")
-                        }
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onRefresh) {
-                        Icon(Icons.Filled.Refresh, contentDescription = Strings.ALBUM_DETAIL_REFRESH)
-                    }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Filled.Settings, contentDescription = Strings.SETTINGS_TITLE)
-                    }
-                },
-            )
+        floatingActionButton = {
+            FloatingActionButton(onClick = onRefresh) {
+                if (state.isRefreshing) {
+                    CircularProgressIndicator(
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(22.dp),
+                    )
+                } else {
+                    Icon(Icons.Filled.Refresh, contentDescription = Strings.ALBUM_DETAIL_REFRESH)
+                }
+            }
         },
         bottomBar = bottomBar,
     ) { innerPadding: PaddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .padding(top = 8.dp),
         ) {
             if (state.isRefreshing && !state.isLoading) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
             if (state.isLoading && state.isEmpty) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center,
-                ) { CircularProgressIndicator() }
+                BrowserSkeleton()
+                return@Column
             }
             state.errorMessage?.let {
-                Text(text = it, modifier = Modifier.padding(16.dp))
+                BrowserErrorState(message = it, onRetry = onRefresh)
             }
             if (!state.isLoading && state.isEmpty && state.errorMessage == null) {
                 Box(
@@ -132,38 +101,32 @@ fun BrowserScreen(
                 }
                 return@Column
             }
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 110.dp),
-                state = gridState,
+            LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(start = 12.dp, top = 4.dp, end = 12.dp, bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
+                item(key = "browser-path") {
+                    BrowserPathRow(
+                        currentPath = state.currentPath,
+                        canGoBack = canGoBack,
+                        canGoRoot = canGoRoot,
+                        onBack = onBack,
+                        onGoRoot = onGoRoot,
+                    )
+                }
                 if (state.folders.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "header-folders") {
-                        SectionHeader(Strings.BROWSER_FOLDERS)
-                    }
-                    items(state.folders, span = { GridItemSpan(maxLineSpan) }, key = { "folder-${it.path}" }) { folder ->
+                    item(key = "header-folders") { SectionHeader(Strings.BROWSER_FOLDERS) }
+                    items(state.folders, key = { "folder-${it.path}" }) { folder ->
                         FolderRow(folder, onClick = { onOpenFolder(folder) })
                         HorizontalDivider()
                     }
                 }
                 if (state.media.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "header-media") {
-                        SectionHeader(Strings.BROWSER_MEDIA)
-                    }
-                    itemsIndexed(state.media, key = { _, it -> "media-${it.path}" }) { index, item ->
-                        MediaTile(
-                            media = item,
-                            imageLoader = imageLoader,
-                            mediaUrl = mediaUrlOf(item),
-                            mediaCacheKey = mediaCacheKeyOf(item),
-                            blurThumbnails = blurThumbnails,
-                            playThumbnailAnimations = playThumbnailAnimations,
-                            resumeDelayMs = (index % 12) * 28L,
-                            onClick = { onOpenMedia(item) },
-                        )
+                    item(key = "header-media") { SectionHeader(Strings.BROWSER_MEDIA) }
+                    items(state.media, key = { "media-${it.path}" }) { media ->
+                        MediaFileRow(media, onClick = { onOpenMedia(media) })
+                        HorizontalDivider()
                     }
                 }
             }
@@ -172,10 +135,114 @@ fun BrowserScreen(
 }
 
 @Composable
+private fun BrowserSkeleton() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        repeat(8) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.56f)),
+            )
+        }
+    }
+}
+
+@Composable
+private fun BrowserErrorState(message: String, onRetry: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = message,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Button(onClick = onRetry) {
+            Text("重新加载")
+        }
+    }
+}
+
+@Composable
+private fun BrowserPathRow(
+    currentPath: String,
+    canGoBack: Boolean,
+    canGoRoot: Boolean,
+    onBack: () -> Unit,
+    onGoRoot: () -> Unit,
+) {
+    val folderName = currentPath
+        .trimEnd('/')
+        .substringAfterLast('/')
+        .ifBlank { Strings.ALBUM_DETAIL_ROOT_SECTION }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (canGoBack) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    Icons.Filled.ArrowBack,
+                    contentDescription = "返回上一级",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .then(if (canGoBack) Modifier.clickable(onClick = onBack) else Modifier),
+        ) {
+            Text(
+                text = folderName,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.84f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = currentPath,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.48f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        IconButton(onClick = onGoRoot, enabled = canGoRoot) {
+            Icon(
+                Icons.Filled.Home,
+                contentDescription = "返回根目录",
+                tint = if (canGoRoot) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.32f)
+                },
+            )
+        }
+    }
+}
+
+@Composable
 private fun SectionHeader(text: String) {
     Text(
         text = text,
-        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -204,111 +271,36 @@ private fun FolderRow(folder: RemoteEntry, onClick: () -> Unit) {
 }
 
 @Composable
-private fun MediaTile(
-    media: RemoteEntry,
-    imageLoader: ImageLoader,
-    mediaUrl: String,
-    mediaCacheKey: String,
-    blurThumbnails: Boolean,
-    playThumbnailAnimations: Boolean,
-    resumeDelayMs: Long = 0,
-    onClick: () -> Unit,
-) {
-    val isVideo = media.mediaType == MediaType.VIDEO
-    val typeBadge = when (media.mediaType) {
+private fun MediaFileRow(media: RemoteEntry, onClick: () -> Unit) {
+    val typeLabel = when (media.mediaType) {
+        MediaType.IMAGE -> "IMG"
         MediaType.ANIMATED_IMAGE -> "GIF"
-        MediaType.VIDEO -> "VIDEO"
-        else -> null
+        MediaType.VIDEO -> "VID"
+        else -> "FILE"
     }
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(
+        Text(
+            text = typeLabel,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
                 .clip(RoundedCornerShape(6.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.BottomEnd,
-        ) {
-            if (isVideo) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(6.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = "VIDEO",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else if (media.mediaType != MediaType.OTHER && media.mediaType != MediaType.UNKNOWN) {
-                val request = ImageRequest.Builder(LocalContext.current)
-                    .data(mediaUrl)
-                    .memoryCacheKey(mediaCacheKey)
-                    .diskCacheKey(mediaCacheKey)
-                    .crossfade(false)
-                    .size(320)
-                    .precision(Precision.INEXACT)
-                    .build()
-                PausableAsyncImage(
-                    model = request,
-                    imageLoader = imageLoader,
-                    contentDescription = media.name,
-                    contentScale = ContentScale.Crop,
-                    playAnimations = playThumbnailAnimations && !blurThumbnails,
-                    resumeDelayMs = resumeDelayMs,
-                    modifier = Modifier.fillMaxSize().then(if (blurThumbnails) Modifier.blur(12.dp) else Modifier),
-                    loading = {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) { CircularProgressIndicator() }
-                    },
-                    error = {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) { Text(text = "!") }
-                    },
-                )
-            }
-            typeBadge?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier
-                        .padding(4.dp),
-                )
-            }
-        }
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
+                .padding(horizontal = 7.dp, vertical = 4.dp),
+        )
         Text(
             text = media.name,
-            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 4.dp),
         )
-        Spacer(modifier = Modifier.height(2.dp))
+        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
     }
-}
-
-@Suppress("unused")
-private fun formatBytes(bytes: Long): String {
-    if (bytes <= 0) return "0 B"
-    val units = arrayOf("B", "KB", "MB", "GB")
-    var value = bytes.toDouble()
-    var unit = 0
-    while (value >= 1024 && unit < units.lastIndex) {
-        value /= 1024
-        unit++
-    }
-    return "%.1f %s".format(value, units[unit])
 }

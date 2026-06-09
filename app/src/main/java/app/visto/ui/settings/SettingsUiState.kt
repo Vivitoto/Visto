@@ -1,6 +1,7 @@
 package app.visto.ui.settings
 
 import app.visto.data.account.AccountSummary
+import app.visto.data.account.GridDensity
 import app.visto.data.account.ThumbnailCacheLimit
 import app.visto.data.update.AppUpdateInfo
 import app.visto.data.update.DownloadedApk
@@ -32,6 +33,7 @@ data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val autoLoadOriginalImages: Boolean = false,
     val blurThumbnails: Boolean = false,
+    val gridDensity: GridDensity = GridDensity.STANDARD,
     val thumbnailCacheLimit: ThumbnailCacheLimit = ThumbnailCacheLimit.DEFAULT,
     val isClearingCache: Boolean = false,
     val message: String? = null,

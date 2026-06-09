@@ -8,10 +8,19 @@ import app.visto.core.model.DavPath
  * The browser screen uses this to handle Android system back: empty stack
  * means we're at the configured root, and back exits the screen.
  */
-class BrowserNavigator(initialPath: String = DavPath.ROOT) {
+class BrowserNavigator(
+    initialPath: String = DavPath.ROOT,
+    rootPath: String = initialPath,
+) {
+
+    private val root: String = DavPath.normalize(rootPath)
 
     private val stack: ArrayDeque<String> = ArrayDeque<String>().apply {
-        addLast(DavPath.normalize(initialPath))
+        val initial = DavPath.normalize(initialPath)
+        addLast(root)
+        if (initial != root) {
+            addLast(initial)
+        }
     }
 
     val currentPath: String
@@ -19,6 +28,9 @@ class BrowserNavigator(initialPath: String = DavPath.ROOT) {
 
     val canGoBack: Boolean
         get() = stack.size > 1
+
+    val canGoRoot: Boolean
+        get() = currentPath != root
 
     fun open(path: String) {
         val normalized = DavPath.normalize(path)
@@ -32,5 +44,12 @@ class BrowserNavigator(initialPath: String = DavPath.ROOT) {
         if (stack.size <= 1) return null
         stack.removeLast()
         return stack.last()
+    }
+
+    fun goRoot(): String? {
+        if (!canGoRoot) return null
+        stack.clear()
+        stack.addLast(root)
+        return root
     }
 }

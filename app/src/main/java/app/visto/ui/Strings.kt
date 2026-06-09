@@ -111,6 +111,8 @@ object Strings {
     const val SETTINGS_AUTO_LOAD_ORIGINAL_DESC = "关闭后，点开图片会先确认，避免误下载大图。"
     const val SETTINGS_BLUR_THUMBNAILS = "模糊缩略图"
     const val SETTINGS_BLUR_THUMBNAILS_DESC = "开启后，相册和浏览列表里的缩略图会模糊；点进最终图片查看页后正常显示。"
+    const val SETTINGS_GRID_DENSITY = "网格密度"
+    const val SETTINGS_GRID_DENSITY_DESC = "影响相册详情和浏览页的缩略图大小。"
     const val SETTINGS_LOCAL_CACHE = "本地缓存"
     const val SETTINGS_CLEAR_THUMBNAILS = "清除本地缩略图"
     const val SETTINGS_CLEARING = "清理中…"
