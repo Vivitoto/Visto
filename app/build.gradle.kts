@@ -71,7 +71,9 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
     implementation(libs.media3.datasource.okhttp)
-    implementation(libs.webp.android)
+    implementation(libs.webp.android) {
+        exclude(group = "com.aureusapps.android", module = "extensions")
+    }
 
     debugImplementation(libs.androidx.ui.tooling)
 
