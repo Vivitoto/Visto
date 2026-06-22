@@ -1,5 +1,6 @@
 package app.visto.ui.browser
 
+import app.visto.core.media.MediaType
 import app.visto.core.model.RemoteEntry
 import app.visto.core.sort.DirectorySorter
 import app.visto.core.sort.SortMode
@@ -20,11 +21,14 @@ object BrowserStateBuilder {
     ): BrowserUiState {
         val sorted = DirectorySorter.sort(entries, sortMode)
         val folders = sorted.filter { it.isDirectory }
-        val media = sorted.filter { !it.isDirectory }
+        val bookTypes = setOf(MediaType.TEXT_BOOK, MediaType.EPUB_BOOK)
+        val books = sorted.filter { !it.isDirectory && it.mediaType in bookTypes }
+        val media = sorted.filter { !it.isDirectory && it.mediaType !in bookTypes }
         return BrowserUiState(
             currentPath = currentPath,
             folders = folders,
             media = media,
+            books = books,
             sortMode = sortMode,
             isLoading = isLoading,
             isRefreshing = isRefreshing,

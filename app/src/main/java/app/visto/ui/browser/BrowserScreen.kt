@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
@@ -54,6 +55,7 @@ fun BrowserScreen(
     onGoRoot: () -> Unit,
     onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
+    onOpenBook: (RemoteEntry) -> Unit,
     onRefresh: () -> Unit,
     canGoBack: Boolean = true,
     canGoRoot: Boolean = false,
@@ -126,6 +128,13 @@ fun BrowserScreen(
                     item(key = "header-media") { SectionHeader(Strings.BROWSER_MEDIA) }
                     items(state.media, key = { "media-${it.path}" }) { media ->
                         MediaFileRow(media, onClick = { onOpenMedia(media) })
+                        HorizontalDivider()
+                    }
+                }
+                if (state.books.isNotEmpty()) {
+                    item(key = "header-books") { SectionHeader("书籍") }
+                    items(state.books, key = { "book-${it.path}" }) { book ->
+                        BookRow(book, onClick = { onOpenBook(book) })
                         HorizontalDivider()
                     }
                 }
@@ -267,6 +276,44 @@ private fun FolderRow(folder: RemoteEntry, onClick: () -> Unit) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+    }
+}
+
+@Composable
+private fun BookRow(book: RemoteEntry, onClick: () -> Unit) {
+    val typeLabel = when (book.mediaType) {
+        MediaType.EPUB_BOOK -> "EPUB"
+        else -> "TXT"
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(
+            Icons.Filled.Book,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = book.name,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = typeLabel,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.68f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
     }
 }

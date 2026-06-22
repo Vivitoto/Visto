@@ -13,11 +13,12 @@ data class BrowserUiState(
     val currentPath: String = "/",
     val folders: List<RemoteEntry> = emptyList(),
     val media: List<RemoteEntry> = emptyList(),
+    val books: List<RemoteEntry> = emptyList(),
     val sortMode: SortMode = SortMode.DEFAULT,
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
 ) {
     val isEmpty: Boolean
-        get() = folders.isEmpty() && media.isEmpty()
+        get() = folders.isEmpty() && media.isEmpty() && books.isEmpty()
 }
