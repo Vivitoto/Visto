@@ -169,8 +169,8 @@ fun ReaderScreen(
 
             when {
                 session.isLoading -> ReaderLoading(palette)
-                session.errorMessage != null -> ReaderError(palette, session.errorMessage, onBack = closeReader)
-                pages.isEmpty() -> ReaderEmpty(palette, onBack = closeReader)
+                session.errorMessage != null -> ReaderError(palette, session.errorMessage, onBack = ::closeReader)
+                pages.isEmpty() -> ReaderEmpty(palette, onBack = ::closeReader)
                 else -> {
                     val swipeThresholdPx = with(density) { 48.dp.toPx() }
                     val page = pages.getOrNull(safePage)
@@ -257,7 +257,7 @@ fun ReaderScreen(
                     palette = palette,
                     onChapterList = { showChapterList = true },
                     onSettings = onSettingsToggle,
-                    onBack = closeReader,
+                    onBack = ::closeReader,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
