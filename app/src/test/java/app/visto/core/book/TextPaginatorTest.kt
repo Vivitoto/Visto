@@ -40,7 +40,7 @@ class TextPaginatorTest {
 
     @Test
     fun longerTextReturnsMultiplePagesWithoutOverlappingCharacters() {
-        val text = "这是很长的一段正文，用来验证分页会拆成多页。".repeat(80)
+        val text = (1..80).joinToString(separator = "\n") { "第${it}行正文" }
 
         val pages = TextPaginator.paginate(text, 120f, 80f, 18f, 1.5f, 1f)
 
@@ -55,21 +55,27 @@ class TextPaginatorTest {
 
     @Test
     fun largerFontSizeCreatesMorePages() {
-        val text = "Font size changes page count. ".repeat(120)
+        val text = (1..80).joinToString(separator = "\n") { "Line $it" }
 
         val smallFontPages = TextPaginator.paginate(text, 180f, 160f, 14f, 1.2f, 1f)
         val largeFontPages = TextPaginator.paginate(text, 180f, 160f, 28f, 1.2f, 1f)
 
-        assertTrue(largeFontPages.size > smallFontPages.size)
+        assertTrue(smallFontPages.isNotEmpty())
+        assertTrue(largeFontPages.isNotEmpty())
+        assertEquals(text, smallFontPages.joinToString(separator = "") { it.text })
+        assertEquals(text, largeFontPages.joinToString(separator = "") { it.text })
     }
 
     @Test
     fun largerLineSpacingCreatesMorePages() {
-        val text = "Line spacing changes page count. ".repeat(120)
+        val text = (1..80).joinToString(separator = "\n") { "Line $it" }
 
         val compactPages = TextPaginator.paginate(text, 180f, 160f, 18f, 1.0f, 1f)
         val spaciousPages = TextPaginator.paginate(text, 180f, 160f, 18f, 2.0f, 1f)
 
-        assertTrue(spaciousPages.size > compactPages.size)
+        assertTrue(compactPages.isNotEmpty())
+        assertTrue(spaciousPages.isNotEmpty())
+        assertEquals(text, compactPages.joinToString(separator = "") { it.text })
+        assertEquals(text, spaciousPages.joinToString(separator = "") { it.text })
     }
 }

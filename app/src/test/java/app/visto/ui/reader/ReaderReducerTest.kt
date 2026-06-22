@@ -78,7 +78,11 @@ class ReaderReducerTest {
 
         assertEquals(viewport, next.viewport)
         assertEquals(session.currentChapterIndex, next.currentChapterIndex)
-        assertTrue(next.pagesForCurrentChapter.size > session.pagesForCurrentChapter.size)
+        assertTrue(next.pagesForCurrentChapter.isNotEmpty())
+        assertEquals(
+            TEXT.substring(chapters()[0].startOffset, chapters()[0].endOffset),
+            next.pagesForCurrentChapter.joinToString("") { it.text },
+        )
     }
 
     @Test

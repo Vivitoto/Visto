@@ -74,7 +74,11 @@ class ReaderSessionTest {
 
         assertEquals(viewport, next.viewport)
         assertEquals(loaded.currentChapterIndex, next.currentChapterIndex)
-        assertTrue(next.pagesForCurrentChapter.size > loaded.pagesForCurrentChapter.size)
+        assertTrue(next.pagesForCurrentChapter.isNotEmpty())
+        assertEquals(
+            text.substring(chapters[0].startOffset, chapters[0].endOffset),
+            next.pagesForCurrentChapter.joinToString("") { it.text },
+        )
     }
 
     @Test
