@@ -7,9 +7,11 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], application = android.app.Application::class)
 class ReaderSessionTest {
 
     private val text = "第一章 开始\n" + "这是第一章的内容。".repeat(160) + "\n第二章 继续\n" + "这是第二章的内容。".repeat(80)

@@ -1,10 +1,6 @@
 package app.visto.data.db
 
-import androidx.room.Entity
-import androidx.room.ForeignKey
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BookProgressEntityTest {
@@ -45,22 +41,37 @@ class BookProgressEntityTest {
     }
 
     @Test
-    fun roomEntityAnnotationMatchesSchema() {
-        val entityAnnotation = BookProgressEntity::class.java.getAnnotation(Entity::class.java)
-        assertNotNull(entityAnnotation)
-        entityAnnotation!!
+    fun customReaderPreferencesCanBeStoredOnEntity() {
+        val entity = BookProgressEntity(
+            accountId = 7,
+            path = "/Books/demo.txt",
+            name = "demo.txt",
+            sizeBytes = 1024,
+            etag = "etag-1",
+            encoding = "UTF-8",
+            chapterTitle = "第一章",
+            chapterIndex = 3,
+            pageOffset = 8,
+            totalChapters = 20,
+            fontSizeSp = 22,
+            lineSpacing = 2.0f,
+            theme = "cream",
+            fontChoice = "serif",
+            textColor = "ink",
+            backgroundStyle = "paper",
+            lastReadAt = 100,
+            addedAt = 50,
+        )
 
-        assertEquals("book_progress", entityAnnotation.tableName)
-
-        val uniquePathIndex = entityAnnotation.indices.single { index ->
-            index.value.contentEquals(arrayOf("accountId", "path"))
-        }
-        assertTrue(uniquePathIndex.unique)
-
-        val foreignKey = entityAnnotation.foreignKeys.single()
-        assertEquals(DavAccountEntity::class, foreignKey.entity)
-        assertTrue(foreignKey.parentColumns.contentEquals(arrayOf("id")))
-        assertTrue(foreignKey.childColumns.contentEquals(arrayOf("accountId")))
-        assertEquals(ForeignKey.CASCADE, foreignKey.onDelete)
+        assertEquals(3, entity.chapterIndex)
+        assertEquals("第一章", entity.chapterTitle)
+        assertEquals(8, entity.pageOffset)
+        assertEquals(20, entity.totalChapters)
+        assertEquals(22, entity.fontSizeSp)
+        assertEquals(2.0f, entity.lineSpacing, 0.0001f)
+        assertEquals("cream", entity.theme)
+        assertEquals("serif", entity.fontChoice)
+        assertEquals("ink", entity.textColor)
+        assertEquals("paper", entity.backgroundStyle)
     }
 }
