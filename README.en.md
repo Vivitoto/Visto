@@ -1,28 +1,35 @@
 # Visto
 
-Visto is a **read-only Android WebDAV gallery browser** for browsing photos, videos, and folders stored on a WebDAV server.
+Visto is a **read-only Android WebDAV media and reading browser**. It helps browse albums, photos, videos, folders, and book files stored on a WebDAV server, with local reading progress and reader appearance settings.
 
-> Current version: `v0.1.8`
+> Current version: `v1.0.7`
+>
 > Package: `app.visto`
 
 [中文说明](README.md)
 
 ## Scope
 
-Visto v0.1 focuses on safe remote media browsing:
+Visto currently focuses on safe and lightweight remote content browsing:
 
-- Add one WebDAV account
+- Add and manage WebDAV accounts
 - Browse remote folders
 - Use WebDAV folders as album sources
-- View images and videos
+- View images, GIFs, and videos
 - Browse thumbnails, GIF badges, and video badges
 - Manually load original images to avoid unexpected bandwidth usage
-- Cache thumbnails and directory metadata locally
+- Cache thumbnails, directory metadata, and book text locally
 - Clear local cache
+- Browse previously opened books in the bookshelf
+- Switch bookshelf layout between list, 3-column grid, and 5-column grid
+- Generate local placeholder covers for books and show reading progress
+- Read plain-text / Markdown-like text content
+- Save per-book reading progress, font, font size, line spacing, text color, and background style
+- Import local `.ttf` / `.otf` fonts for the reader
 
 ## Safety Boundary
 
-Visto is currently read-only. v0.1 does not provide remote write operations:
+Visto is designed as a read-only app. It does not provide these remote write operations:
 
 - No upload
 - No remote delete
@@ -31,7 +38,11 @@ Visto is currently read-only. v0.1 does not provide remote write operations:
 - No remote directory creation
 - No modification of WebDAV server contents
 
-In short, Visto only reads WebDAV content for browsing and viewing.
+In short, Visto only reads WebDAV content for browsing, viewing, and reading. Reading progress, display preferences, and cache data are stored locally on the device.
+
+## Privacy and Local Data
+
+This README does not include WebDAV URLs, usernames, passwords, tokens, keys, local machine paths, or other sensitive information. Account credentials, reading records, display preferences, and cache data are used only for local app functionality.
 
 ## Download
 
@@ -39,7 +50,7 @@ The recommended APK is available from GitHub Releases:
 
 - https://github.com/Vivitoto/Visto/releases/tag/latest
 
-Download `visto-v0_1_8.apk`.
+Download the latest `visto-*.apk`.
 
 ## Build
 
@@ -56,7 +67,7 @@ Common commands:
 ./gradlew assembleDebug
 ```
 
-Official release APKs are built by GitHub Actions and signed with the Visto release key.
+Official release APKs are built by GitHub Actions and signed for release distribution.
 
 ## Project Docs
 
