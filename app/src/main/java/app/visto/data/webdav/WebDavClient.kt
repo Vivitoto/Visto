@@ -88,6 +88,24 @@ class WebDavClient(
     }
 
     /**
+     * Download raw bytes for the WebDAV file at [path].
+     */
+    suspend fun getBytes(path: String): ByteArray = withContext(Dispatchers.IO) {
+        val call = client.newCall(buildMediaRequest(path))
+        executeCancellableBytes(call)
+    }
+
+    /**
+     * Read lightweight remote metadata for cache validation.
+     */
+    suspend fun headFile(path: String): WebDavFileMetadata = withContext(Dispatchers.IO) {
+        val mediaRequest = buildMediaRequest(path)
+        val request = mediaRequest.newBuilder().head().build()
+        val call = client.newCall(request)
+        executeCancellableHead(call)
+    }
+
+    /**
      * Plain media URL for use with Coil / Media3 when authentication is
      * provided out-of-band (for example via [app.visto.data.webdav.WebDavAuthInterceptor]).
      */
@@ -120,6 +138,81 @@ class WebDavClient(
                         continuation.resumeWithException(WebDavError.Timeout(cause = e))
                     } else {
                         continuation.resumeWithException(WebDavError.NetworkError("Network failure during PROPFIND", e))
+                    }
+                }
+            })
+            continuation.invokeOnCancellation {
+                if (!call.isCanceled()) call.cancel()
+            }
+        }
+
+    private suspend fun executeCancellableBytes(call: Call): ByteArray =
+        suspendCancellableCoroutine { continuation ->
+            call.enqueue(object : Callback {
+                override fun onResponse(call: Call, response: Response) {
+                    try {
+                        response.use { resp ->
+                            if (!continuation.isActive) return
+                            val code = resp.code
+                            when {
+                                code in 200..299 -> continuation.resume(resp.body?.bytes() ?: ByteArray(0))
+                                code == 401 || code == 403 -> continuation.resumeWithException(WebDavError.AuthFailed())
+                                code == 404 -> continuation.resumeWithException(WebDavError.NotFound())
+                                code in 500..599 -> continuation.resumeWithException(WebDavError.ServerError(code))
+                                else -> continuation.resumeWithException(WebDavError.Unexpected(code))
+                            }
+                        }
+                    } catch (e: Throwable) {
+                        if (continuation.isActive) continuation.resumeWithException(e)
+                    }
+                }
+
+                override fun onFailure(call: Call, e: IOException) {
+                    if (!continuation.isActive) return
+                    if (e is SocketTimeoutException) {
+                        continuation.resumeWithException(WebDavError.Timeout(cause = e))
+                    } else {
+                        continuation.resumeWithException(WebDavError.NetworkError("Network failure during GET", e))
+                    }
+                }
+            })
+            continuation.invokeOnCancellation {
+                if (!call.isCanceled()) call.cancel()
+            }
+        }
+
+    private suspend fun executeCancellableHead(call: Call): WebDavFileMetadata =
+        suspendCancellableCoroutine { continuation ->
+            call.enqueue(object : Callback {
+                override fun onResponse(call: Call, response: Response) {
+                    try {
+                        response.use { resp ->
+                            if (!continuation.isActive) return
+                            val code = resp.code
+                            when {
+                                code in 200..299 -> continuation.resume(
+                                    WebDavFileMetadata(
+                                        etag = resp.header("ETag"),
+                                        sizeBytes = resp.header("Content-Length")?.toLongOrNull(),
+                                    ),
+                                )
+                                code == 401 || code == 403 -> continuation.resumeWithException(WebDavError.AuthFailed())
+                                code == 404 -> continuation.resumeWithException(WebDavError.NotFound())
+                                code in 500..599 -> continuation.resumeWithException(WebDavError.ServerError(code))
+                                else -> continuation.resumeWithException(WebDavError.Unexpected(code))
+                            }
+                        }
+                    } catch (e: Throwable) {
+                        if (continuation.isActive) continuation.resumeWithException(e)
+                    }
+                }
+
+                override fun onFailure(call: Call, e: IOException) {
+                    if (!continuation.isActive) return
+                    if (e is SocketTimeoutException) {
+                        continuation.resumeWithException(WebDavError.Timeout(cause = e))
+                    } else {
+                        continuation.resumeWithException(WebDavError.NetworkError("Network failure during HEAD", e))
                     }
                 }
             })
@@ -182,3 +275,8 @@ class WebDavClient(
             .build()
     }
 }
+
+data class WebDavFileMetadata(
+    val etag: String?,
+    val sizeBytes: Long?,
+)
