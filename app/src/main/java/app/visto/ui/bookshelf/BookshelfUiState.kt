@@ -26,8 +26,30 @@ enum class BookshelfLayoutMode(val gridColumns: Int?) {
     }
 }
 
+enum class BookshelfBookFileType(
+    val coverBadge: String,
+    val canHaveEmbeddedCover: Boolean,
+) {
+    TXT("TXT", false),
+    MARKDOWN("MD", false),
+    EPUB("EPUB", true),
+    UNKNOWN("BOOK", false),
+}
+
+enum class BookshelfCoverSource {
+    GENERATED_PLACEHOLDER,
+    EPUB_EMBEDDED,
+}
+
+data class BookshelfCoverPresentation(
+    val source: BookshelfCoverSource,
+    val fileType: BookshelfBookFileType,
+)
+
 /** Pure state builder/reducer helpers for bookshelf data and display text. */
 object BookshelfStateBuilder {
+
+    private val displayTitleExtensions = setOf("txt", "md", "epub")
 
     fun fromBooks(books: List<BookProgressEntity>): BookshelfUiState = BookshelfUiState(
         books = books,
@@ -47,18 +69,20 @@ object BookshelfStateBuilder {
             )
         }
 
+    fun displayTitle(book: BookProgressEntity): String {
+        val rawTitle = book.name
+            .takeIf { it.isNotBlank() }
+            ?: book.path
+        return stripDisplayExtension(fileName(rawTitle))
+    }
+
     fun progressSummary(book: BookProgressEntity): String {
         val chapter = book.chapterTitle
             ?.takeIf { it.isNotBlank() }
             ?: Strings.bookshelfChapterNumber(book.chapterIndex)
-        val progress = if (book.totalChapters > 0) {
-            val percent = (((book.chapterIndex + 1).coerceAtLeast(1).toFloat() / book.totalChapters) * 100)
-                .toInt()
-                .coerceIn(0, 100)
-            Strings.bookshelfProgressPercent(percent)
-        } else {
-            ""
-        }
+        val progress = readingProgressPercent(book)
+            ?.let(Strings::bookshelfProgressPercent)
+            ?: ""
         return chapter + progress
     }
 
@@ -67,6 +91,9 @@ object BookshelfStateBuilder {
         val currentChapter = (book.chapterIndex + 1).coerceAtLeast(1)
         return (currentChapter.toFloat() / book.totalChapters.toFloat()).coerceIn(0f, 1f)
     }
+
+    fun readingProgressPercentLabel(book: BookProgressEntity): String? =
+        readingProgressPercent(book)?.let(Strings::bookshelfCoverProgressPercent)
 
     fun stableBookKey(book: BookProgressEntity): String =
         if (book.id != 0L) {
@@ -78,6 +105,33 @@ object BookshelfStateBuilder {
     fun coverPaletteIndex(book: BookProgressEntity, paletteSize: Int): Int {
         if (paletteSize <= 0) return 0
         return Math.floorMod("${book.accountId}:${book.path}:${book.name}".hashCode(), paletteSize)
+    }
+
+    fun coverPresentation(
+        book: BookProgressEntity,
+        hasEmbeddedCover: Boolean = false,
+    ): BookshelfCoverPresentation {
+        val fileType = bookFileType(book)
+        return BookshelfCoverPresentation(
+            source = if (fileType.canHaveEmbeddedCover && hasEmbeddedCover) {
+                BookshelfCoverSource.EPUB_EMBEDDED
+            } else {
+                BookshelfCoverSource.GENERATED_PLACEHOLDER
+            },
+            fileType = fileType,
+        )
+    }
+
+    fun bookFileType(book: BookProgressEntity): BookshelfBookFileType {
+        val extension = supportedExtension(book.name)
+            ?: supportedExtension(book.path)
+            ?: return BookshelfBookFileType.UNKNOWN
+        return when (extension) {
+            "txt" -> BookshelfBookFileType.TXT
+            "md" -> BookshelfBookFileType.MARKDOWN
+            "epub" -> BookshelfBookFileType.EPUB
+            else -> BookshelfBookFileType.UNKNOWN
+        }
     }
 
     fun relativeLastReadTime(lastReadAt: Long, now: Long = System.currentTimeMillis()): String {
@@ -93,4 +147,32 @@ object BookshelfStateBuilder {
             else -> Strings.BOOKSHELF_LONG_AGO
         }
     }
+
+    private fun readingProgressPercent(book: BookProgressEntity): Int? {
+        if (book.totalChapters <= 0) return null
+        return (((book.chapterIndex + 1).coerceAtLeast(1).toFloat() / book.totalChapters) * 100)
+            .toInt()
+            .coerceIn(0, 100)
+    }
+
+    private fun stripDisplayExtension(title: String): String {
+        val trimmed = title.trim()
+        val extension = supportedExtension(trimmed) ?: return trimmed
+        val lastDot = fileName(trimmed).lastIndexOf('.')
+        if (lastDot <= 0) return trimmed
+        return trimmed.dropLast(extension.length + 1)
+            .trimEnd()
+            .ifBlank { trimmed }
+    }
+
+    private fun supportedExtension(value: String): String? {
+        val name = fileName(value.trim())
+        val lastDot = name.lastIndexOf('.')
+        if (lastDot <= 0 || lastDot == name.lastIndex) return null
+        val extension = name.substring(lastDot + 1).lowercase()
+        return extension.takeIf { it in displayTitleExtensions }
+    }
+
+    private fun fileName(value: String): String =
+        value.substringAfterLast('/').substringAfterLast('\\')
 }

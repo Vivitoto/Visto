@@ -20,10 +20,11 @@ class BookshelfUiStateTest {
         chapterTitle: String? = "第三章 风起",
         totalChapters: Int = 10,
         lastReadAt: Long = 1_700_000_000_000L,
+        path: String = "/Books/$name",
     ) = BookProgressEntity(
         id = id,
         accountId = accountId,
-        path = "/Books/$name",
+        path = path,
         name = name,
         sizeBytes = 1024,
         etag = "etag",
@@ -71,6 +72,26 @@ class BookshelfUiStateTest {
     }
 
     @Test
+    fun displayTitleStripsSupportedExtensionsCaseInsensitively() {
+        assertEquals("小说", BookshelfStateBuilder.displayTitle(book(name = "小说.txt")))
+        assertEquals("README", BookshelfStateBuilder.displayTitle(book(name = "README.MD")))
+        assertEquals("长篇中文标题", BookshelfStateBuilder.displayTitle(book(name = "长篇中文标题.EpUb")))
+        assertEquals("archive.pdf", BookshelfStateBuilder.displayTitle(book(name = "archive.pdf")))
+    }
+
+    @Test
+    fun displayTitleFallsBackToPathWhenNameIsBlank() {
+        val displayTitle = BookshelfStateBuilder.displayTitle(
+            book(
+                name = "",
+                path = "/Books/很长的中文书名.epub",
+            ),
+        )
+
+        assertEquals("很长的中文书名", displayTitle)
+    }
+
+    @Test
     fun progressSummaryUsesChapterTitleAndPercent() {
         val summary = BookshelfStateBuilder.progressSummary(book(chapterIndex = 2, totalChapters = 10))
 
@@ -92,6 +113,13 @@ class BookshelfUiStateTest {
     }
 
     @Test
+    fun readingProgressPercentLabelUsesChapterCountSemantics() {
+        assertEquals("已读30%", BookshelfStateBuilder.readingProgressPercentLabel(book(chapterIndex = 2, totalChapters = 10)))
+        assertEquals("已读100%", BookshelfStateBuilder.readingProgressPercentLabel(book(chapterIndex = 999, totalChapters = 10)))
+        assertNull(BookshelfStateBuilder.readingProgressPercentLabel(book(totalChapters = 0)))
+    }
+
+    @Test
     fun stableBookKeyUsesIdOrAccountPathFallback() {
         assertEquals("book:42", BookshelfStateBuilder.stableBookKey(book(id = 42L)))
         assertEquals(
@@ -108,6 +136,43 @@ class BookshelfUiStateTest {
         assertEquals(index, BookshelfStateBuilder.coverPaletteIndex(book, paletteSize = 6))
         assertTrue(index in 0 until 6)
         assertEquals(0, BookshelfStateBuilder.coverPaletteIndex(book, paletteSize = 0))
+    }
+
+    @Test
+    fun coverPresentationClassifiesCurrentCoversAsGeneratedPlaceholders() {
+        val epubCover = BookshelfStateBuilder.coverPresentation(book(name = "小说.EPUB"))
+        val markdownCover = BookshelfStateBuilder.coverPresentation(book(name = "notes", path = "/Books/notes.md"))
+        val unknownCover = BookshelfStateBuilder.coverPresentation(book(name = "scan.pdf"))
+
+        assertEquals(BookshelfCoverSource.GENERATED_PLACEHOLDER, epubCover.source)
+        assertEquals(BookshelfBookFileType.EPUB, epubCover.fileType)
+        assertEquals("EPUB", epubCover.fileType.coverBadge)
+        assertTrue(epubCover.fileType.canHaveEmbeddedCover)
+
+        assertEquals(BookshelfCoverSource.GENERATED_PLACEHOLDER, markdownCover.source)
+        assertEquals(BookshelfBookFileType.MARKDOWN, markdownCover.fileType)
+        assertEquals("MD", markdownCover.fileType.coverBadge)
+
+        assertEquals(BookshelfCoverSource.GENERATED_PLACEHOLDER, unknownCover.source)
+        assertEquals(BookshelfBookFileType.UNKNOWN, unknownCover.fileType)
+        assertFalse(unknownCover.fileType.canHaveEmbeddedCover)
+    }
+
+    @Test
+    fun coverPresentationPrefersEmbeddedCoverOnlyForEpubWhenAvailable() {
+        val epubCover = BookshelfStateBuilder.coverPresentation(
+            book(name = "小说.epub"),
+            hasEmbeddedCover = true,
+        )
+        val textCover = BookshelfStateBuilder.coverPresentation(
+            book(name = "小说.txt"),
+            hasEmbeddedCover = true,
+        )
+
+        assertEquals(BookshelfCoverSource.EPUB_EMBEDDED, epubCover.source)
+        assertEquals(BookshelfBookFileType.EPUB, epubCover.fileType)
+        assertEquals(BookshelfCoverSource.GENERATED_PLACEHOLDER, textCover.source)
+        assertEquals(BookshelfBookFileType.TXT, textCover.fileType)
     }
 
     @Test

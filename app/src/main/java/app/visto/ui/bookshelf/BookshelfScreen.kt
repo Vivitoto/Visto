@@ -7,6 +7,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -50,6 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.visto.data.db.BookProgressEntity
@@ -124,7 +126,7 @@ fun BookshelfScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(
-                    text = actionBook.name,
+                    text = BookshelfStateBuilder.displayTitle(actionBook),
                     style = MaterialTheme.typography.titleLarge,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -305,7 +307,7 @@ private fun BookshelfBookCard(
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        GeneratedBookCover(book = book)
+        BookshelfBookCover(book = book)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -356,7 +358,7 @@ private fun BookshelfListRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        GeneratedBookCover(
+        BookshelfBookCover(
             book = book,
             modifier = Modifier.width(70.dp),
         )
@@ -365,7 +367,7 @@ private fun BookshelfListRow(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
-                text = book.name,
+                text = BookshelfStateBuilder.displayTitle(book),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -400,75 +402,128 @@ private fun BookshelfListRow(
 }
 
 @Composable
-private fun GeneratedBookCover(
+private fun BookshelfBookCover(
     book: BookProgressEntity,
     modifier: Modifier = Modifier.fillMaxWidth(),
 ) {
+    val cover = BookshelfStateBuilder.coverPresentation(book)
+    when (cover.source) {
+        BookshelfCoverSource.GENERATED_PLACEHOLDER,
+        BookshelfCoverSource.EPUB_EMBEDDED -> GeneratedBookCover(
+            book = book,
+            cover = cover,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun GeneratedBookCover(
+    book: BookProgressEntity,
+    cover: BookshelfCoverPresentation,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+) {
     val palette = BookCoverPalettes[BookshelfStateBuilder.coverPaletteIndex(book, BookCoverPalettes.size)]
-    Box(
+    val displayTitle = BookshelfStateBuilder.displayTitle(book)
+    val progressLabel = BookshelfStateBuilder.readingProgressPercentLabel(book)
+    BoxWithConstraints(
         modifier = modifier
             .aspectRatio(0.68f)
             .clip(RoundedCornerShape(8.dp))
             .background(Brush.verticalGradient(colors = listOf(palette.top, palette.bottom))),
     ) {
+        val compact = maxWidth < 96.dp
+        val spineWidth = if (compact) 10.dp else 18.dp
+        val horizontalPadding = if (compact) 10.dp else 30.dp
+        val trailingPadding = if (compact) 10.dp else 18.dp
+        val topPadding = if (compact) 10.dp else 24.dp
+        val bottomPadding = if (compact) 10.dp else 16.dp
+        val titleTopPadding = if (compact) 28.dp else 48.dp
+        val titleBottomPadding = if (compact) 30.dp else 48.dp
+        val titleMaxLines = if (compact) 3 else 6
+
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .fillMaxHeight()
-                .width(18.dp)
+                .width(spineWidth)
                 .background(Color.Black.copy(alpha = 0.18f)),
         )
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = 30.dp, top = 24.dp)
-                .width(44.dp)
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(palette.accent.copy(alpha = 0.92f)),
-        )
+        if (!compact) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = horizontalPadding, top = topPadding)
+                    .width(44.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(palette.accent.copy(alpha = 0.92f)),
+            )
+        }
         Text(
-            text = "TXT",
+            text = cover.fileType.coverBadge,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(14.dp),
+                .padding(if (compact) 8.dp else 14.dp),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = palette.ink.copy(alpha = 0.82f),
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = book.name,
+            text = displayTitle,
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = 30.dp, top = 54.dp, end = 18.dp, bottom = 70.dp),
+                .align(Alignment.Center)
+                .fillMaxWidth()
+                .padding(
+                    start = horizontalPadding,
+                    top = titleTopPadding,
+                    end = trailingPadding,
+                    bottom = titleBottomPadding,
+                ),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = palette.ink,
-            maxLines = 5,
+            textAlign = TextAlign.Center,
+            maxLines = titleMaxLines,
             overflow = TextOverflow.Ellipsis,
         )
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .padding(start = 30.dp, end = 18.dp, bottom = 18.dp),
+                .padding(start = horizontalPadding, end = trailingPadding, bottom = bottomPadding),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.74f)
-                    .height(2.dp)
-                    .clip(RoundedCornerShape(1.dp))
-                    .background(palette.ink.copy(alpha = 0.36f)),
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.52f)
-                    .height(2.dp)
-                    .clip(RoundedCornerShape(1.dp))
-                    .background(palette.ink.copy(alpha = 0.26f)),
-            )
+            if (!compact) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.74f)
+                        .height(2.dp)
+                        .clip(RoundedCornerShape(1.dp))
+                        .background(palette.ink.copy(alpha = 0.36f)),
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.52f)
+                        .height(2.dp)
+                        .clip(RoundedCornerShape(1.dp))
+                        .background(palette.ink.copy(alpha = 0.26f)),
+                )
+            }
+            progressLabel?.let {
+                Text(
+                    text = it,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = palette.ink.copy(alpha = 0.86f),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

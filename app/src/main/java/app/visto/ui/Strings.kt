@@ -153,6 +153,7 @@ object Strings {
 
     fun bookshelfChapterNumber(index: Int): String = "第${(index + 1).coerceAtLeast(1)}章"
     fun bookshelfProgressPercent(percent: Int): String = " · 已读$percent%"
+    fun bookshelfCoverProgressPercent(percent: Int): String = "已读$percent%"
     fun bookshelfLastRead(relative: String): String = "最后阅读 $relative"
     fun bookshelfSwitchToGrid(columns: Int): String = "切换到书架：$columns 列"
     fun bookshelfMinutesAgo(minutes: Long): String = "${minutes}分钟前"
