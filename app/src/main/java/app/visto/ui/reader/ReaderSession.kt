@@ -12,14 +12,15 @@ data class ReaderSession(
     val encoding: String,
     val fullText: String,
     val chapters: List<Chapter>,
-    val currentChapterIndex: Int,
-    val currentPage: Int,
-    val pagesForCurrentChapter: List<Page>,
-    val fontSizeSp: Int,
-    val lineSpacing: Float,
-    val theme: ReaderTheme,
-    val isLoading: Boolean,
-    val errorMessage: String?,
+    val currentChapterIndex: Int = 0,
+    val currentPage: Int = 0,
+    val pagesForCurrentChapter: List<Page> = emptyList(),
+    val fontSizeSp: Int = 18,
+    val lineSpacing: Float = 1.5f,
+    val theme: ReaderTheme = ReaderTheme.LIGHT,
+    val isLoading: Boolean = true,
+    val errorMessage: String? = null,
+    val showToolbar: Boolean = true,
 )
 
 sealed class ReaderSessionAction {
@@ -40,6 +41,73 @@ sealed class ReaderSessionAction {
     data class SetFontSize(val sp: Int) : ReaderSessionAction()
     data class SetLineSpacing(val value: Float) : ReaderSessionAction()
     data class SetTheme(val theme: ReaderTheme) : ReaderSessionAction()
+}
+
+sealed class ReaderAction {
+    data class Loaded(
+        val encoding: String,
+        val fullText: String,
+        val chapters: List<Chapter>,
+        val currentChapterIndex: Int = 0,
+        val currentPage: Int = 0,
+    ) : ReaderAction()
+
+    data object ToggleToolbar : ReaderAction()
+    data class GoToPage(val page: Int) : ReaderAction()
+    data class GoToChapter(val index: Int) : ReaderAction()
+    data class SetFontSize(val sp: Int) : ReaderAction()
+    data class SetLineSpacing(val spacing: Float) : ReaderAction()
+    data class SetTheme(val theme: ReaderTheme) : ReaderAction()
+    data object NextPage : ReaderAction()
+    data object PrevPage : ReaderAction()
+    data object Retry : ReaderAction()
+    data class Error(val message: String) : ReaderAction()
+}
+
+object ReaderReducer {
+    fun reduce(session: ReaderSession, action: ReaderAction): ReaderSession = when (action) {
+        is ReaderAction.Loaded -> ReaderSessionReducer.reduce(
+            session,
+            ReaderSessionAction.LoadResult(
+                filePath = session.filePath,
+                fileName = session.fileName,
+                encoding = action.encoding,
+                fullText = action.fullText,
+                chapters = action.chapters,
+                initialChapterIndex = action.currentChapterIndex,
+                initialPage = action.currentPage,
+            ),
+        )
+        ReaderAction.ToggleToolbar -> session.copy(showToolbar = !session.showToolbar)
+        is ReaderAction.GoToPage -> session.copy(
+            currentPage = action.page.coerceInPageRange(session.pagesForCurrentChapter),
+        )
+        is ReaderAction.GoToChapter -> ReaderSessionReducer.reduce(
+            session,
+            ReaderSessionAction.SelectChapter(action.index),
+        )
+        is ReaderAction.SetFontSize -> ReaderSessionReducer.reduce(
+            session,
+            ReaderSessionAction.SetFontSize(action.sp),
+        )
+        is ReaderAction.SetLineSpacing -> ReaderSessionReducer.reduce(
+            session,
+            ReaderSessionAction.SetLineSpacing(action.spacing),
+        )
+        is ReaderAction.SetTheme -> ReaderSessionReducer.reduce(
+            session,
+            ReaderSessionAction.SetTheme(action.theme),
+        )
+        ReaderAction.NextPage -> ReaderSessionReducer.reduce(session, ReaderSessionAction.NextPage)
+        ReaderAction.PrevPage -> ReaderSessionReducer.reduce(session, ReaderSessionAction.PrevPage)
+        ReaderAction.Retry -> session.copy(isLoading = true, errorMessage = null)
+        is ReaderAction.Error -> session.copy(isLoading = false, errorMessage = action.message)
+    }
+
+    private fun Int.coerceInPageRange(pages: List<Page>): Int = when {
+        pages.isEmpty() -> 0
+        else -> coerceIn(0, pages.lastIndex)
+    }
 }
 
 object ReaderSessionReducer {
