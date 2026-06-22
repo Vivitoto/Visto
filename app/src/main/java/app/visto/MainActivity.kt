@@ -209,6 +209,7 @@ fun VistoRoot(
                     onAddServer = { screen = Screen.Account },
                     onSwitchAccount = { id ->
                         rootScope.launch {
+                            withContext(Dispatchers.IO) { clearAllBookCache(context.cacheDir) }
                             app.accountService.switchActive(id)
                             refreshAccounts()
                         }
@@ -216,6 +217,7 @@ fun VistoRoot(
                     onDeleteAccount = { id ->
                         rootScope.launch {
                             app.accountService.deleteAccount(id)
+                            withContext(Dispatchers.IO) { clearAllBookCache(context.cacheDir) }
                             refreshAccounts()
                         }
                     },
@@ -254,6 +256,7 @@ fun VistoRoot(
                     onAddServer = { screen = Screen.Account },
                     onSwitchAccount = { id ->
                         rootScope.launch {
+                            withContext(Dispatchers.IO) { clearAllBookCache(context.cacheDir) }
                             app.accountService.switchActive(id)
                             refreshAccounts()
                         }
@@ -261,6 +264,7 @@ fun VistoRoot(
                     onDeleteAccount = { id ->
                         rootScope.launch {
                             app.accountService.deleteAccount(id)
+                            withContext(Dispatchers.IO) { clearAllBookCache(context.cacheDir) }
                             refreshAccounts()
                         }
                     },
@@ -1074,6 +1078,10 @@ private fun clearBookCache(cacheDir: File, accountId: Long, path: String) {
     File(booksRoot, accountId.toString()).takeIf { it.isDirectory && it.list().isNullOrEmpty() }?.delete()
 }
 
+private fun clearAllBookCache(cacheDir: File) {
+    File(cacheDir, "books").deleteRecursively()
+}
+
 @Composable
 private fun SettingsHost(
     summary: AccountSummary?,
@@ -1203,6 +1211,16 @@ private fun SettingsHost(
                     isClearingCache = false,
                     thumbnailCacheBytes = thumbnailCacheBytes(app),
                     message = Strings.SETTINGS_CACHE_CLEARED,
+                )
+            }
+        },
+        onClearBookCache = {
+            scope.launch {
+                settingsState = settingsState.copy(isClearingCache = true, message = null)
+                withContext(Dispatchers.IO) { clearAllBookCache(context.cacheDir) }
+                settingsState = settingsState.copy(
+                    isClearingCache = false,
+                    message = "书籍缓存已清理",
                 )
             }
         },

@@ -64,6 +64,7 @@ private val SettingsSliderThumbRadius = 11.dp
 fun SettingsScreen(
     state: SettingsUiState,
     onClearCache: () -> Unit,
+    onClearBookCache: () -> Unit,
     onCacheLimitChange: (ThumbnailCacheLimit) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onAutoLoadOriginalImagesChange: (Boolean) -> Unit,
@@ -122,7 +123,7 @@ fun SettingsScreen(
             }
 
             SettingsSection(Strings.SETTINGS_LOCAL_CACHE) {
-                CacheSection(state, onClearCache, onCacheLimitChange)
+                CacheSection(state, onClearCache, onClearBookCache, onCacheLimitChange)
             }
 
             SettingsSection(Strings.SETTINGS_ABOUT_TITLE) {
@@ -438,7 +439,12 @@ private fun SwitchRow(title: String, description: String, checked: Boolean, onCh
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CacheSection(state: SettingsUiState, onClearCache: () -> Unit, onCacheLimitChange: (ThumbnailCacheLimit) -> Unit) {
+private fun CacheSection(
+    state: SettingsUiState,
+    onClearCache: () -> Unit,
+    onClearBookCache: () -> Unit,
+    onCacheLimitChange: (ThumbnailCacheLimit) -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -524,6 +530,14 @@ private fun CacheSection(state: SettingsUiState, onClearCache: () -> Unit, onCac
             ) {
                 Icon(Icons.Filled.DeleteSweep, contentDescription = null, modifier = Modifier.padding(end = SettingsItemGap))
                 Text(text = if (state.isClearingCache) Strings.SETTINGS_CLEARING else Strings.SETTINGS_CLEAR_THUMBNAILS)
+            }
+            OutlinedButton(
+                onClick = onClearBookCache,
+                enabled = !state.isClearingCache,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Filled.DeleteSweep, contentDescription = null, modifier = Modifier.padding(end = SettingsItemGap))
+                Text(text = if (state.isClearingCache) Strings.SETTINGS_CLEARING else "清理书籍缓存")
             }
         }
     }
