@@ -134,16 +134,25 @@ fun ReaderScreen(
                 .background(palette.backgroundColor),
         ) {
             val density = LocalDensity.current
-            val horizontalPadding = 22.dp
-            val verticalPadding = if (chromeVisible) 88.dp else 28.dp
-            val viewport = remember(maxWidth, maxHeight, horizontalPadding, verticalPadding, density) {
+            val horizontalPadding = if (maxWidth < 360.dp) 18.dp else 22.dp
+            val hiddenVerticalPadding = if (maxHeight < 600.dp) 24.dp else 28.dp
+            val topContentPadding = if (chromeVisible) 64.dp else hiddenVerticalPadding
+            val bottomContentPadding = if (chromeVisible) 104.dp else hiddenVerticalPadding
+            val viewport = remember(
+                maxWidth,
+                maxHeight,
+                horizontalPadding,
+                topContentPadding,
+                bottomContentPadding,
+                density,
+            ) {
                 with(density) {
                     ReaderViewport(
                         widthPx = (maxWidth - horizontalPadding * 2)
                             .coerceAtLeast(1.dp)
                             .toPx()
                             .roundToInt(),
-                        heightPx = (maxHeight - verticalPadding * 2)
+                        heightPx = (maxHeight - topContentPadding - bottomContentPadding)
                             .coerceAtLeast(1.dp)
                             .toPx()
                             .roundToInt(),
@@ -205,7 +214,12 @@ fun ReaderScreen(
                             fontFamily = readerFontFamily,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+                                .padding(
+                                    start = horizontalPadding,
+                                    top = topContentPadding,
+                                    end = horizontalPadding,
+                                    bottom = bottomContentPadding,
+                                ),
                         )
 
                         turnFeedback?.let { feedback ->
@@ -234,7 +248,7 @@ fun ReaderScreen(
                     onToggle = { chromeVisible = false },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(start = 12.dp, top = 12.dp, end = 12.dp),
+                        .padding(start = 12.dp, top = 10.dp, end = 12.dp),
                 )
                 ReaderBottomBar(
                     chapterTitle = currentChapter?.title ?: Strings.READER_CURRENT_CHAPTER,
@@ -246,7 +260,7 @@ fun ReaderScreen(
                     onBack = closeReader,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+                        .padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
                 )
             }
         }
@@ -414,7 +428,7 @@ private fun ReaderTopBar(
             style = MaterialTheme.typography.titleMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
         )
     }
 }
@@ -432,12 +446,12 @@ private fun ReaderBottomBar(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Surface(
             color = palette.toolbarColor,
             contentColor = palette.textColor,
-            shape = RoundedCornerShape(22.dp),
+            shape = RoundedCornerShape(20.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
@@ -445,29 +459,34 @@ private fun ReaderBottomBar(
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
         }
         Surface(
             color = palette.toolbarColor,
             contentColor = palette.textColor,
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(24.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onChapterList, modifier = Modifier.size(44.dp)) {
                     Icon(Icons.Filled.List, contentDescription = Strings.READER_CHAPTERS)
                 }
                 Spacer(modifier = Modifier.width(4.dp))
-                Text(text = Strings.READER_CHAPTERS, style = MaterialTheme.typography.labelMedium)
-                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = Strings.READER_CHAPTERS,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
                 IconButton(onClick = onSettings, modifier = Modifier.size(44.dp)) {
                     Icon(Icons.Filled.Settings, contentDescription = Strings.SETTINGS_TITLE)
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
                     Icon(Icons.Filled.ArrowBack, contentDescription = Strings.BACK)
                 }
