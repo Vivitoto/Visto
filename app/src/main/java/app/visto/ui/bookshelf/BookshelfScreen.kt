@@ -2,6 +2,7 @@ package app.visto.ui.bookshelf
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
@@ -23,8 +24,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -64,7 +67,7 @@ fun BookshelfScreen(
 ) {
     var selectedBook by remember { mutableStateOf<BookProgressEntity?>(null) }
     var bookPendingRemove by remember { mutableStateOf<BookProgressEntity?>(null) }
-    var layoutMode by remember { mutableStateOf(BookshelfLayoutMode.GRID) }
+    var layoutMode by remember { mutableStateOf(BookshelfLayoutMode.GRID_3) }
 
     Scaffold(
         bottomBar = { VistoBottomBar(selected = HomeTab.BOOKSHELF, onSelect = onTabSelected) },
@@ -83,13 +86,15 @@ fun BookshelfScreen(
                         onChange = { layoutMode = it },
                     )
                     when (layoutMode) {
-                        BookshelfLayoutMode.GRID -> BookshelfGrid(
+                        BookshelfLayoutMode.LIST -> BookshelfList(
                             books = state.books,
                             onOpenBook = onOpenBook,
                             onSelectBook = { selectedBook = it },
                         )
-                        BookshelfLayoutMode.LIST -> BookshelfList(
+                        BookshelfLayoutMode.GRID_3,
+                        BookshelfLayoutMode.GRID_5 -> BookshelfGrid(
                             books = state.books,
+                            columns = layoutMode.gridColumns ?: 3,
                             onOpenBook = onOpenBook,
                             onSelectBook = { selectedBook = it },
                         )
@@ -185,8 +190,6 @@ fun BookshelfScreen(
     }
 }
 
-private enum class BookshelfLayoutMode { GRID, LIST }
-
 @Composable
 private fun BookshelfViewModeBar(
     current: BookshelfLayoutMode,
@@ -205,30 +208,41 @@ private fun BookshelfViewModeBar(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
-        BookshelfModeButton(
-            label = Strings.BOOKSHELF_GRID_VIEW,
-            selected = current == BookshelfLayoutMode.GRID,
-            onClick = { onChange(BookshelfLayoutMode.GRID) },
-        )
-        BookshelfModeButton(
-            label = Strings.BOOKSHELF_LIST_VIEW,
-            selected = current == BookshelfLayoutMode.LIST,
-            onClick = { onChange(BookshelfLayoutMode.LIST) },
+        BookshelfViewCycleButton(
+            current = current,
+            onClick = { onChange(current.next()) },
         )
     }
 }
 
 @Composable
-private fun BookshelfModeButton(
-    label: String,
-    selected: Boolean,
+private fun BookshelfViewCycleButton(
+    current: BookshelfLayoutMode,
     onClick: () -> Unit,
 ) {
-    TextButton(onClick = onClick) {
-        Text(
-            text = label,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+    val next = current.next()
+    val isList = current == BookshelfLayoutMode.LIST
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                if (isList) {
+                    MaterialTheme.colorScheme.surfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primaryContainer
+                },
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = if (next == BookshelfLayoutMode.LIST) Icons.AutoMirrored.Filled.List else Icons.Filled.GridView,
+            tint = if (isList) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimaryContainer,
+            contentDescription = next.gridColumns
+                ?.let(Strings::bookshelfSwitchToGrid)
+                ?: Strings.BOOKSHELF_SWITCH_TO_LIST,
+            modifier = Modifier.size(22.dp),
         )
     }
 }
@@ -236,11 +250,12 @@ private fun BookshelfModeButton(
 @Composable
 private fun BookshelfGrid(
     books: List<BookProgressEntity>,
+    columns: Int,
     onOpenBook: (BookProgressEntity) -> Unit,
     onSelectBook: (BookProgressEntity) -> Unit,
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 150.dp),
+        columns = GridCells.Fixed(columns),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 104.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -534,7 +549,7 @@ private fun BookshelfEmptyState() {
 @Composable
 private fun BookshelfSkeleton() {
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 150.dp),
+        columns = GridCells.Fixed(BookshelfLayoutMode.GRID_3.gridColumns ?: 3),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 104.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),

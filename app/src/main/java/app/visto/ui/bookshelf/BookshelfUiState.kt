@@ -14,6 +14,18 @@ data class BookshelfUiState(
     val errorMessage: String? = null,
 )
 
+enum class BookshelfLayoutMode(val gridColumns: Int?) {
+    LIST(null),
+    GRID_3(3),
+    GRID_5(5);
+
+    fun next(): BookshelfLayoutMode = when (this) {
+        LIST -> GRID_3
+        GRID_3 -> GRID_5
+        GRID_5 -> LIST
+    }
+}
+
 /** Pure state builder/reducer helpers for bookshelf data and display text. */
 object BookshelfStateBuilder {
 

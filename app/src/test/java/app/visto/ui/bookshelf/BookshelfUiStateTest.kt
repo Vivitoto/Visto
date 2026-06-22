@@ -37,6 +37,20 @@ class BookshelfUiStateTest {
     )
 
     @Test
+    fun layoutModeCyclesListThreeColumnsFiveColumnsThenList() {
+        assertEquals(BookshelfLayoutMode.GRID_3, BookshelfLayoutMode.LIST.next())
+        assertEquals(BookshelfLayoutMode.GRID_5, BookshelfLayoutMode.GRID_3.next())
+        assertEquals(BookshelfLayoutMode.LIST, BookshelfLayoutMode.GRID_5.next())
+    }
+
+    @Test
+    fun layoutModeUsesFixedBookshelfGridColumns() {
+        assertNull(BookshelfLayoutMode.LIST.gridColumns)
+        assertEquals(3, BookshelfLayoutMode.GRID_3.gridColumns)
+        assertEquals(5, BookshelfLayoutMode.GRID_5.gridColumns)
+    }
+
+    @Test
     fun fromBooksMarksLoadedAndKeepsBooks() {
         val books = listOf(book(name = "a.txt"), book(name = "b.txt"))
 

@@ -114,8 +114,7 @@ object Strings {
     const val BOOKSHELF_REMOVE_CONFIRM = "移除"
     const val BOOKSHELF_EMPTY = "浏览中打开 TXT 文件后自动加入书架"
     const val BOOKSHELF_VIEW_MODE = "视图"
-    const val BOOKSHELF_GRID_VIEW = "书架"
-    const val BOOKSHELF_LIST_VIEW = "列表"
+    const val BOOKSHELF_SWITCH_TO_LIST = "切换到列表"
     const val BOOKSHELF_JUST_NOW = "刚刚"
     const val BOOKSHELF_LONG_AGO = "很久以前"
 
@@ -155,6 +154,7 @@ object Strings {
     fun bookshelfChapterNumber(index: Int): String = "第${(index + 1).coerceAtLeast(1)}章"
     fun bookshelfProgressPercent(percent: Int): String = " · 已读$percent%"
     fun bookshelfLastRead(relative: String): String = "最后阅读 $relative"
+    fun bookshelfSwitchToGrid(columns: Int): String = "切换到书架：$columns 列"
     fun bookshelfMinutesAgo(minutes: Long): String = "${minutes}分钟前"
     fun bookshelfHoursAgo(hours: Long): String = "${hours}小时前"
     fun bookshelfDaysAgo(days: Long): String = "${days}天前"
