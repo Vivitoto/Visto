@@ -141,6 +141,20 @@ class ReaderSessionTest {
     }
 
     @Test
+    fun setTextColorAndBackgroundUpdatePaletteWithoutRepaginating() {
+        val loaded = loadedState()
+
+        val colored = ReaderSessionReducer.reduce(loaded, ReaderSessionAction.SetTextColor(ReaderTextColor.INK))
+        val background = ReaderSessionReducer.reduce(loaded, ReaderSessionAction.SetBackgroundStyle(ReaderBackgroundStyle.BLACK))
+
+        assertEquals(ReaderTextColor.INK, colored.textColor)
+        assertEquals(loaded.pagesForCurrentChapter, colored.pagesForCurrentChapter)
+        assertEquals(ReaderBackgroundStyle.BLACK, background.backgroundStyle)
+        assertEquals(loaded.pagesForCurrentChapter, background.pagesForCurrentChapter)
+        assertTrue(background.readerPalette().isDark)
+    }
+
+    @Test
     fun pagePresenterStylesChapterTitleOnlyAtChapterStart() {
         val page = Page(
             startChar = 0,

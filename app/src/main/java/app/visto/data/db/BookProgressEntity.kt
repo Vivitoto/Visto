@@ -52,6 +52,10 @@ data class BookProgressEntity(
     val theme: String = "light",
     @ColumnInfo(name = "fontChoice")
     val fontChoice: String = "system",
+    @ColumnInfo(name = "textColor")
+    val textColor: String = "default",
+    @ColumnInfo(name = "backgroundStyle")
+    val backgroundStyle: String = "default",
     @ColumnInfo(name = "lastReadAt")
     val lastReadAt: Long,
     @ColumnInfo(name = "addedAt")

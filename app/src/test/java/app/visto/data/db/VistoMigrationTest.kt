@@ -17,7 +17,7 @@ import org.robolectric.annotation.Config
 class VistoMigrationTest {
 
     @Test
-    fun version3SchemaContainsBookProgressTableAndUniquePathIndex() {
+    fun currentSchemaContainsBookProgressCustomizationColumns() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val db = Room.inMemoryDatabaseBuilder(context, VistoDatabase::class.java)
             .allowMainThreadQueries()
@@ -27,7 +27,7 @@ class VistoMigrationTest {
             val sqlite = db.openHelper.writableDatabase
             sqlite.query("PRAGMA user_version").use { cursor ->
                 assertTrue(cursor.moveToFirst())
-                assertEquals(4, cursor.getInt(0))
+                assertEquals(5, cursor.getInt(0))
             }
 
             sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'book_progress'").use { cursor ->
@@ -56,14 +56,15 @@ class VistoMigrationTest {
             }
 
             sqlite.query("PRAGMA table_info(`book_progress`)").use { cursor ->
-                var foundFontChoice = false
+                val foundColumns = mutableSetOf<String>()
                 while (cursor.moveToNext()) {
-                    if (cursor.getString(cursor.getColumnIndexOrThrow("name")) == "fontChoice") {
-                        foundFontChoice = true
+                    val name = cursor.getString(cursor.getColumnIndexOrThrow("name"))
+                    if (name in setOf("fontChoice", "textColor", "backgroundStyle")) {
+                        foundColumns += name
                         assertEquals("TEXT", cursor.getString(cursor.getColumnIndexOrThrow("type")))
                     }
                 }
-                assertTrue("book_progress should persist reader font choice", foundFontChoice)
+                assertEquals(setOf("fontChoice", "textColor", "backgroundStyle"), foundColumns)
             }
         } finally {
             db.close()
@@ -156,6 +157,70 @@ class VistoMigrationTest {
             sqlite.query("SELECT fontChoice FROM book_progress WHERE path = '/Books/a.txt'").use { cursor ->
                 assertTrue(cursor.moveToFirst())
                 assertEquals("system", cursor.getString(0))
+            }
+        } finally {
+            helper.close()
+            context.deleteDatabase(dbName)
+        }
+    }
+
+    @Test
+    fun migration4To5AddsReaderColorAndBackgroundDefaults() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val dbName = "migration-4-5-${System.nanoTime()}.db"
+        context.deleteDatabase(dbName)
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(dbName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(4) {
+                        override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) = Unit
+                        override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+                    }
+                )
+                .build()
+        )
+
+        try {
+            val sqlite = helper.writableDatabase
+            sqlite.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `book_progress` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `accountId` INTEGER NOT NULL,
+                    `path` TEXT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `sizeBytes` INTEGER,
+                    `etag` TEXT,
+                    `encoding` TEXT NOT NULL,
+                    `chapterIndex` INTEGER NOT NULL,
+                    `chapterTitle` TEXT,
+                    `pageOffset` INTEGER NOT NULL,
+                    `totalChapters` INTEGER NOT NULL,
+                    `fontSizeSp` INTEGER NOT NULL,
+                    `lineSpacing` REAL NOT NULL,
+                    `theme` TEXT NOT NULL,
+                    `fontChoice` TEXT NOT NULL DEFAULT 'system',
+                    `lastReadAt` INTEGER NOT NULL,
+                    `addedAt` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            sqlite.execSQL(
+                """
+                INSERT INTO `book_progress` (
+                    `accountId`, `path`, `name`, `encoding`, `chapterIndex`, `pageOffset`,
+                    `totalChapters`, `fontSizeSp`, `lineSpacing`, `theme`, `fontChoice`, `lastReadAt`, `addedAt`
+                ) VALUES (1, '/Books/a.txt', 'a.txt', 'UTF-8', 0, 0, 1, 18, 1.5, 'light', 'serif', 100, 50)
+                """.trimIndent()
+            )
+
+            VistoMigrations.MIGRATION_4_5.migrate(sqlite)
+
+            sqlite.query("SELECT textColor, backgroundStyle FROM book_progress WHERE path = '/Books/a.txt'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("default", cursor.getString(0))
+                assertEquals("default", cursor.getString(1))
             }
         } finally {
             helper.close()

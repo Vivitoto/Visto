@@ -23,4 +23,24 @@ class ReaderThemeTest {
         assertEquals(Color(0xFFF5F0E8), ReaderTheme.CREAM.backgroundColor)
         assertEquals(Color(0xFF3D3222), ReaderTheme.CREAM.textColor)
     }
+
+    @Test
+    fun paletteResolvesDefaultTextAgainstSelectedBackground() {
+        val night = readerPalette(
+            theme = ReaderTheme.LIGHT,
+            textColor = ReaderTextColor.DEFAULT,
+            backgroundStyle = ReaderBackgroundStyle.NIGHT,
+        )
+
+        assertEquals(Color(0xFF191C1A), night.backgroundColor)
+        assertEquals(Color(0xFFD7DCD5), night.textColor)
+        assertEquals(true, night.isDark)
+    }
+
+    @Test
+    fun storageSanitizersFallbackToSafeDefaults() {
+        assertEquals("light", ReaderTheme.sanitizeStorageKey("bad"))
+        assertEquals("default", ReaderTextColor.sanitizeStorageKey("neon"))
+        assertEquals("default", ReaderBackgroundStyle.sanitizeStorageKey("wallpaper"))
+    }
 }

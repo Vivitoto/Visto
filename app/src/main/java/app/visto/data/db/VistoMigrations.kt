@@ -64,4 +64,11 @@ object VistoMigrations {
             db.execSQL("ALTER TABLE `book_progress` ADD COLUMN `fontChoice` TEXT NOT NULL DEFAULT 'system'")
         }
     }
+
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `book_progress` ADD COLUMN `textColor` TEXT NOT NULL DEFAULT 'default'")
+            db.execSQL("ALTER TABLE `book_progress` ADD COLUMN `backgroundStyle` TEXT NOT NULL DEFAULT 'default'")
+        }
+    }
 }

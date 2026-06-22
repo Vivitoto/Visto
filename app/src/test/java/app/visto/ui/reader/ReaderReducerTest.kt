@@ -93,13 +93,17 @@ class ReaderReducerTest {
     }
 
     @Test
-    fun themeAndToolbarActionsUpdateState() {
+    fun themeColorBackgroundAndToolbarActionsUpdateState() {
         val session = loadedSession()
 
         val themed = ReaderReducer.reduce(session, ReaderAction.SetTheme(ReaderTheme.CREAM))
+        val colored = ReaderReducer.reduce(session, ReaderAction.SetTextColor(ReaderTextColor.WARM_BROWN))
+        val background = ReaderReducer.reduce(session, ReaderAction.SetBackgroundStyle(ReaderBackgroundStyle.NIGHT))
         val toggled = ReaderReducer.reduce(session, ReaderAction.ToggleToolbar)
 
         assertEquals(ReaderTheme.CREAM, themed.theme)
+        assertEquals(ReaderTextColor.WARM_BROWN, colored.textColor)
+        assertEquals(ReaderBackgroundStyle.NIGHT, background.backgroundStyle)
         assertEquals(!session.showToolbar, toggled.showToolbar)
     }
 

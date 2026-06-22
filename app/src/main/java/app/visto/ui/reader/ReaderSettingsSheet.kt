@@ -34,11 +34,14 @@ fun ReaderSettingsSheet(
     onFontChoice: (ReaderFontChoice) -> Unit,
     onImportFont: () -> Unit,
     onTheme: (ReaderTheme) -> Unit,
+    onTextColor: (ReaderTextColor) -> Unit,
+    onBackgroundStyle: (ReaderBackgroundStyle) -> Unit,
     onSetDefaultSettings: () -> Unit,
     onDismiss: () -> Unit,
     fontImportError: String? = null,
 ) {
     val previewFontFamily = rememberReaderFontFamily(current.fontChoice)
+    val previewPalette = current.readerPalette()
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -107,9 +110,41 @@ fun ReaderSettingsSheet(
                 }
             }
 
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = Strings.READER_TEXT_COLOR, style = MaterialTheme.typography.titleMedium)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        ReaderTextColor.entries.take(3).forEach { color ->
+                            TextColorChip(color, current.textColor, onTextColor)
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        ReaderTextColor.entries.drop(3).forEach { color ->
+                            TextColorChip(color, current.textColor, onTextColor)
+                        }
+                    }
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = Strings.READER_BACKGROUND_STYLE, style = MaterialTheme.typography.titleMedium)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        ReaderBackgroundStyle.entries.take(4).forEach { background ->
+                            BackgroundStyleChip(background, current.backgroundStyle, onBackgroundStyle)
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        ReaderBackgroundStyle.entries.drop(4).forEach { background ->
+                            BackgroundStyleChip(background, current.backgroundStyle, onBackgroundStyle)
+                        }
+                    }
+                }
+            }
+
             Surface(
-                color = current.theme.backgroundColor,
-                contentColor = current.theme.textColor,
+                color = previewPalette.backgroundColor,
+                contentColor = previewPalette.textColor,
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -121,12 +156,12 @@ fun ReaderSettingsSheet(
                     Text(
                         text = Strings.READER_PREVIEW,
                         style = MaterialTheme.typography.labelMedium,
-                        color = current.theme.textColor.copy(alpha = 0.68f),
+                        color = previewPalette.textColor.copy(alpha = 0.68f),
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = Strings.READER_PREVIEW_TEXT,
-                        color = current.theme.textColor,
+                        color = previewPalette.textColor,
                         fontSize = current.fontSizeSp.sp,
                         lineHeight = (current.fontSizeSp * current.lineSpacing).sp,
                         fontFamily = previewFontFamily,
@@ -165,6 +200,32 @@ private fun readerFontLabel(choice: ReaderFontChoice): String = when (choice) {
     ReaderFontChoice.Sans -> Strings.READER_FONT_SANS
     ReaderFontChoice.Serif -> Strings.READER_FONT_SERIF
     is ReaderFontChoice.Custom -> Strings.readerCustomFont(choice.fileName.substringBeforeLast('.', choice.fileName))
+}
+
+@Composable
+private fun TextColorChip(
+    value: ReaderTextColor,
+    current: ReaderTextColor,
+    onTextColor: (ReaderTextColor) -> Unit,
+) {
+    FilterChip(
+        selected = current == value,
+        onClick = { onTextColor(value) },
+        label = { Text(value.displayLabel) },
+    )
+}
+
+@Composable
+private fun BackgroundStyleChip(
+    value: ReaderBackgroundStyle,
+    current: ReaderBackgroundStyle,
+    onBackgroundStyle: (ReaderBackgroundStyle) -> Unit,
+) {
+    FilterChip(
+        selected = current == value,
+        onClick = { onBackgroundStyle(value) },
+        label = { Text(value.displayLabel) },
+    )
 }
 
 @Composable

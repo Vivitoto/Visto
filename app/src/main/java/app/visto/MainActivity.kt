@@ -90,11 +90,13 @@ import app.visto.ui.browser.BrowserScreen
 import app.visto.ui.browser.BrowserStateBuilder
 import app.visto.ui.browser.BrowserUiState
 import app.visto.ui.reader.ReaderAction
+import app.visto.ui.reader.ReaderBackgroundStyle
 import app.visto.ui.reader.ReaderFontChoice
 import app.visto.ui.reader.ReaderReducer
 import app.visto.ui.reader.ReaderScreen
 import app.visto.ui.reader.ReaderSession
 import app.visto.ui.reader.ReaderSettingsSheet
+import app.visto.ui.reader.ReaderTextColor
 import app.visto.ui.reader.ReaderTheme
 import app.visto.ui.reader.readerFontDirectory
 import app.visto.ui.settings.SettingsScreen
@@ -357,6 +359,8 @@ private fun ActiveReaderScreen(
                 fontPicker.launch(READER_FONT_PICKER_MIME_TYPES)
             },
             onTheme = { updateSession(ReaderAction.SetTheme(it)) },
+            onTextColor = { updateSession(ReaderAction.SetTextColor(it)) },
+            onBackgroundStyle = { updateSession(ReaderAction.SetBackgroundStyle(it)) },
             onSetDefaultSettings = { onSetDefaultSettings(latestSession) },
             onDismiss = { showSettings = false },
             fontImportError = fontImportError,
@@ -382,27 +386,23 @@ private fun readerLoadingSession(
     lineSpacing = progress?.lineSpacing ?: defaultSettings.lineSpacing,
     fontChoice = ReaderFontChoice.fromStorage(progress?.fontChoice ?: defaultSettings.fontChoice),
     theme = (progress?.theme ?: defaultSettings.theme).toReaderTheme(),
+    textColor = ReaderTextColor.fromStorage(progress?.textColor ?: defaultSettings.textColor),
+    backgroundStyle = ReaderBackgroundStyle.fromStorage(progress?.backgroundStyle ?: defaultSettings.backgroundStyle),
     isLoading = true,
     errorMessage = null,
 )
 
-private fun String?.toReaderTheme(): ReaderTheme = when (this?.lowercase()) {
-    "dark" -> ReaderTheme.DARK
-    "cream" -> ReaderTheme.CREAM
-    else -> ReaderTheme.LIGHT
-}
+private fun String?.toReaderTheme(): ReaderTheme = ReaderTheme.fromStorage(this)
 
-private fun ReaderTheme.toProgressTheme(): String = when (this) {
-    ReaderTheme.LIGHT -> "light"
-    ReaderTheme.DARK -> "dark"
-    ReaderTheme.CREAM -> "cream"
-}
+private fun ReaderTheme.toProgressTheme(): String = storageKey
 
 private fun ReaderSession.toDefaultSettings(): ReaderDefaultSettings = ReaderDefaultSettings(
     fontSizeSp = fontSizeSp,
     lineSpacing = lineSpacing,
     theme = theme.toProgressTheme(),
     fontChoice = fontChoice.storageKey,
+    textColor = textColor.storageKey,
+    backgroundStyle = backgroundStyle.storageKey,
 )
 
 private suspend fun saveBookProgress(
@@ -432,6 +432,8 @@ private suspend fun saveBookProgress(
             lineSpacing = session.lineSpacing,
             theme = session.theme.toProgressTheme(),
             fontChoice = session.fontChoice.storageKey,
+            textColor = session.textColor.storageKey,
+            backgroundStyle = session.backgroundStyle.storageKey,
             lastReadAt = now,
             addedAt = entity?.addedAt ?: now,
         )
@@ -1234,6 +1236,7 @@ private fun SettingsHost(
                 blurThumbnails = app.preferences.blurThumbnails,
                 gridDensity = gridDensity,
                 thumbnailCacheLimit = app.preferences.thumbnailCacheLimit,
+                readerDefaultSettings = app.preferences.defaultReaderSettings,
             )
         )
     }
@@ -1246,6 +1249,7 @@ private fun SettingsHost(
             accountRoot = summary?.rootPath.orEmpty(),
             themeMode = themeMode,
             gridDensity = gridDensity,
+            readerDefaultSettings = app.preferences.defaultReaderSettings,
         ),
         bottomBar = { VistoBottomBar(selected = selectedTab, onSelect = onTabSelected) },
         onThemeModeChange = { mode ->

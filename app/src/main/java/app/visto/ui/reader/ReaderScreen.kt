@@ -59,7 +59,7 @@ fun ReaderScreen(
     onSaveProgress: (ReaderSession) -> Unit,
     onViewportChange: (ReaderViewport) -> Unit = {},
 ) {
-    val theme = session.theme
+    val palette = session.readerPalette()
     val readerFontFamily = rememberReaderFontFamily(session.fontChoice)
     var chromeVisible by remember { mutableStateOf(true) }
     var currentPage by remember(session.filePath, session.currentChapterIndex, session.currentPage) {
@@ -131,7 +131,7 @@ fun ReaderScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(theme.backgroundColor),
+                .background(palette.backgroundColor),
         ) {
             val density = LocalDensity.current
             val horizontalPadding = 22.dp
@@ -159,9 +159,9 @@ fun ReaderScreen(
             }
 
             when {
-                session.isLoading -> ReaderLoading(theme)
-                session.errorMessage != null -> ReaderError(theme, session.errorMessage, onBack = closeReader)
-                pages.isEmpty() -> ReaderEmpty(theme, onBack = closeReader)
+                session.isLoading -> ReaderLoading(palette)
+                session.errorMessage != null -> ReaderError(palette, session.errorMessage, onBack = closeReader)
+                pages.isEmpty() -> ReaderEmpty(palette, onBack = closeReader)
                 else -> {
                     val swipeThresholdPx = with(density) { 48.dp.toPx() }
                     val page = pages.getOrNull(safePage)
@@ -199,7 +199,7 @@ fun ReaderScreen(
                     ) {
                         ReaderPageText(
                             presentation = pagePresentation,
-                            theme = theme,
+                            palette = palette,
                             fontSizeSp = session.fontSizeSp,
                             lineSpacing = session.lineSpacing,
                             fontFamily = readerFontFamily,
@@ -211,7 +211,7 @@ fun ReaderScreen(
                         turnFeedback?.let { feedback ->
                             ReaderTurnFeedback(
                                 direction = feedback.direction,
-                                theme = theme,
+                                palette = palette,
                                 modifier = Modifier
                                     .align(
                                         if (feedback.direction == PageTurnDirection.Previous) {
@@ -230,7 +230,7 @@ fun ReaderScreen(
             if (chromeVisible && !session.isLoading && session.errorMessage == null && pages.isNotEmpty()) {
                 ReaderTopBar(
                     title = currentChapter?.title ?: session.fileName,
-                    theme = theme,
+                    palette = palette,
                     onToggle = { chromeVisible = false },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
@@ -240,7 +240,7 @@ fun ReaderScreen(
                     chapterTitle = currentChapter?.title ?: Strings.READER_CURRENT_CHAPTER,
                     page = safePage + 1,
                     totalPages = pages.size,
-                    theme = theme,
+                    palette = palette,
                     onChapterList = { showChapterList = true },
                     onSettings = onSettingsToggle,
                     onBack = closeReader,
@@ -275,7 +275,7 @@ private data class PageTurnFeedback(
 @Composable
 private fun ReaderPageText(
     presentation: ReaderPagePresentation,
-    theme: ReaderTheme,
+    palette: ReaderPalette,
     fontSizeSp: Int,
     lineSpacing: Float,
     fontFamily: FontFamily?,
@@ -284,7 +284,7 @@ private fun ReaderPageText(
     if (!presentation.hasStyledTitle) {
         Text(
             text = presentation.body,
-            color = theme.textColor,
+            color = palette.textColor,
             fontSize = fontSizeSp.sp,
             lineHeight = (fontSizeSp * lineSpacing).sp,
             fontFamily = fontFamily,
@@ -296,7 +296,7 @@ private fun ReaderPageText(
     Column(modifier = modifier) {
         Text(
             text = presentation.title.orEmpty(),
-            color = theme.textColor,
+            color = palette.textColor,
             fontSize = (fontSizeSp + 5).sp,
             fontWeight = FontWeight.Bold,
             lineHeight = (fontSizeSp * 1.35f).sp,
@@ -308,7 +308,7 @@ private fun ReaderPageText(
         if (presentation.body.isNotEmpty()) {
             Text(
                 text = presentation.body,
-                color = theme.textColor,
+                color = palette.textColor,
                 fontSize = fontSizeSp.sp,
                 lineHeight = (fontSizeSp * lineSpacing).sp,
                 fontFamily = fontFamily,
@@ -321,12 +321,12 @@ private fun ReaderPageText(
 @Composable
 private fun ReaderTurnFeedback(
     direction: PageTurnDirection,
-    theme: ReaderTheme,
+    palette: ReaderPalette,
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        color = theme.toolbarColor.copy(alpha = 0.86f),
-        contentColor = theme.textColor,
+        color = palette.toolbarColor.copy(alpha = 0.86f),
+        contentColor = palette.textColor,
         shape = RoundedCornerShape(20.dp),
         modifier = modifier,
     ) {
@@ -343,31 +343,31 @@ private fun ReaderTurnFeedback(
 }
 
 @Composable
-private fun ReaderLoading(theme: ReaderTheme) {
+private fun ReaderLoading(palette: ReaderPalette) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(theme.backgroundColor),
+            .background(palette.backgroundColor),
         contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator(color = theme.textColor)
+        CircularProgressIndicator(color = palette.textColor)
     }
 }
 
 @Composable
-private fun ReaderError(theme: ReaderTheme, message: String, onBack: () -> Unit) {
+private fun ReaderError(palette: ReaderPalette, message: String, onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(theme.backgroundColor)
+            .background(palette.backgroundColor)
             .padding(28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(text = Strings.READER_LOAD_FAILED, color = theme.textColor, style = MaterialTheme.typography.titleLarge)
+        Text(text = Strings.READER_LOAD_FAILED, color = palette.textColor, style = MaterialTheme.typography.titleLarge)
         Text(
             text = message,
-            color = theme.textColor.copy(alpha = 0.72f),
+            color = palette.textColor.copy(alpha = 0.72f),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 8.dp),
         )
@@ -378,16 +378,16 @@ private fun ReaderError(theme: ReaderTheme, message: String, onBack: () -> Unit)
 }
 
 @Composable
-private fun ReaderEmpty(theme: ReaderTheme, onBack: () -> Unit) {
+private fun ReaderEmpty(palette: ReaderPalette, onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(theme.backgroundColor)
+            .background(palette.backgroundColor)
             .padding(28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(text = Strings.READER_EMPTY, color = theme.textColor, style = MaterialTheme.typography.titleLarge)
+        Text(text = Strings.READER_EMPTY, color = palette.textColor, style = MaterialTheme.typography.titleLarge)
         Button(onClick = onBack, modifier = Modifier.padding(top = 20.dp)) {
             Text(Strings.BACK)
         }
@@ -397,13 +397,13 @@ private fun ReaderEmpty(theme: ReaderTheme, onBack: () -> Unit) {
 @Composable
 private fun ReaderTopBar(
     title: String,
-    theme: ReaderTheme,
+    palette: ReaderPalette,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        color = theme.toolbarColor,
-        contentColor = theme.textColor,
+        color = palette.toolbarColor,
+        contentColor = palette.textColor,
         shape = RoundedCornerShape(22.dp),
         modifier = modifier
             .fillMaxWidth()
@@ -424,7 +424,7 @@ private fun ReaderBottomBar(
     chapterTitle: String,
     page: Int,
     totalPages: Int,
-    theme: ReaderTheme,
+    palette: ReaderPalette,
     onChapterList: () -> Unit,
     onSettings: () -> Unit,
     onBack: () -> Unit,
@@ -435,8 +435,8 @@ private fun ReaderBottomBar(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Surface(
-            color = theme.toolbarColor,
-            contentColor = theme.textColor,
+            color = palette.toolbarColor,
+            contentColor = palette.textColor,
             shape = RoundedCornerShape(22.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -449,8 +449,8 @@ private fun ReaderBottomBar(
             )
         }
         Surface(
-            color = theme.toolbarColor,
-            contentColor = theme.textColor,
+            color = palette.toolbarColor,
+            contentColor = palette.textColor,
             shape = RoundedCornerShape(28.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {

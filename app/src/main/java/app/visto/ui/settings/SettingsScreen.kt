@@ -41,10 +41,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.visto.AppInfo
 import app.visto.data.account.GridDensity
+import app.visto.data.account.ReaderDefaultSettings
 import app.visto.data.account.ThumbnailCacheLimit
 import app.visto.data.webdav.WebDavDiagnosticResult
 import app.visto.data.webdav.WebDavDiagnosticStatus
 import app.visto.ui.Strings
+import app.visto.ui.reader.ReaderBackgroundStyle
+import app.visto.ui.reader.ReaderFontChoice
+import app.visto.ui.reader.ReaderTextColor
+import app.visto.ui.reader.ReaderTheme
 import app.visto.ui.theme.ThemeMode
 import kotlin.math.roundToInt
 
@@ -111,19 +116,30 @@ fun SettingsScreen(
                 ThemeSection(state.themeMode, onThemeModeChange)
             }
 
-            SettingsSection(Strings.SETTINGS_VIEWER) {
-                ViewerSection(
+            SettingsSection(Strings.SETTINGS_IMAGE) {
+                ImageSettingsSection(
                     autoLoadOriginalImages = state.autoLoadOriginalImages,
                     blurThumbnails = state.blurThumbnails,
                     gridDensity = state.gridDensity,
+                    thumbnailCacheBytes = state.thumbnailCacheBytes,
+                    thumbnailCacheLimit = state.thumbnailCacheLimit,
+                    isClearingCache = state.isClearingCache,
+                    message = state.message,
                     onAutoLoadOriginalImagesChange = onAutoLoadOriginalImagesChange,
                     onBlurThumbnailsChange = onBlurThumbnailsChange,
                     onGridDensityChange = onGridDensityChange,
+                    onClearCache = onClearCache,
+                    onCacheLimitChange = onCacheLimitChange,
                 )
             }
 
-            SettingsSection(Strings.SETTINGS_LOCAL_CACHE) {
-                CacheSection(state, onClearCache, onClearBookCache, onCacheLimitChange)
+            SettingsSection(Strings.SETTINGS_READING) {
+                ReadingSettingsSection(
+                    defaults = state.readerDefaultSettings,
+                    isClearingCache = state.isClearingCache,
+                    message = state.message,
+                    onClearBookCache = onClearBookCache,
+                )
             }
 
             SettingsSection(Strings.SETTINGS_ABOUT_TITLE) {
@@ -366,6 +382,99 @@ private fun ViewerSection(
 }
 
 @Composable
+private fun ImageSettingsSection(
+    autoLoadOriginalImages: Boolean,
+    blurThumbnails: Boolean,
+    gridDensity: GridDensity,
+    thumbnailCacheBytes: Long,
+    thumbnailCacheLimit: ThumbnailCacheLimit,
+    isClearingCache: Boolean,
+    message: String?,
+    onAutoLoadOriginalImagesChange: (Boolean) -> Unit,
+    onBlurThumbnailsChange: (Boolean) -> Unit,
+    onGridDensityChange: (GridDensity) -> Unit,
+    onClearCache: () -> Unit,
+    onCacheLimitChange: (ThumbnailCacheLimit) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(SettingsItemGap)) {
+        ViewerSection(
+            autoLoadOriginalImages = autoLoadOriginalImages,
+            blurThumbnails = blurThumbnails,
+            gridDensity = gridDensity,
+            onAutoLoadOriginalImagesChange = onAutoLoadOriginalImagesChange,
+            onBlurThumbnailsChange = onBlurThumbnailsChange,
+            onGridDensityChange = onGridDensityChange,
+        )
+        ThumbnailCacheSection(
+            thumbnailCacheBytes = thumbnailCacheBytes,
+            thumbnailCacheLimit = thumbnailCacheLimit,
+            isClearingCache = isClearingCache,
+            message = message,
+            onClearCache = onClearCache,
+            onCacheLimitChange = onCacheLimitChange,
+        )
+    }
+}
+
+@Composable
+private fun ReadingSettingsSection(
+    defaults: ReaderDefaultSettings,
+    isClearingCache: Boolean,
+    message: String?,
+    onClearBookCache: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(SettingsCardPadding).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(SettingsItemGap),
+        ) {
+            Text(
+                text = Strings.SETTINGS_READER_DEFAULTS,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = readerDefaultsSummary(defaults),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = Strings.SETTINGS_READER_DEFAULTS_NOTE,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = Strings.SETTINGS_READER_BOOK_CACHE_NOTE,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            message?.takeIf { it == Strings.SETTINGS_BOOK_CACHE_CLEARED }?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            OutlinedButton(
+                onClick = onClearBookCache,
+                enabled = !isClearingCache,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    Icons.Filled.DeleteSweep,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = SettingsItemGap),
+                )
+                Text(text = if (isClearingCache) Strings.SETTINGS_CLEARING else Strings.SETTINGS_CLEAR_BOOK_CACHE)
+            }
+        }
+    }
+}
+
+@Composable
 private fun GridDensityRow(current: GridDensity, onChange: (GridDensity) -> Unit) {
     Column(
         modifier = Modifier
@@ -439,10 +548,12 @@ private fun SwitchRow(title: String, description: String, checked: Boolean, onCh
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CacheSection(
-    state: SettingsUiState,
+private fun ThumbnailCacheSection(
+    thumbnailCacheBytes: Long,
+    thumbnailCacheLimit: ThumbnailCacheLimit,
+    isClearingCache: Boolean,
+    message: String?,
     onClearCache: () -> Unit,
-    onClearBookCache: () -> Unit,
     onCacheLimitChange: (ThumbnailCacheLimit) -> Unit,
 ) {
     Card(
@@ -450,7 +561,10 @@ private fun CacheSection(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(modifier = Modifier.padding(SettingsCardPadding)) {
-            Text(text = Strings.thumbnailsOnDisk(formatBytes(state.thumbnailCacheBytes)), style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = Strings.thumbnailsOnDisk(formatBytes(thumbnailCacheBytes)),
+                style = MaterialTheme.typography.bodyMedium,
+            )
 
             val limits = ThumbnailCacheLimit.entries
             Row(
@@ -463,7 +577,7 @@ private fun CacheSection(
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = state.thumbnailCacheLimit.displayLabel,
+                    text = thumbnailCacheLimit.displayLabel,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -472,7 +586,7 @@ private fun CacheSection(
                 modifier = Modifier.padding(top = SettingsDetailGap),
                 verticalArrangement = Arrangement.spacedBy(SettingsDetailGap),
             ) {
-                val selectedIndex = limits.indexOf(state.thumbnailCacheLimit).coerceAtLeast(0)
+                val selectedIndex = limits.indexOf(thumbnailCacheLimit).coerceAtLeast(0)
                 Slider(
                     value = selectedIndex.toFloat(),
                     onValueChange = { value ->
@@ -518,26 +632,26 @@ private fun CacheSection(
                     }
                 }
             }
-            state.message?.let {
-                Text(text = it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            message?.takeIf { it == Strings.SETTINGS_CACHE_CLEARED }?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Button(
                 onClick = onClearCache,
-                enabled = !state.isClearingCache,
+                enabled = !isClearingCache,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = SettingsItemGap),
             ) {
-                Icon(Icons.Filled.DeleteSweep, contentDescription = null, modifier = Modifier.padding(end = SettingsItemGap))
-                Text(text = if (state.isClearingCache) Strings.SETTINGS_CLEARING else Strings.SETTINGS_CLEAR_THUMBNAILS)
-            }
-            OutlinedButton(
-                onClick = onClearBookCache,
-                enabled = !state.isClearingCache,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Filled.DeleteSweep, contentDescription = null, modifier = Modifier.padding(end = SettingsItemGap))
-                Text(text = if (state.isClearingCache) Strings.SETTINGS_CLEARING else Strings.SETTINGS_CLEAR_BOOK_CACHE)
+                Icon(
+                    Icons.Filled.DeleteSweep,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = SettingsItemGap),
+                )
+                Text(text = if (isClearingCache) Strings.SETTINGS_CLEARING else Strings.SETTINGS_CLEAR_THUMBNAILS)
             }
         }
     }
@@ -707,4 +821,22 @@ private fun formatBytes(bytes: Long): String {
         unit++
     }
     return "%.1f %s".format(value, units[unit])
+}
+
+private fun readerDefaultsSummary(defaults: ReaderDefaultSettings): String {
+    val theme = when (ReaderTheme.fromStorage(defaults.theme)) {
+        ReaderTheme.LIGHT -> Strings.READER_THEME_LIGHT
+        ReaderTheme.DARK -> Strings.READER_THEME_DARK
+        ReaderTheme.CREAM -> Strings.READER_THEME_CREAM
+    }
+    val font = when (val choice = ReaderFontChoice.fromStorage(defaults.fontChoice)) {
+        ReaderFontChoice.SystemDefault -> Strings.READER_FONT_SYSTEM
+        ReaderFontChoice.Sans -> Strings.READER_FONT_SANS
+        ReaderFontChoice.Serif -> Strings.READER_FONT_SERIF
+        is ReaderFontChoice.Custom -> Strings.readerCustomFont(choice.fileName.substringBeforeLast('.', choice.fileName))
+    }
+    val textColor = ReaderTextColor.fromStorage(defaults.textColor).displayLabel
+    val background = ReaderBackgroundStyle.fromStorage(defaults.backgroundStyle).displayLabel
+    val lineSpacing = "%.1f".format(defaults.lineSpacing)
+    return "${defaults.fontSizeSp}sp · ${Strings.READER_LINE_SPACING}$lineSpacing · $theme · $font · $textColor · $background"
 }

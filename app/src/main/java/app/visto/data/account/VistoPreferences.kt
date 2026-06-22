@@ -3,7 +3,10 @@ package app.visto.data.account
 import android.content.Context
 import android.content.SharedPreferences
 import app.visto.core.sort.SortMode
+import app.visto.ui.reader.ReaderBackgroundStyle
 import app.visto.ui.reader.ReaderFontChoice
+import app.visto.ui.reader.ReaderTextColor
+import app.visto.ui.reader.ReaderTheme
 import app.visto.ui.theme.ThemeMode
 import androidx.core.content.edit
 
@@ -75,9 +78,15 @@ class VistoPreferences(context: Context) {
                 .coerceIn(MIN_READER_LINE_SPACING, MAX_READER_LINE_SPACING),
             theme = prefs
                 .getString(KEY_READER_DEFAULT_THEME, DEFAULT_READER_THEME)
-                .sanitizeReaderTheme(),
+                .let(ReaderTheme::sanitizeStorageKey),
             fontChoice = ReaderFontChoice.sanitizeStorageKey(
                 prefs.getString(KEY_READER_DEFAULT_FONT_CHOICE, ReaderFontChoice.DEFAULT.storageKey),
+            ),
+            textColor = ReaderTextColor.sanitizeStorageKey(
+                prefs.getString(KEY_READER_DEFAULT_TEXT_COLOR, ReaderTextColor.DEFAULT_COLOR.storageKey),
+            ),
+            backgroundStyle = ReaderBackgroundStyle.sanitizeStorageKey(
+                prefs.getString(KEY_READER_DEFAULT_BACKGROUND_STYLE, ReaderBackgroundStyle.DEFAULT_STYLE.storageKey),
             ),
         )
         set(value) = prefs.edit {
@@ -89,8 +98,10 @@ class VistoPreferences(context: Context) {
                 KEY_READER_DEFAULT_LINE_SPACING,
                 value.lineSpacing.coerceIn(MIN_READER_LINE_SPACING, MAX_READER_LINE_SPACING),
             )
-            putString(KEY_READER_DEFAULT_THEME, value.theme.sanitizeReaderTheme())
+            putString(KEY_READER_DEFAULT_THEME, ReaderTheme.sanitizeStorageKey(value.theme))
             putString(KEY_READER_DEFAULT_FONT_CHOICE, ReaderFontChoice.sanitizeStorageKey(value.fontChoice))
+            putString(KEY_READER_DEFAULT_TEXT_COLOR, ReaderTextColor.sanitizeStorageKey(value.textColor))
+            putString(KEY_READER_DEFAULT_BACKGROUND_STYLE, ReaderBackgroundStyle.sanitizeStorageKey(value.backgroundStyle))
         }
 
     /**
@@ -115,6 +126,8 @@ class VistoPreferences(context: Context) {
         private const val KEY_READER_DEFAULT_LINE_SPACING = "reader_default_line_spacing"
         private const val KEY_READER_DEFAULT_THEME = "reader_default_theme"
         private const val KEY_READER_DEFAULT_FONT_CHOICE = "reader_default_font_choice"
+        private const val KEY_READER_DEFAULT_TEXT_COLOR = "reader_default_text_color"
+        private const val KEY_READER_DEFAULT_BACKGROUND_STYLE = "reader_default_background_style"
         private const val KEY_THUMBNAIL_CACHE_LIMIT = "thumbnail_cache_limit"
         const val DEFAULT_MAX_GRID_THUMBNAIL_BYTES: Long = 8L * 1024 * 1024
         const val DEFAULT_READER_FONT_SIZE_SP = 18
@@ -127,23 +140,14 @@ class VistoPreferences(context: Context) {
     }
 }
 
-private val READER_THEME_KEYS = setOf("light", "dark", "cream")
-
 data class ReaderDefaultSettings(
     val fontSizeSp: Int = VistoPreferences.DEFAULT_READER_FONT_SIZE_SP,
     val lineSpacing: Float = VistoPreferences.DEFAULT_READER_LINE_SPACING,
     val theme: String = VistoPreferences.DEFAULT_READER_THEME,
     val fontChoice: String = ReaderFontChoice.DEFAULT.storageKey,
+    val textColor: String = ReaderTextColor.DEFAULT_COLOR.storageKey,
+    val backgroundStyle: String = ReaderBackgroundStyle.DEFAULT_STYLE.storageKey,
 )
-
-private fun String?.sanitizeReaderTheme(): String {
-    val normalized = this?.lowercase()
-    return if (normalized in READER_THEME_KEYS) {
-        normalized.orEmpty()
-    } else {
-        VistoPreferences.DEFAULT_READER_THEME
-    }
-}
 
 /**
  * User-selectable cap for the on-disk thumbnail cache.

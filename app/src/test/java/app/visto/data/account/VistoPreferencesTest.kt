@@ -32,6 +32,8 @@ class VistoPreferencesTest {
                 lineSpacing = 1.5f,
                 theme = "light",
                 fontChoice = "system",
+                textColor = "default",
+                backgroundStyle = "default",
             ),
             prefs.defaultReaderSettings,
         )
@@ -46,6 +48,8 @@ class VistoPreferencesTest {
             lineSpacing = 5.0f,
             theme = "DARK",
             fontChoice = "serif",
+            textColor = "warm_brown",
+            backgroundStyle = "night",
         )
 
         val reloaded = VistoPreferences(context).defaultReaderSettings
@@ -53,6 +57,8 @@ class VistoPreferencesTest {
         assertEquals(2.4f, reloaded.lineSpacing, 0.0f)
         assertEquals("dark", reloaded.theme)
         assertEquals("serif", reloaded.fontChoice)
+        assertEquals("warm_brown", reloaded.textColor)
+        assertEquals("night", reloaded.backgroundStyle)
     }
 
     @Test
@@ -79,9 +85,25 @@ class VistoPreferencesTest {
         assertEquals("system", prefs.defaultReaderSettings.fontChoice)
     }
 
+    @Test
+    fun malformedStoredReaderColorsFallBackToDefaults() {
+        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_READER_DEFAULT_TEXT_COLOR, "neon")
+            .putString(KEY_READER_DEFAULT_BACKGROUND_STYLE, "wallpaper")
+            .commit()
+
+        val prefs = VistoPreferences(context)
+
+        assertEquals("default", prefs.defaultReaderSettings.textColor)
+        assertEquals("default", prefs.defaultReaderSettings.backgroundStyle)
+    }
+
     private companion object {
         const val PREF_NAME = "visto_settings"
         const val KEY_READER_DEFAULT_THEME = "reader_default_theme"
         const val KEY_READER_DEFAULT_FONT_CHOICE = "reader_default_font_choice"
+        const val KEY_READER_DEFAULT_TEXT_COLOR = "reader_default_text_color"
+        const val KEY_READER_DEFAULT_BACKGROUND_STYLE = "reader_default_background_style"
     }
 }

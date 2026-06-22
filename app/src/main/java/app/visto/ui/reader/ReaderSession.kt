@@ -32,6 +32,8 @@ data class ReaderSession(
     val fontChoice: ReaderFontChoice = ReaderFontChoice.DEFAULT,
     val viewport: ReaderViewport = ReaderViewport.DEFAULT,
     val theme: ReaderTheme = ReaderTheme.LIGHT,
+    val textColor: ReaderTextColor = ReaderTextColor.DEFAULT,
+    val backgroundStyle: ReaderBackgroundStyle = ReaderBackgroundStyle.DEFAULT,
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
     val showToolbar: Boolean = true,
@@ -93,6 +95,8 @@ sealed class ReaderSessionAction {
     data class SetFontChoice(val choice: ReaderFontChoice) : ReaderSessionAction()
     data class SetViewport(val viewport: ReaderViewport) : ReaderSessionAction()
     data class SetTheme(val theme: ReaderTheme) : ReaderSessionAction()
+    data class SetTextColor(val textColor: ReaderTextColor) : ReaderSessionAction()
+    data class SetBackgroundStyle(val backgroundStyle: ReaderBackgroundStyle) : ReaderSessionAction()
 }
 
 sealed class ReaderAction {
@@ -112,6 +116,8 @@ sealed class ReaderAction {
     data class SetFontChoice(val choice: ReaderFontChoice) : ReaderAction()
     data class SetViewport(val viewport: ReaderViewport) : ReaderAction()
     data class SetTheme(val theme: ReaderTheme) : ReaderAction()
+    data class SetTextColor(val textColor: ReaderTextColor) : ReaderAction()
+    data class SetBackgroundStyle(val backgroundStyle: ReaderBackgroundStyle) : ReaderAction()
     data object NextPage : ReaderAction()
     data object PrevPage : ReaderAction()
     data object Retry : ReaderAction()
@@ -160,6 +166,14 @@ object ReaderReducer {
             session,
             ReaderSessionAction.SetTheme(action.theme),
         )
+        is ReaderAction.SetTextColor -> ReaderSessionReducer.reduce(
+            session,
+            ReaderSessionAction.SetTextColor(action.textColor),
+        )
+        is ReaderAction.SetBackgroundStyle -> ReaderSessionReducer.reduce(
+            session,
+            ReaderSessionAction.SetBackgroundStyle(action.backgroundStyle),
+        )
         ReaderAction.NextPage -> ReaderSessionReducer.reduce(session, ReaderSessionAction.NextPage)
         ReaderAction.PrevPage -> ReaderSessionReducer.reduce(session, ReaderSessionAction.PrevPage)
         ReaderAction.Retry -> session.copy(isLoading = true, errorMessage = null)
@@ -190,6 +204,8 @@ object ReaderSessionReducer {
         fontChoice = ReaderFontChoice.DEFAULT,
         viewport = ReaderViewport.DEFAULT,
         theme = ReaderTheme.LIGHT,
+        textColor = ReaderTextColor.DEFAULT,
+        backgroundStyle = ReaderBackgroundStyle.DEFAULT,
         isLoading = loading,
         errorMessage = null,
     )
@@ -267,6 +283,8 @@ object ReaderSessionReducer {
             }
         }
         is ReaderSessionAction.SetTheme -> state.copy(theme = action.theme)
+        is ReaderSessionAction.SetTextColor -> state.copy(textColor = action.textColor)
+        is ReaderSessionAction.SetBackgroundStyle -> state.copy(backgroundStyle = action.backgroundStyle)
     }
 
     private fun previousPage(state: ReaderSession): ReaderSession {
