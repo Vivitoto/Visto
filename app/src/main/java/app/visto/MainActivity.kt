@@ -289,10 +289,13 @@ private fun ActiveReaderScreen(
 ) {
     var showSettings by remember(session.filePath) { mutableStateOf(false) }
 
-    fun updateSession(action: ReaderAction) {
+    fun updateSession(action: ReaderAction, persist: Boolean = true) {
         val updated = ReaderReducer.reduce(session, action)
+        if (updated == session) return
         onSessionChange(updated)
-        onPersistProgress(updated)
+        if (persist) {
+            onPersistProgress(updated)
+        }
     }
 
     ReaderScreen(
@@ -303,6 +306,9 @@ private fun ActiveReaderScreen(
         onSaveProgress = { saved ->
             onSessionChange(saved)
             onPersistProgress(saved)
+        },
+        onViewportChange = { viewport ->
+            updateSession(ReaderAction.SetViewport(viewport), persist = false)
         },
     )
 
@@ -1005,7 +1011,7 @@ private fun BookshelfHost(
         activeReaderJob = scope.launch {
             try {
                 val creds = app.accountService.credentialsFor(summary)
-                    ?: error("无法读取账号凭据")
+                    ?: error(Strings.ACCOUNT_CREDENTIALS_UNAVAILABLE)
                 val client = WebDavClient(
                     credentials = creds,
                     accountId = summary.id,
@@ -1154,12 +1160,12 @@ private fun SettingsHost(
                             isTestingConnection = false,
                             diagnostic = WebDavDiagnosticResult(
                                 ok = false,
-                                summary = "无法读取账号凭据",
+                                summary = Strings.ACCOUNT_CREDENTIALS_UNAVAILABLE,
                                 steps = listOf(
                                     WebDavDiagnosticStep(
-                                        title = "账号凭据",
+                                        title = Strings.ACCOUNT_CREDENTIALS_TITLE,
                                         status = WebDavDiagnosticStatus.FAIL,
-                                        detail = "请重新添加服务器。",
+                                        detail = Strings.ACCOUNT_READD_SERVER,
                                     )
                                 ),
                             ),
@@ -1183,10 +1189,10 @@ private fun SettingsHost(
                         isTestingConnection = false,
                         diagnostic = WebDavDiagnosticResult(
                             ok = false,
-                            summary = "WebDAV 连接失败",
+                            summary = Strings.SETTINGS_WEBDAV_CONNECTION_FAILED,
                             steps = listOf(
                                 WebDavDiagnosticStep(
-                                    title = "连接测试",
+                                    title = Strings.SETTINGS_CONNECTION_TEST,
                                     status = WebDavDiagnosticStatus.FAIL,
                                     detail = AccountErrorMessages.forWebDavError(e),
                                 )
@@ -1228,7 +1234,7 @@ private fun SettingsHost(
                 withContext(Dispatchers.IO) { clearAllBookCache(context.cacheDir) }
                 settingsState = settingsState.copy(
                     isClearingCache = false,
-                    message = "书籍缓存已清理",
+                    message = Strings.SETTINGS_BOOK_CACHE_CLEARED,
                 )
             }
         },
@@ -1263,7 +1269,7 @@ private fun SettingsHost(
                     settingsState = settingsState.copy(
                         update = settingsState.update.copy(
                             isChecking = false,
-                            errorMessage = e.message ?: "检查更新失败",
+                            errorMessage = e.message ?: Strings.SETTINGS_CHECK_UPDATE_FAILED,
                         ),
                     )
                 }
@@ -1307,7 +1313,7 @@ private fun SettingsHost(
                     settingsState = settingsState.copy(
                         update = settingsState.update.copy(
                             isDownloading = false,
-                            errorMessage = e.message ?: "下载更新失败",
+                            errorMessage = e.message ?: Strings.SETTINGS_DOWNLOAD_UPDATE_FAILED,
                         ),
                     )
                 }
@@ -1320,7 +1326,7 @@ private fun SettingsHost(
             } catch (e: Throwable) {
                 settingsState = settingsState.copy(
                     update = settingsState.update.copy(
-                        errorMessage = e.message ?: "启动安装器失败",
+                        errorMessage = e.message ?: Strings.SETTINGS_INSTALLER_FAILED,
                     ),
                 )
             }
@@ -1455,7 +1461,7 @@ private fun BrowserHost(
         if (book.mediaType == MediaType.EPUB_BOOK) {
             readerSession = readerSession?.copy(
                 isLoading = false,
-                errorMessage = "EPUB 阅读暂未支持",
+                errorMessage = Strings.READER_EPUB_UNSUPPORTED,
             )
             return
         }

@@ -252,17 +252,17 @@ private fun ThemeSection(current: ThemeMode, onChange: (ThemeMode) -> Unit) {
     ) {
         Column(modifier = Modifier.padding(SettingsCardPadding)) {
             RailsRadio(
-                label = "跟随系统",
+                label = Strings.SETTINGS_THEME_SYSTEM,
                 selected = current == ThemeMode.SYSTEM,
                 onClick = { onChange(ThemeMode.SYSTEM) },
             )
             RailsRadio(
-                label = "浅色模式",
+                label = Strings.SETTINGS_THEME_LIGHT,
                 selected = current == ThemeMode.LIGHT,
                 onClick = { onChange(ThemeMode.LIGHT) },
             )
             RailsRadio(
-                label = "深色模式",
+                label = Strings.SETTINGS_THEME_DARK,
                 selected = current == ThemeMode.DARK,
                 onClick = { onChange(ThemeMode.DARK) },
             )
@@ -537,7 +537,7 @@ private fun CacheSection(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Filled.DeleteSweep, contentDescription = null, modifier = Modifier.padding(end = SettingsItemGap))
-                Text(text = if (state.isClearingCache) Strings.SETTINGS_CLEARING else "清理书籍缓存")
+                Text(text = if (state.isClearingCache) Strings.SETTINGS_CLEARING else Strings.SETTINGS_CLEAR_BOOK_CACHE)
             }
         }
     }
@@ -649,7 +649,7 @@ private fun AboutCard(
                         modifier = Modifier.weight(1f),
                     )
                     TextButton(onClick = onDismissUpdateMessage) {
-                        Text(text = "知道了")
+                        Text(text = Strings.DISMISS)
                     }
                 }
             }
@@ -662,7 +662,7 @@ private fun AboutCard(
                         modifier = Modifier.weight(1f),
                     )
                     TextButton(onClick = onDismissUpdateMessage) {
-                        Text(text = "知道了")
+                        Text(text = Strings.DISMISS)
                     }
                 }
             }

@@ -132,7 +132,7 @@ fun BrowserScreen(
                     }
                 }
                 if (state.books.isNotEmpty()) {
-                    item(key = "header-books") { SectionHeader("书籍") }
+                    item(key = "header-books") { SectionHeader(Strings.BROWSER_BOOKS) }
                     items(state.books, key = { "book-${it.path}" }) { book ->
                         BookRow(book, onClick = { onOpenBook(book) })
                         HorizontalDivider()
@@ -181,7 +181,7 @@ private fun BrowserErrorState(message: String, onRetry: () -> Unit) {
             overflow = TextOverflow.Ellipsis,
         )
         Button(onClick = onRetry) {
-            Text("重新加载")
+            Text(Strings.BROWSER_RELOAD)
         }
     }
 }
@@ -208,7 +208,7 @@ private fun BrowserPathRow(
             IconButton(onClick = onBack) {
                 Icon(
                     Icons.Filled.ArrowBack,
-                    contentDescription = "返回上一级",
+                    contentDescription = Strings.BROWSER_GO_UP,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -236,7 +236,7 @@ private fun BrowserPathRow(
         IconButton(onClick = onGoRoot, enabled = canGoRoot) {
             Icon(
                 Icons.Filled.Home,
-                contentDescription = "返回根目录",
+                contentDescription = Strings.BROWSER_GO_ROOT,
                 tint = if (canGoRoot) {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 } else {
@@ -283,8 +283,8 @@ private fun FolderRow(folder: RemoteEntry, onClick: () -> Unit) {
 @Composable
 private fun BookRow(book: RemoteEntry, onClick: () -> Unit) {
     val typeLabel = when (book.mediaType) {
-        MediaType.EPUB_BOOK -> "EPUB"
-        else -> "TXT"
+        MediaType.EPUB_BOOK -> Strings.BROWSER_BOOK_TYPE_EPUB
+        else -> Strings.BROWSER_BOOK_TYPE_TXT
     }
     Row(
         modifier = Modifier

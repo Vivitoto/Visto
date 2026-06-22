@@ -4,6 +4,18 @@ import app.visto.core.book.Chapter
 import app.visto.core.book.ChapterParser
 import app.visto.core.book.Page
 import app.visto.core.book.TextPaginator
+import kotlin.math.abs
+
+/** Pixel dimensions used for reader pagination. */
+data class ReaderViewport(
+    val widthPx: Int,
+    val heightPx: Int,
+    val density: Float,
+) {
+    companion object {
+        val DEFAULT = ReaderViewport(widthPx = 360, heightPx = 640, density = 1f)
+    }
+}
 
 /** Immutable state for the plain-text reader screen. */
 data class ReaderSession(
@@ -17,6 +29,7 @@ data class ReaderSession(
     val pagesForCurrentChapter: List<Page> = emptyList(),
     val fontSizeSp: Int = 18,
     val lineSpacing: Float = 1.5f,
+    val viewport: ReaderViewport = ReaderViewport.DEFAULT,
     val theme: ReaderTheme = ReaderTheme.LIGHT,
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
@@ -40,6 +53,7 @@ sealed class ReaderSessionAction {
     data object NextPage : ReaderSessionAction()
     data class SetFontSize(val sp: Int) : ReaderSessionAction()
     data class SetLineSpacing(val value: Float) : ReaderSessionAction()
+    data class SetViewport(val viewport: ReaderViewport) : ReaderSessionAction()
     data class SetTheme(val theme: ReaderTheme) : ReaderSessionAction()
 }
 
@@ -57,6 +71,7 @@ sealed class ReaderAction {
     data class GoToChapter(val index: Int) : ReaderAction()
     data class SetFontSize(val sp: Int) : ReaderAction()
     data class SetLineSpacing(val spacing: Float) : ReaderAction()
+    data class SetViewport(val viewport: ReaderViewport) : ReaderAction()
     data class SetTheme(val theme: ReaderTheme) : ReaderAction()
     data object NextPage : ReaderAction()
     data object PrevPage : ReaderAction()
@@ -94,6 +109,10 @@ object ReaderReducer {
             session,
             ReaderSessionAction.SetLineSpacing(action.spacing),
         )
+        is ReaderAction.SetViewport -> ReaderSessionReducer.reduce(
+            session,
+            ReaderSessionAction.SetViewport(action.viewport),
+        )
         is ReaderAction.SetTheme -> ReaderSessionReducer.reduce(
             session,
             ReaderSessionAction.SetTheme(action.theme),
@@ -113,9 +132,6 @@ object ReaderReducer {
 object ReaderSessionReducer {
     private const val DEFAULT_FONT_SIZE_SP = 18
     private const val DEFAULT_LINE_SPACING = 1.5f
-    private const val PAGE_WIDTH_PX = 360f
-    private const val PAGE_HEIGHT_PX = 640f
-    private const val DENSITY = 1f
 
     fun initial(loading: Boolean): ReaderSession = ReaderSession(
         filePath = "",
@@ -128,6 +144,7 @@ object ReaderSessionReducer {
         pagesForCurrentChapter = emptyList(),
         fontSizeSp = DEFAULT_FONT_SIZE_SP,
         lineSpacing = DEFAULT_LINE_SPACING,
+        viewport = ReaderViewport.DEFAULT,
         theme = ReaderTheme.LIGHT,
         isLoading = loading,
         errorMessage = null,
@@ -158,14 +175,42 @@ object ReaderSessionReducer {
         }
         ReaderSessionAction.PrevPage -> previousPage(state)
         ReaderSessionAction.NextPage -> nextPage(state)
-        is ReaderSessionAction.SetFontSize -> repaginate(
-            state.copy(fontSizeSp = action.sp.coerceIn(14, 28), currentPage = 0),
-            resetPage = true,
-        )
-        is ReaderSessionAction.SetLineSpacing -> repaginate(
-            state.copy(lineSpacing = action.value.coerceIn(1.0f, 2.4f), currentPage = 0),
-            resetPage = true,
-        )
+        is ReaderSessionAction.SetFontSize -> {
+            val fontSize = action.sp.coerceIn(14, 28)
+            if (fontSize == state.fontSizeSp) {
+                state
+            } else {
+                repaginate(
+                    state.copy(fontSizeSp = fontSize),
+                    resetPage = false,
+                    targetStartChar = state.currentPageStartChar(),
+                )
+            }
+        }
+        is ReaderSessionAction.SetLineSpacing -> {
+            val lineSpacing = action.value.coerceIn(1.0f, 2.4f)
+            if (abs(lineSpacing - state.lineSpacing) < 0.001f) {
+                state
+            } else {
+                repaginate(
+                    state.copy(lineSpacing = lineSpacing),
+                    resetPage = false,
+                    targetStartChar = state.currentPageStartChar(),
+                )
+            }
+        }
+        is ReaderSessionAction.SetViewport -> {
+            val viewport = action.viewport.sanitized()
+            if (viewport == state.viewport) {
+                state
+            } else {
+                repaginate(
+                    state.copy(viewport = viewport),
+                    resetPage = false,
+                    targetStartChar = state.currentPageStartChar(),
+                )
+            }
+        }
         is ReaderSessionAction.SetTheme -> state.copy(theme = action.theme)
     }
 
@@ -193,8 +238,17 @@ object ReaderSessionReducer {
         )
     }
 
-    private fun repaginate(state: ReaderSession, resetPage: Boolean): ReaderSession {
-        if (state.chapters.isEmpty()) return state.copy(pagesForCurrentChapter = emptyList(), currentPage = 0)
+    private fun repaginate(
+        state: ReaderSession,
+        resetPage: Boolean,
+        targetStartChar: Int? = null,
+    ): ReaderSession {
+        if (state.chapters.isEmpty()) {
+            return state.copy(
+                pagesForCurrentChapter = emptyList(),
+                currentPage = if (resetPage) 0 else state.currentPage.coerceAtLeast(0),
+            )
+        }
 
         val chapterIndex = state.currentChapterIndex.coerceInChapterBounds(state.chapters)
         val chapter = state.chapters[chapterIndex]
@@ -203,13 +257,17 @@ object ReaderSessionReducer {
         val chapterText = state.fullText.substring(start, end)
         val pages = TextPaginator.paginate(
             text = chapterText,
-            maxWidthPx = PAGE_WIDTH_PX,
-            maxHeightPx = PAGE_HEIGHT_PX,
+            maxWidthPx = state.viewport.widthPx.toFloat(),
+            maxHeightPx = state.viewport.heightPx.toFloat(),
             fontSizeSp = state.fontSizeSp.toFloat(),
             lineSpacing = state.lineSpacing,
-            density = DENSITY,
+            density = state.viewport.density,
         )
-        val requestedPage = if (resetPage) 0 else state.currentPage
+        val requestedPage = when {
+            resetPage -> 0
+            targetStartChar != null -> pages.indexAtStartOffset(targetStartChar)
+            else -> state.currentPage
+        }
         return state.copy(
             currentChapterIndex = chapterIndex,
             currentPage = requestedPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0)),
@@ -219,4 +277,18 @@ object ReaderSessionReducer {
 
     private fun Int.coerceInChapterBounds(chapters: List<Chapter>): Int =
         if (chapters.isEmpty()) 0 else coerceIn(0, chapters.lastIndex)
+
+    private fun ReaderSession.currentPageStartChar(): Int? =
+        pagesForCurrentChapter
+            .getOrNull(currentPage.coerceIn(0, pagesForCurrentChapter.lastIndex.coerceAtLeast(0)))
+            ?.startChar
+
+    private fun List<Page>.indexAtStartOffset(offset: Int): Int =
+        indexOfLast { it.startChar <= offset }.takeIf { it >= 0 } ?: 0
+
+    private fun ReaderViewport.sanitized(): ReaderViewport = ReaderViewport(
+        widthPx = widthPx.coerceAtLeast(1),
+        heightPx = heightPx.coerceAtLeast(1),
+        density = density.takeIf { it > 0f } ?: ReaderViewport.DEFAULT.density,
+    )
 }

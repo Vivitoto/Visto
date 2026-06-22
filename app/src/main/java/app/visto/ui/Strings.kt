@@ -11,6 +11,8 @@ object Strings {
     // App-wide
     const val APP_NAME = "Visto"
     const val LOADING = "加载中…"
+    const val BACK = "返回"
+    const val DISMISS = "知道了"
     const val NO_SERVER_TITLE = "还没有 WebDAV 服务器"
     const val NO_SERVER_SUBTITLE = "先进入应用没有问题；需要浏览相册时，在设置里添加一个 WebDAV 服务器。"
 
@@ -26,6 +28,9 @@ object Strings {
     const val ACCOUNT_TESTING = "测试中…"
     const val ACCOUNT_SAVING = "保存中…"
     const val ACCOUNT_CONNECTION_OK = "连接成功"
+    const val ACCOUNT_CREDENTIALS_TITLE = "账号凭据"
+    const val ACCOUNT_CREDENTIALS_UNAVAILABLE = "无法读取账号凭据"
+    const val ACCOUNT_READD_SERVER = "请重新添加服务器。"
 
     // Account errors
     const val ERR_INVALID_URL = "服务器地址必须以 http:// 或 https:// 开头"
@@ -40,10 +45,17 @@ object Strings {
     const val ERR_UNEXPECTED = "未知错误"
 
     // Browser (legacy directory mode)
+    const val BROWSER_TITLE = "浏览"
     const val BROWSER_FOLDERS = "文件夹"
     const val BROWSER_MEDIA = "媒体"
+    const val BROWSER_BOOKS = "书籍"
     const val BROWSER_EMPTY = "此目录为空"
     const val BROWSER_LOAD_FAILED = "加载失败"
+    const val BROWSER_RELOAD = "重新加载"
+    const val BROWSER_GO_UP = "返回上一级"
+    const val BROWSER_GO_ROOT = "返回根目录"
+    const val BROWSER_BOOK_TYPE_TXT = "TXT"
+    const val BROWSER_BOOK_TYPE_EPUB = "EPUB"
 
     // Albums
     const val ALBUMS_TITLE = "相册"
@@ -94,6 +106,45 @@ object Strings {
 
     fun albumDetailSectionCount(count: Int): String = "$count 个文件"
 
+    // Bookshelf and reader
+    const val BOOKSHELF_TITLE = "书架"
+    const val BOOKSHELF_CONTINUE_READING = "继续阅读"
+    const val BOOKSHELF_REMOVE = "从书架移除"
+    const val BOOKSHELF_REMOVE_CONFIRM_MESSAGE = "从书架移除不会删除 WebDAV 上的文件"
+    const val BOOKSHELF_REMOVE_CONFIRM = "移除"
+    const val BOOKSHELF_EMPTY = "浏览中打开 TXT 文件后自动加入书架"
+    const val BOOKSHELF_JUST_NOW = "刚刚"
+    const val BOOKSHELF_LONG_AGO = "很久以前"
+
+    const val READER_CHAPTERS = "目录"
+    const val READER_CURRENT_CHAPTER = "当前章节"
+    const val READER_LOAD_FAILED = "加载失败"
+    const val READER_EMPTY = "暂无可阅读内容"
+    const val READER_SETTINGS = "阅读设置"
+    const val READER_FONT_SIZE = "字号"
+    const val READER_LINE_SPACING = "行距"
+    const val READER_LINE_SPACING_COMPACT = "紧凑"
+    const val READER_LINE_SPACING_STANDARD = "标准"
+    const val READER_LINE_SPACING_RELAXED = "宽松"
+    const val READER_THEME = "主题"
+    const val READER_THEME_LIGHT = "白天"
+    const val READER_THEME_DARK = "夜间"
+    const val READER_THEME_CREAM = "护眼"
+    const val READER_PREVIEW = "预览"
+    const val READER_PREVIEW_TEXT = "这是 Visto 阅读器的文字预览。调整字号、行距和主题后，会实时应用到这里。"
+    const val READER_EPUB_UNSUPPORTED = "EPUB 阅读暂未支持"
+
+    fun bookshelfChapterNumber(index: Int): String = "第${(index + 1).coerceAtLeast(1)}章"
+    fun bookshelfProgressPercent(percent: Int): String = " · 已读$percent%"
+    fun bookshelfLastRead(relative: String): String = "最后阅读 $relative"
+    fun bookshelfMinutesAgo(minutes: Long): String = "${minutes}分钟前"
+    fun bookshelfHoursAgo(hours: Long): String = "${hours}小时前"
+    fun bookshelfDaysAgo(days: Long): String = "${days}天前"
+    fun readerFontSize(sp: Int): String = "$READER_FONT_SIZE ${sp}sp"
+    fun readerPageStatus(chapterTitle: String, page: Int, totalPages: Int): String =
+        "$chapterTitle $page/$totalPages 页"
+    fun readerChapterNumber(index: Int): String = "第 ${index + 1} 章"
+
     // Settings
     const val SETTINGS_TITLE = "设置"
     const val SETTINGS_ACCOUNT = "账号"
@@ -103,6 +154,9 @@ object Strings {
     const val SETTINGS_NO_SERVER = "还没有添加服务器"
     const val SETTINGS_ROOT_LABEL = "根路径："
     const val SETTINGS_APPEARANCE = "外观"
+    const val SETTINGS_THEME_SYSTEM = "跟随系统"
+    const val SETTINGS_THEME_LIGHT = "浅色模式"
+    const val SETTINGS_THEME_DARK = "深色模式"
     const val SETTINGS_BROWSE_MODE = "浏览方式"
     const val SETTINGS_BROWSE_MODE_ALBUMS = "相册（默认）"
     const val SETTINGS_BROWSE_MODE_DIR = "按目录浏览（旧版）"
@@ -115,8 +169,10 @@ object Strings {
     const val SETTINGS_GRID_DENSITY_DESC = "影响相册详情和浏览页的缩略图大小。"
     const val SETTINGS_LOCAL_CACHE = "本地缓存"
     const val SETTINGS_CLEAR_THUMBNAILS = "清除本地缩略图"
+    const val SETTINGS_CLEAR_BOOK_CACHE = "清理书籍缓存"
     const val SETTINGS_CLEARING = "清理中…"
     const val SETTINGS_CACHE_CLEARED = "本地缩略图已清除，未触碰 WebDAV 上的文件。"
+    const val SETTINGS_BOOK_CACHE_CLEARED = "书籍缓存已清理"
     const val SETTINGS_CACHE_LIMIT_LABEL = "缩略图缓存上限"
     const val SETTINGS_CACHE_LIMIT_HINT = "由 LRU 逐渐淘汰旧缓存；需要立即释放可以点下面“清除本地缩略图”。"
     const val SETTINGS_ABOUT_TITLE = "关于"
@@ -130,6 +186,11 @@ object Strings {
     const val SETTINGS_RELEASE_NOTES = "更新内容"
     const val SETTINGS_OPEN_RELEASE_PAGE = "打开发布页"
     const val SETTINGS_UPDATE_SAVED_TO_DOWNLOADS = "APK 已下载到系统下载目录"
+    const val SETTINGS_CHECK_UPDATE_FAILED = "检查更新失败"
+    const val SETTINGS_DOWNLOAD_UPDATE_FAILED = "下载更新失败"
+    const val SETTINGS_INSTALLER_FAILED = "启动安装器失败"
+    const val SETTINGS_WEBDAV_CONNECTION_FAILED = "WebDAV 连接失败"
+    const val SETTINGS_CONNECTION_TEST = "连接测试"
 
     const val VIEWER_LOAD_ORIGINAL = "加载原图"
     const val VIEWER_ORIGINAL_HINT = "原图可能较大，加载前会通过 WebDAV 下载。"

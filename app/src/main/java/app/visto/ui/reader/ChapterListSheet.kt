@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.visto.core.book.Chapter
+import app.visto.ui.Strings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,7 +31,7 @@ fun ChapterListSheet(
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = "目录",
+                text = Strings.READER_CHAPTERS,
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -60,7 +61,7 @@ fun ChapterListSheet(
                                 )
                             },
                             supportingContent = {
-                                Text(text = "第 ${index + 1} 章")
+                                Text(text = Strings.readerChapterNumber(index))
                             },
                         )
                     }

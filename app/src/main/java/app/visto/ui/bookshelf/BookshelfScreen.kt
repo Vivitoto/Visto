@@ -125,7 +125,7 @@ fun BookshelfScreen(
                         onOpenBook(actionBook)
                     },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("继续阅读") }
+                ) { Text(Strings.BOOKSHELF_CONTINUE_READING) }
                 OutlinedButton(
                     onClick = {
                         selectedBook = null
@@ -139,7 +139,7 @@ fun BookshelfScreen(
                         modifier = Modifier.size(18.dp),
                     )
                     Text(
-                        text = "从书架移除",
+                        text = Strings.BOOKSHELF_REMOVE,
                         modifier = Modifier.padding(start = 8.dp),
                         color = MaterialTheme.colorScheme.error,
                     )
@@ -156,15 +156,15 @@ fun BookshelfScreen(
     if (removeBook != null) {
         AlertDialog(
             onDismissRequest = { bookPendingRemove = null },
-            title = { Text("从书架移除") },
-            text = { Text("从书架移除不会删除 WebDAV 上的文件") },
+            title = { Text(Strings.BOOKSHELF_REMOVE) },
+            text = { Text(Strings.BOOKSHELF_REMOVE_CONFIRM_MESSAGE) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         bookPendingRemove = null
                         onRemoveBook(removeBook)
                     },
-                ) { Text("移除", color = MaterialTheme.colorScheme.error) }
+                ) { Text(Strings.BOOKSHELF_REMOVE_CONFIRM, color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
                 TextButton(onClick = { bookPendingRemove = null }) { Text(Strings.ALBUMS_CANCEL) }
@@ -217,7 +217,7 @@ private fun BookshelfRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "最后阅读 ${BookshelfStateBuilder.relativeLastReadTime(book.lastReadAt)}",
+                    text = Strings.bookshelfLastRead(BookshelfStateBuilder.relativeLastReadTime(book.lastReadAt)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.56f),
                     maxLines = 1,
@@ -279,7 +279,7 @@ private fun BookshelfEmptyState() {
                 modifier = Modifier.size(42.dp),
             )
             Text(
-                text = "浏览中打开 TXT 文件后自动加入书架",
+                text = Strings.BOOKSHELF_EMPTY,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

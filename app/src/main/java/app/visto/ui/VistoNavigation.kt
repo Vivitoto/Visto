@@ -35,15 +35,15 @@ fun VistoBottomBar(
         NavigationBarItem(
             selected = selected == HomeTab.BOOKSHELF,
             onClick = { onSelect(HomeTab.BOOKSHELF) },
-            icon = { Icon(Icons.Filled.Book, contentDescription = "书架") },
-            label = { Text("书架") },
+            icon = { Icon(Icons.Filled.Book, contentDescription = Strings.BOOKSHELF_TITLE) },
+            label = { Text(Strings.BOOKSHELF_TITLE) },
             colors = itemColors(),
         )
         NavigationBarItem(
             selected = selected == HomeTab.BROWSER,
             onClick = { onSelect(HomeTab.BROWSER) },
             icon = { Icon(Icons.Filled.Folder, contentDescription = Strings.SETTINGS_BROWSE_MODE_DIR) },
-            label = { Text("浏览") },
+            label = { Text(Strings.BROWSER_TITLE) },
             colors = itemColors(),
         )
         NavigationBarItem(

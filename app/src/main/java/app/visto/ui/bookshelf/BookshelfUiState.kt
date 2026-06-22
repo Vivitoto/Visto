@@ -38,12 +38,12 @@ object BookshelfStateBuilder {
     fun progressSummary(book: BookProgressEntity): String {
         val chapter = book.chapterTitle
             ?.takeIf { it.isNotBlank() }
-            ?: "第${(book.chapterIndex + 1).coerceAtLeast(1)}章"
+            ?: Strings.bookshelfChapterNumber(book.chapterIndex)
         val progress = if (book.totalChapters > 0) {
             val percent = (((book.chapterIndex + 1).coerceAtLeast(1).toFloat() / book.totalChapters) * 100)
                 .toInt()
                 .coerceIn(0, 100)
-            " · 已读$percent%"
+            Strings.bookshelfProgressPercent(percent)
         } else {
             ""
         }
@@ -56,11 +56,11 @@ object BookshelfStateBuilder {
         val hour = 60 * minute
         val day = 24 * hour
         return when {
-            diff < minute -> "刚刚"
-            diff < hour -> "${diff / minute}分钟前"
-            diff < day -> "${diff / hour}小时前"
-            diff < 30 * day -> "${diff / day}天前"
-            else -> "很久以前"
+            diff < minute -> Strings.BOOKSHELF_JUST_NOW
+            diff < hour -> Strings.bookshelfMinutesAgo(diff / minute)
+            diff < day -> Strings.bookshelfHoursAgo(diff / hour)
+            diff < 30 * day -> Strings.bookshelfDaysAgo(diff / day)
+            else -> Strings.BOOKSHELF_LONG_AGO
         }
     }
 }

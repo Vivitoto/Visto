@@ -49,13 +49,41 @@ class ReaderSessionTest {
 
     @Test
     fun setFontSizeRepaginatesCurrentChapter() {
-        val loaded = loadedState()
+        val loaded = ReaderSessionReducer.reduce(loadedState(), ReaderSessionAction.NextPage)
+        val originalPageStart = loaded.pagesForCurrentChapter[loaded.currentPage].startChar
 
         val next = ReaderSessionReducer.reduce(loaded, ReaderSessionAction.SetFontSize(28))
+        val newPage = next.pagesForCurrentChapter[next.currentPage]
 
         assertEquals(28, next.fontSizeSp)
         assertTrue(next.pagesForCurrentChapter.size >= loaded.pagesForCurrentChapter.size)
-        assertEquals(0, next.currentPage)
+        assertEquals(loaded.currentChapterIndex, next.currentChapterIndex)
+        assertTrue(originalPageStart >= newPage.startChar)
+        assertTrue(originalPageStart <= newPage.endChar)
+    }
+
+    @Test
+    fun setViewportRepaginatesWithDynamicDimensions() {
+        val loaded = loadedState()
+        val viewport = ReaderViewport(widthPx = 160, heightPx = 220, density = 1f)
+
+        val next = ReaderSessionReducer.reduce(loaded, ReaderSessionAction.SetViewport(viewport))
+
+        assertEquals(viewport, next.viewport)
+        assertEquals(loaded.currentChapterIndex, next.currentChapterIndex)
+        assertTrue(next.pagesForCurrentChapter.size > loaded.pagesForCurrentChapter.size)
+    }
+
+    @Test
+    fun viewportUpdateWhileLoadingKeepsSavedPage() {
+        val loading = ReaderSessionReducer.initial(loading = true).copy(currentPage = 8)
+        val viewport = ReaderViewport(widthPx = 240, heightPx = 320, density = 2f)
+
+        val next = ReaderSessionReducer.reduce(loading, ReaderSessionAction.SetViewport(viewport))
+
+        assertTrue(next.isLoading)
+        assertEquals(8, next.currentPage)
+        assertEquals(viewport, next.viewport)
     }
 
     @Test

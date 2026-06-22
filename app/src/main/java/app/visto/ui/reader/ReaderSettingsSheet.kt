@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.visto.ui.Strings
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,10 +40,10 @@ fun ReaderSettingsSheet(
                 .padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Text(text = "阅读设置", style = MaterialTheme.typography.titleLarge)
+            Text(text = Strings.READER_SETTINGS, style = MaterialTheme.typography.titleLarge)
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = "字号 ${current.fontSizeSp}sp", style = MaterialTheme.typography.titleMedium)
+                Text(text = Strings.readerFontSize(current.fontSizeSp), style = MaterialTheme.typography.titleMedium)
                 Slider(
                     value = current.fontSizeSp.toFloat(),
                     onValueChange = { onFontSize(it.roundToInt()) },
@@ -52,20 +53,20 @@ fun ReaderSettingsSheet(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = "行距", style = MaterialTheme.typography.titleMedium)
+                Text(text = Strings.READER_LINE_SPACING, style = MaterialTheme.typography.titleMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    LineSpacingChip("紧凑", 1.2f, current.lineSpacing, onLineSpacing)
-                    LineSpacingChip("标准", 1.5f, current.lineSpacing, onLineSpacing)
-                    LineSpacingChip("宽松", 2.0f, current.lineSpacing, onLineSpacing)
+                    LineSpacingChip(Strings.READER_LINE_SPACING_COMPACT, 1.2f, current.lineSpacing, onLineSpacing)
+                    LineSpacingChip(Strings.READER_LINE_SPACING_STANDARD, 1.5f, current.lineSpacing, onLineSpacing)
+                    LineSpacingChip(Strings.READER_LINE_SPACING_RELAXED, 2.0f, current.lineSpacing, onLineSpacing)
                 }
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = "主题", style = MaterialTheme.typography.titleMedium)
+                Text(text = Strings.READER_THEME, style = MaterialTheme.typography.titleMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ThemeChip("白天", ReaderTheme.LIGHT, current.theme, onTheme)
-                    ThemeChip("夜间", ReaderTheme.DARK, current.theme, onTheme)
-                    ThemeChip("护眼", ReaderTheme.CREAM, current.theme, onTheme)
+                    ThemeChip(Strings.READER_THEME_LIGHT, ReaderTheme.LIGHT, current.theme, onTheme)
+                    ThemeChip(Strings.READER_THEME_DARK, ReaderTheme.DARK, current.theme, onTheme)
+                    ThemeChip(Strings.READER_THEME_CREAM, ReaderTheme.CREAM, current.theme, onTheme)
                 }
             }
 
@@ -81,13 +82,13 @@ fun ReaderSettingsSheet(
                         .padding(18.dp),
                 ) {
                     Text(
-                        text = "预览",
+                        text = Strings.READER_PREVIEW,
                         style = MaterialTheme.typography.labelMedium,
                         color = current.theme.textColor.copy(alpha = 0.68f),
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "这是 Visto 阅读器的文字预览。调整字号、行距和主题后，会实时应用到这里。",
+                        text = Strings.READER_PREVIEW_TEXT,
                         color = current.theme.textColor,
                         fontSize = current.fontSizeSp.sp,
                         lineHeight = (current.fontSizeSp * current.lineSpacing).sp,

@@ -42,6 +42,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.visto.ui.Strings
+import kotlin.math.roundToInt
 
 @Composable
 fun ReaderScreen(
@@ -50,6 +52,7 @@ fun ReaderScreen(
     onChapterSelect: (Int) -> Unit,
     onSettingsToggle: () -> Unit,
     onSaveProgress: (ReaderSession) -> Unit,
+    onViewportChange: (ReaderViewport) -> Unit = {},
 ) {
     val theme = session.theme
     var chromeVisible by remember { mutableStateOf(true) }
@@ -79,18 +82,43 @@ fun ReaderScreen(
     BackHandler(onBack = ::closeReader)
 
     Scaffold { innerPadding: PaddingValues ->
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .background(theme.backgroundColor),
         ) {
+            val density = LocalDensity.current
+            val horizontalPadding = 22.dp
+            val verticalPadding = if (chromeVisible) 88.dp else 28.dp
+            val viewport = remember(maxWidth, maxHeight, horizontalPadding, verticalPadding, density) {
+                with(density) {
+                    ReaderViewport(
+                        widthPx = (maxWidth - horizontalPadding * 2)
+                            .coerceAtLeast(1.dp)
+                            .toPx()
+                            .roundToInt(),
+                        heightPx = (maxHeight - verticalPadding * 2)
+                            .coerceAtLeast(1.dp)
+                            .toPx()
+                            .roundToInt(),
+                        density = density.density * density.fontScale,
+                    )
+                }
+            }
+
+            LaunchedEffect(viewport, session.viewport) {
+                if (viewport != session.viewport) {
+                    onViewportChange(viewport)
+                }
+            }
+
             when {
                 session.isLoading -> ReaderLoading(theme)
                 session.errorMessage != null -> ReaderError(theme, session.errorMessage, onBack = closeReader)
                 pages.isEmpty() -> ReaderEmpty(theme, onBack = closeReader)
                 else -> {
-                    BoxWithConstraints(
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .pointerInput(session.currentChapterIndex, pages.size) {
@@ -119,8 +147,6 @@ fun ReaderScreen(
                                 }
                             },
                     ) {
-                        val horizontalPadding = 22.dp
-                        val verticalPadding = if (chromeVisible) 88.dp else 28.dp
                         Text(
                             text = pages.getOrNull(safePage)?.text.orEmpty(),
                             color = theme.textColor,
@@ -144,7 +170,7 @@ fun ReaderScreen(
                         .padding(start = 12.dp, top = 12.dp, end = 12.dp),
                 )
                 ReaderBottomBar(
-                    chapterTitle = currentChapter?.title ?: "当前章节",
+                    chapterTitle = currentChapter?.title ?: Strings.READER_CURRENT_CHAPTER,
                     page = safePage + 1,
                     totalPages = pages.size,
                     theme = theme,
@@ -191,7 +217,7 @@ private fun ReaderError(theme: ReaderTheme, message: String, onBack: () -> Unit)
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(text = "加载失败", color = theme.textColor, style = MaterialTheme.typography.titleLarge)
+        Text(text = Strings.READER_LOAD_FAILED, color = theme.textColor, style = MaterialTheme.typography.titleLarge)
         Text(
             text = message,
             color = theme.textColor.copy(alpha = 0.72f),
@@ -199,7 +225,7 @@ private fun ReaderError(theme: ReaderTheme, message: String, onBack: () -> Unit)
             modifier = Modifier.padding(top = 8.dp),
         )
         Button(onClick = onBack, modifier = Modifier.padding(top = 20.dp)) {
-            Text("返回")
+            Text(Strings.BACK)
         }
     }
 }
@@ -214,9 +240,9 @@ private fun ReaderEmpty(theme: ReaderTheme, onBack: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(text = "暂无可阅读内容", color = theme.textColor, style = MaterialTheme.typography.titleLarge)
+        Text(text = Strings.READER_EMPTY, color = theme.textColor, style = MaterialTheme.typography.titleLarge)
         Button(onClick = onBack, modifier = Modifier.padding(top = 20.dp)) {
-            Text("返回")
+            Text(Strings.BACK)
         }
     }
 }
@@ -268,7 +294,7 @@ private fun ReaderBottomBar(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
-                text = "$chapterTitle $page/$totalPages 页",
+                text = Strings.readerPageStatus(chapterTitle, page, totalPages),
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -286,17 +312,17 @@ private fun ReaderBottomBar(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onChapterList, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Filled.List, contentDescription = "目录")
+                    Icon(Icons.Filled.List, contentDescription = Strings.READER_CHAPTERS)
                 }
                 Spacer(modifier = Modifier.width(4.dp))
-                Text(text = "目录", style = MaterialTheme.typography.labelMedium)
+                Text(text = Strings.READER_CHAPTERS, style = MaterialTheme.typography.labelMedium)
                 Spacer(modifier = Modifier.weight(1f))
                 IconButton(onClick = onSettings, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Filled.Settings, contentDescription = "设置")
+                    Icon(Icons.Filled.Settings, contentDescription = Strings.SETTINGS_TITLE)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "返回")
+                    Icon(Icons.Filled.ArrowBack, contentDescription = Strings.BACK)
                 }
             }
         }

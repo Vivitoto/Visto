@@ -57,6 +57,18 @@ class ReaderReducerTest {
     }
 
     @Test
+    fun viewportChangeRecalculatesPagesWithoutChangingChapter() {
+        val session = loadedSession()
+        val viewport = ReaderViewport(widthPx = 160, heightPx = 200, density = 1f)
+
+        val next = ReaderReducer.reduce(session, ReaderAction.SetViewport(viewport))
+
+        assertEquals(viewport, next.viewport)
+        assertEquals(session.currentChapterIndex, next.currentChapterIndex)
+        assertTrue(next.pagesForCurrentChapter.size > session.pagesForCurrentChapter.size)
+    }
+
+    @Test
     fun pageActionsClampToAvailablePages() {
         val session = loadedSession().copy(currentPage = 0)
 
