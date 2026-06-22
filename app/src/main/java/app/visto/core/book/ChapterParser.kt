@@ -14,6 +14,10 @@ object ChapterParser {
         Regex("第[零一二三四五六七八九十百千万\\d]+[章节回卷][^\\n]*"),
         Regex("Chapter\\s+\\d+[^\\n]*", RegexOption.IGNORE_CASE),
     )
+    private val LINE_PATTERNS = listOf(
+        Regex("^第[零一二三四五六七八九十百千万\\d]+[章节回卷][^\\n]*$"),
+        Regex("^Chapter\\s+\\d+[^\\n]*$", RegexOption.IGNORE_CASE),
+    )
 
     fun parse(text: String): List<Chapter> {
         val matches = PATTERNS
@@ -63,10 +67,16 @@ object ChapterParser {
         return filtered
     }
 
+    internal fun isChapterHeadingLine(line: String): Boolean =
+        LINE_PATTERNS.any { it.matches(line.trimReaderHeadingWhitespace()) }
+
     private data class ChapterMatch(
         val title: String,
         val startOffset: Int,
         val matchEndOffset: Int,
         val priority: Int,
     )
+
+    private fun String.trimReaderHeadingWhitespace(): String =
+        trim { it == ' ' || it == '\t' || it == '\u3000' }
 }

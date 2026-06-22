@@ -36,7 +36,11 @@ object BookTextLoader {
         val metadata = readMetadata(metaFile)
 
         if (cacheFile.exists() && expectedEtag != null && metadata.etag == expectedEtag) {
-            val text = cacheFile.readText(Charsets.UTF_8)
+            val cachedText = cacheFile.readText(Charsets.UTF_8)
+            val text = ReaderTextNormalizer.normalize(cachedText)
+            if (text != cachedText) {
+                cacheFile.writeText(text, Charsets.UTF_8)
+            }
             return@withContext BookTextResult(
                 text = text,
                 encoding = metadata.encoding ?: "UTF-8",
@@ -55,7 +59,8 @@ object BookTextLoader {
             }
             val bytes = resp.body?.bytes() ?: ByteArray(0)
             val encoding = TextEncodingDetector.detect(bytes)
-            val text = String(bytes, Charset.forName(encoding)).removePrefix("\uFEFF")
+            val decodedText = String(bytes, Charset.forName(encoding)).removePrefix("\uFEFF")
+            val text = ReaderTextNormalizer.normalize(decodedText)
             cacheFile.writeText(text, Charsets.UTF_8)
             val etag = resp.header("ETag")
             writeMetadata(

@@ -40,14 +40,14 @@ class BookTextLoaderTest {
 
         val result = BookTextLoader.load(client(), "/books/小说.txt", cacheDir)
 
-        assertEquals("第一章 开始\n你好 Visto", result.text)
+        assertEquals("第一章 开始\n\u3000\u3000你好 Visto", result.text)
         assertEquals("UTF-8", result.encoding)
         assertEquals("第一章 开始\n你好 Visto".toByteArray(Charsets.UTF_8).size.toLong(), result.sizeBytes)
         assertEquals("book-v1", result.etag)
         assertTrue(result.cachedFile.exists())
         assertEquals("1", result.cachedFile.parentFile?.name)
         assertEquals("books", result.cachedFile.parentFile?.parentFile?.name)
-        assertEquals("第一章 开始\n你好 Visto", result.cachedFile.readText(Charsets.UTF_8))
+        assertEquals("第一章 开始\n\u3000\u3000你好 Visto", result.cachedFile.readText(Charsets.UTF_8))
         assertEquals("GET", server.takeRequest().method)
     }
 
@@ -73,7 +73,7 @@ class BookTextLoaderTest {
 
         val result = BookTextLoader.load(client(), "/books/a.txt", cacheDir, expectedEtag = "same")
 
-        assertEquals("旧内容", result.text)
+        assertEquals("\u3000\u3000旧内容", result.text)
         assertEquals("UTF-8", result.encoding)
         assertEquals("same", result.etag)
         assertEquals(1, server.requestCount)
@@ -88,7 +88,7 @@ class BookTextLoaderTest {
         BookTextLoader.load(client(accountId = 1L), "/books/a.txt", cacheDir)
         val result = BookTextLoader.load(client(accountId = 2L), "/books/a.txt", cacheDir, expectedEtag = "same")
 
-        assertEquals("账号二", result.text)
+        assertEquals("\u3000\u3000账号二", result.text)
         assertEquals(2, server.requestCount)
     }
 
