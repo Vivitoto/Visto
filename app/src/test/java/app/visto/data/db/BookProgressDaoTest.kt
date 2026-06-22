@@ -1,7 +1,6 @@
 package app.visto.data.db
 
 import androidx.room.Room
-import androidx.room.RoomDatabase
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -27,19 +26,12 @@ class BookProgressDaoTest {
         db = Room.inMemoryDatabaseBuilder(context, VistoDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        dao = createBookProgressDao(db)
+        dao = db.bookProgressDao()
     }
 
     @After
     fun tearDown() {
         db.close()
-    }
-
-    private fun createBookProgressDao(database: RoomDatabase): BookProgressDao {
-        val daoClass = Class.forName("app.visto.data.db.BookProgressDao_Impl")
-        val constructor = daoClass.getDeclaredConstructor(RoomDatabase::class.java)
-        constructor.isAccessible = true
-        return constructor.newInstance(database) as BookProgressDao
     }
 
     private suspend fun seedAccount(name: String): Long {

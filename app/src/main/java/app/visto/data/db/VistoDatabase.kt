@@ -21,6 +21,7 @@ abstract class VistoDatabase : RoomDatabase() {
     abstract fun remoteEntryDao(): RemoteEntryDao
     abstract fun thumbnailCacheDao(): ThumbnailCacheDao
     abstract fun albumSourceDao(): AlbumSourceDao
+    abstract fun bookProgressDao(): BookProgressDao
 
     companion object {
         private const val DB_NAME = "visto.db"
