@@ -68,7 +68,7 @@ Design: `docs/plans/2026-06-22-visto-book-reader-design.md`
 
 ### Task 1.1 — TextEncodingDetector
 
-**Test:** 
+**Test:**
 - UTF-8 with BOM → UTF-8
 - GBK without BOM → GBK
 - UTF-8 without BOM → UTF-8
