@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +32,7 @@ fun ReaderSettingsSheet(
     onFontSize: (Int) -> Unit,
     onLineSpacing: (Float) -> Unit,
     onTheme: (ReaderTheme) -> Unit,
+    onSetDefaultSettings: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -96,6 +98,13 @@ fun ReaderSettingsSheet(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+            }
+
+            OutlinedButton(
+                onClick = onSetDefaultSettings,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(Strings.READER_SET_DEFAULT_SETTINGS)
             }
         }
     }

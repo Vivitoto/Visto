@@ -3,6 +3,7 @@ package app.visto.ui.reader
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,11 +40,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.visto.ui.Strings
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 @Composable
 fun ReaderScreen(
@@ -60,6 +64,8 @@ fun ReaderScreen(
         mutableStateOf(session.currentPage)
     }
     var showChapterList by remember { mutableStateOf(false) }
+    var turnFeedback by remember { mutableStateOf<PageTurnFeedback?>(null) }
+    var nextFeedbackId by remember { mutableStateOf(0) }
 
     val pages = session.pagesForCurrentChapter
     val safePage = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
@@ -69,9 +75,46 @@ fun ReaderScreen(
         currentPage = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
     }
 
+    LaunchedEffect(turnFeedback) {
+        val feedback = turnFeedback ?: return@LaunchedEffect
+        delay(520)
+        if (turnFeedback == feedback) {
+            turnFeedback = null
+        }
+    }
+
+    fun showTurnFeedback(direction: PageTurnDirection) {
+        nextFeedbackId += 1
+        turnFeedback = PageTurnFeedback(direction = direction, id = nextFeedbackId)
+    }
+
     fun saveProgress(page: Int = safePage) {
         if (session.isLoading || session.errorMessage != null || pages.isEmpty()) return
         onSaveProgress(session.copy(currentPage = page.coerceIn(0, pages.lastIndex.coerceAtLeast(0))))
+    }
+
+    fun goToPreviousPage() {
+        showTurnFeedback(PageTurnDirection.Previous)
+        val page = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
+        if (page > 0) {
+            val target = page - 1
+            currentPage = target
+            saveProgress(target)
+        } else if (session.currentChapterIndex > 0) {
+            onChapterSelect(session.currentChapterIndex - 1)
+        }
+    }
+
+    fun goToNextPage() {
+        showTurnFeedback(PageTurnDirection.Next)
+        val page = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
+        if (page < pages.lastIndex) {
+            val target = page + 1
+            currentPage = target
+            saveProgress(target)
+        } else if (session.currentChapterIndex < session.chapters.lastIndex) {
+            onChapterSelect(session.currentChapterIndex + 1)
+        }
     }
 
     fun closeReader() {
@@ -118,44 +161,65 @@ fun ReaderScreen(
                 session.errorMessage != null -> ReaderError(theme, session.errorMessage, onBack = closeReader)
                 pages.isEmpty() -> ReaderEmpty(theme, onBack = closeReader)
                 else -> {
+                    val swipeThresholdPx = with(density) { 48.dp.toPx() }
+                    val page = pages.getOrNull(safePage)
+                    val pagePresentation = remember(page, currentChapter) {
+                        ReaderPagePresenter.present(page, currentChapter)
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .pointerInput(session.currentChapterIndex, pages.size) {
+                            .pointerInput(session.currentChapterIndex, pages.size, currentPage, swipeThresholdPx) {
+                                var totalDrag = 0f
+                                detectHorizontalDragGestures(
+                                    onDragStart = { totalDrag = 0f },
+                                    onHorizontalDrag = { _, dragAmount -> totalDrag += dragAmount },
+                                    onDragEnd = {
+                                        when {
+                                            totalDrag <= -swipeThresholdPx -> goToNextPage()
+                                            totalDrag >= swipeThresholdPx -> goToPreviousPage()
+                                        }
+                                    },
+                                    onDragCancel = { totalDrag = 0f },
+                                )
+                            }
+                            .pointerInput(session.currentChapterIndex, pages.size, currentPage) {
                                 detectTapGestures { offset ->
                                     val leftEdge = size.width / 3f
                                     val rightEdge = size.width * 2f / 3f
                                     when {
-                                        offset.x < leftEdge -> {
-                                            if (currentPage > 0) {
-                                                currentPage -= 1
-                                                saveProgress(currentPage)
-                                            } else if (session.currentChapterIndex > 0) {
-                                                onChapterSelect(session.currentChapterIndex - 1)
-                                            }
-                                        }
-                                        offset.x > rightEdge -> {
-                                            if (currentPage < pages.lastIndex) {
-                                                currentPage += 1
-                                                saveProgress(currentPage)
-                                            } else if (session.currentChapterIndex < session.chapters.lastIndex) {
-                                                onChapterSelect(session.currentChapterIndex + 1)
-                                            }
-                                        }
+                                        offset.x < leftEdge -> goToPreviousPage()
+                                        offset.x > rightEdge -> goToNextPage()
                                         else -> chromeVisible = !chromeVisible
                                     }
                                 }
                             },
                     ) {
-                        Text(
-                            text = pages.getOrNull(safePage)?.text.orEmpty(),
-                            color = theme.textColor,
-                            fontSize = session.fontSizeSp.sp,
-                            lineHeight = (session.fontSizeSp * session.lineSpacing).sp,
+                        ReaderPageText(
+                            presentation = pagePresentation,
+                            theme = theme,
+                            fontSizeSp = session.fontSizeSp,
+                            lineSpacing = session.lineSpacing,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(horizontal = horizontalPadding, vertical = verticalPadding),
                         )
+
+                        turnFeedback?.let { feedback ->
+                            ReaderTurnFeedback(
+                                direction = feedback.direction,
+                                theme = theme,
+                                modifier = Modifier
+                                    .align(
+                                        if (feedback.direction == PageTurnDirection.Previous) {
+                                            Alignment.CenterStart
+                                        } else {
+                                            Alignment.CenterEnd
+                                        }
+                                    )
+                                    .padding(horizontal = 22.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -191,6 +255,82 @@ fun ReaderScreen(
             currentIndex = session.currentChapterIndex,
             onSelect = onChapterSelect,
             onDismiss = { showChapterList = false },
+        )
+    }
+}
+
+private enum class PageTurnDirection {
+    Previous,
+    Next,
+}
+
+private data class PageTurnFeedback(
+    val direction: PageTurnDirection,
+    val id: Int,
+)
+
+@Composable
+private fun ReaderPageText(
+    presentation: ReaderPagePresentation,
+    theme: ReaderTheme,
+    fontSizeSp: Int,
+    lineSpacing: Float,
+    modifier: Modifier = Modifier,
+) {
+    if (!presentation.hasStyledTitle) {
+        Text(
+            text = presentation.body,
+            color = theme.textColor,
+            fontSize = fontSizeSp.sp,
+            lineHeight = (fontSizeSp * lineSpacing).sp,
+            modifier = modifier,
+        )
+        return
+    }
+
+    Column(modifier = modifier) {
+        Text(
+            text = presentation.title.orEmpty(),
+            color = theme.textColor,
+            fontSize = (fontSizeSp + 5).sp,
+            fontWeight = FontWeight.Bold,
+            lineHeight = (fontSizeSp * 1.35f).sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(modifier = Modifier.size(18.dp))
+        if (presentation.body.isNotEmpty()) {
+            Text(
+                text = presentation.body,
+                color = theme.textColor,
+                fontSize = fontSizeSp.sp,
+                lineHeight = (fontSizeSp * lineSpacing).sp,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReaderTurnFeedback(
+    direction: PageTurnDirection,
+    theme: ReaderTheme,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = theme.toolbarColor.copy(alpha = 0.86f),
+        contentColor = theme.textColor,
+        shape = RoundedCornerShape(20.dp),
+        modifier = modifier,
+    ) {
+        Text(
+            text = when (direction) {
+                PageTurnDirection.Previous -> Strings.READER_PREVIOUS_PAGE
+                PageTurnDirection.Next -> Strings.READER_NEXT_PAGE
+            },
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
         )
     }
 }

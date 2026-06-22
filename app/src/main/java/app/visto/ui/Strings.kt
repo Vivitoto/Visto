@@ -117,10 +117,14 @@ object Strings {
     const val BOOKSHELF_LONG_AGO = "很久以前"
 
     const val READER_CHAPTERS = "目录"
+    const val READER_CHAPTER_SEARCH = "搜索章节"
+    const val READER_CHAPTER_SEARCH_PLACEHOLDER = "输入标题或章节号"
+    const val READER_CHAPTER_SEARCH_EMPTY = "没有匹配的章节"
     const val READER_CURRENT_CHAPTER = "当前章节"
     const val READER_LOAD_FAILED = "加载失败"
     const val READER_EMPTY = "暂无可阅读内容"
     const val READER_SETTINGS = "阅读设置"
+    const val READER_SET_DEFAULT_SETTINGS = "设为默认阅读设置"
     const val READER_FONT_SIZE = "字号"
     const val READER_LINE_SPACING = "行距"
     const val READER_LINE_SPACING_COMPACT = "紧凑"
@@ -132,6 +136,8 @@ object Strings {
     const val READER_THEME_CREAM = "护眼"
     const val READER_PREVIEW = "预览"
     const val READER_PREVIEW_TEXT = "这是 Visto 阅读器的文字预览。调整字号、行距和主题后，会实时应用到这里。"
+    const val READER_PREVIOUS_PAGE = "上一页"
+    const val READER_NEXT_PAGE = "下一页"
     const val READER_EPUB_UNSUPPORTED = "EPUB 阅读暂未支持"
 
     fun bookshelfChapterNumber(index: Int): String = "第${(index + 1).coerceAtLeast(1)}章"

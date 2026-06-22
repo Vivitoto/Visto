@@ -63,6 +63,31 @@ class VistoPreferences(context: Context) {
         get() = GridDensity.fromStorage(prefs.getString(KEY_GRID_DENSITY, GridDensity.STANDARD.storageKey))
         set(value) = prefs.edit { putString(KEY_GRID_DENSITY, value.storageKey) }
 
+    /** Reader settings used for books that do not have saved per-book progress yet. */
+    var defaultReaderSettings: ReaderDefaultSettings
+        get() = ReaderDefaultSettings(
+            fontSizeSp = prefs
+                .getInt(KEY_READER_DEFAULT_FONT_SIZE_SP, DEFAULT_READER_FONT_SIZE_SP)
+                .coerceIn(MIN_READER_FONT_SIZE_SP, MAX_READER_FONT_SIZE_SP),
+            lineSpacing = prefs
+                .getFloat(KEY_READER_DEFAULT_LINE_SPACING, DEFAULT_READER_LINE_SPACING)
+                .coerceIn(MIN_READER_LINE_SPACING, MAX_READER_LINE_SPACING),
+            theme = prefs
+                .getString(KEY_READER_DEFAULT_THEME, DEFAULT_READER_THEME)
+                .sanitizeReaderTheme(),
+        )
+        set(value) = prefs.edit {
+            putInt(
+                KEY_READER_DEFAULT_FONT_SIZE_SP,
+                value.fontSizeSp.coerceIn(MIN_READER_FONT_SIZE_SP, MAX_READER_FONT_SIZE_SP),
+            )
+            putFloat(
+                KEY_READER_DEFAULT_LINE_SPACING,
+                value.lineSpacing.coerceIn(MIN_READER_LINE_SPACING, MAX_READER_LINE_SPACING),
+            )
+            putString(KEY_READER_DEFAULT_THEME, value.theme.sanitizeReaderTheme())
+        }
+
     /**
      * Maximum disk space Visto's thumbnail cache may occupy. The cache is
      * still a Coil [coil.disk.DiskCache] LRU under the hood; this bound
@@ -81,8 +106,35 @@ class VistoPreferences(context: Context) {
         private const val KEY_ALBUM_VIEW_MODE = "album_view_mode"
         private const val KEY_ALBUM_SORT_MODE = "album_sort_mode"
         private const val KEY_GRID_DENSITY = "grid_density"
+        private const val KEY_READER_DEFAULT_FONT_SIZE_SP = "reader_default_font_size_sp"
+        private const val KEY_READER_DEFAULT_LINE_SPACING = "reader_default_line_spacing"
+        private const val KEY_READER_DEFAULT_THEME = "reader_default_theme"
         private const val KEY_THUMBNAIL_CACHE_LIMIT = "thumbnail_cache_limit"
         const val DEFAULT_MAX_GRID_THUMBNAIL_BYTES: Long = 8L * 1024 * 1024
+        const val DEFAULT_READER_FONT_SIZE_SP = 18
+        const val DEFAULT_READER_LINE_SPACING = 1.5f
+        const val DEFAULT_READER_THEME = "light"
+        private const val MIN_READER_FONT_SIZE_SP = 14
+        private const val MAX_READER_FONT_SIZE_SP = 28
+        private const val MIN_READER_LINE_SPACING = 1.0f
+        private const val MAX_READER_LINE_SPACING = 2.4f
+    }
+}
+
+private val READER_THEME_KEYS = setOf("light", "dark", "cream")
+
+data class ReaderDefaultSettings(
+    val fontSizeSp: Int = VistoPreferences.DEFAULT_READER_FONT_SIZE_SP,
+    val lineSpacing: Float = VistoPreferences.DEFAULT_READER_LINE_SPACING,
+    val theme: String = VistoPreferences.DEFAULT_READER_THEME,
+)
+
+private fun String?.sanitizeReaderTheme(): String {
+    val normalized = this?.lowercase()
+    return if (normalized in READER_THEME_KEYS) {
+        normalized.orEmpty()
+    } else {
+        VistoPreferences.DEFAULT_READER_THEME
     }
 }
 

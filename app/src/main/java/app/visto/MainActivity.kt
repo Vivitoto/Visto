@@ -39,6 +39,7 @@ import app.visto.data.account.AlbumViewMode
 import app.visto.data.account.AccountService
 import app.visto.data.account.AccountSummary
 import app.visto.data.account.GridDensity
+import app.visto.data.account.ReaderDefaultSettings
 import app.visto.core.book.BookTextLoader
 import app.visto.core.book.ChapterParser
 import app.visto.core.media.MediaType
@@ -286,6 +287,7 @@ private fun ActiveReaderScreen(
     onSessionChange: (ReaderSession) -> Unit,
     onClose: () -> Unit,
     onPersistProgress: (ReaderSession) -> Unit,
+    onSetDefaultSettings: (ReaderSession) -> Unit,
 ) {
     var showSettings by remember(session.filePath) { mutableStateOf(false) }
 
@@ -318,6 +320,7 @@ private fun ActiveReaderScreen(
             onFontSize = { updateSession(ReaderAction.SetFontSize(it)) },
             onLineSpacing = { updateSession(ReaderAction.SetLineSpacing(it)) },
             onTheme = { updateSession(ReaderAction.SetTheme(it)) },
+            onSetDefaultSettings = { onSetDefaultSettings(session) },
             onDismiss = { showSettings = false },
         )
     }
@@ -327,6 +330,7 @@ private fun readerLoadingSession(
     filePath: String,
     fileName: String,
     progress: BookProgressEntity? = null,
+    defaultSettings: ReaderDefaultSettings = ReaderDefaultSettings(),
 ): ReaderSession = ReaderSession(
     filePath = filePath,
     fileName = fileName,
@@ -336,9 +340,9 @@ private fun readerLoadingSession(
     currentChapterIndex = progress?.chapterIndex ?: 0,
     currentPage = progress?.pageOffset ?: 0,
     pagesForCurrentChapter = emptyList(),
-    fontSizeSp = progress?.fontSizeSp ?: 18,
-    lineSpacing = progress?.lineSpacing ?: 1.5f,
-    theme = progress?.theme.toReaderTheme(),
+    fontSizeSp = progress?.fontSizeSp ?: defaultSettings.fontSizeSp,
+    lineSpacing = progress?.lineSpacing ?: defaultSettings.lineSpacing,
+    theme = (progress?.theme ?: defaultSettings.theme).toReaderTheme(),
     isLoading = true,
     errorMessage = null,
 )
@@ -354,6 +358,12 @@ private fun ReaderTheme.toProgressTheme(): String = when (this) {
     ReaderTheme.DARK -> "dark"
     ReaderTheme.CREAM -> "cream"
 }
+
+private fun ReaderSession.toDefaultSettings(): ReaderDefaultSettings = ReaderDefaultSettings(
+    fontSizeSp = fontSizeSp,
+    lineSpacing = lineSpacing,
+    theme = theme.toProgressTheme(),
+)
 
 private suspend fun saveBookProgress(
     entity: BookProgressEntity?,
@@ -1055,6 +1065,7 @@ private fun BookshelfHost(
                 readerSession = null
             },
             onPersistProgress = ::persistProgress,
+            onSetDefaultSettings = { app.preferences.defaultReaderSettings = it.toDefaultSettings() },
         )
         return
     }
@@ -1456,7 +1467,12 @@ private fun BrowserHost(
         activeReaderJob?.cancel()
         activeReaderSizeBytes = book.sizeBytes
         activeReaderEtag = book.etag
-        readerSession = readerLoadingSession(filePath = book.path, fileName = book.name)
+        val defaultReaderSettings = app.preferences.defaultReaderSettings
+        readerSession = readerLoadingSession(
+            filePath = book.path,
+            fileName = book.name,
+            defaultSettings = defaultReaderSettings,
+        )
 
         if (book.mediaType == MediaType.EPUB_BOOK) {
             readerSession = readerSession?.copy(
@@ -1471,14 +1487,24 @@ private fun BrowserHost(
                 val dao = app.database.bookProgressDao()
                 val progress = withContext(Dispatchers.IO) { dao.getByPath(summary.id, book.path) }
                 if (progress != null) {
-                    readerSession = readerLoadingSession(book.path, book.name, progress)
+                    readerSession = readerLoadingSession(
+                        filePath = book.path,
+                        fileName = book.name,
+                        progress = progress,
+                        defaultSettings = defaultReaderSettings,
+                    )
                 }
                 val result = BookTextLoader.load(client, book.path, context.cacheDir, expectedEtag = book.etag)
                 val chapters = ChapterParser.parse(result.text)
                 activeReaderSizeBytes = result.sizeBytes
                 activeReaderEtag = result.etag
                 val loaded = ReaderReducer.reduce(
-                    readerSession ?: readerLoadingSession(book.path, book.name, progress),
+                    readerSession ?: readerLoadingSession(
+                        filePath = book.path,
+                        fileName = book.name,
+                        progress = progress,
+                        defaultSettings = defaultReaderSettings,
+                    ),
                     ReaderAction.Loaded(
                         encoding = result.encoding,
                         fullText = result.text,
@@ -1492,7 +1518,11 @@ private fun BrowserHost(
             } catch (ce: CancellationException) {
                 throw ce
             } catch (e: Throwable) {
-                readerSession = (readerSession ?: readerLoadingSession(book.path, book.name)).copy(
+                readerSession = (readerSession ?: readerLoadingSession(
+                    filePath = book.path,
+                    fileName = book.name,
+                    defaultSettings = defaultReaderSettings,
+                )).copy(
                     isLoading = false,
                     errorMessage = AccountErrorMessages.forWebDavError(e),
                 )
@@ -1511,6 +1541,7 @@ private fun BrowserHost(
                 readerSession = null
             },
             onPersistProgress = ::persistProgress,
+            onSetDefaultSettings = { app.preferences.defaultReaderSettings = it.toDefaultSettings() },
         )
         return
     }
