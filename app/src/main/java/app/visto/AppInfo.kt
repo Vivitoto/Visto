@@ -3,6 +3,6 @@ package app.visto
 object AppInfo {
     const val APP_NAME = "Visto"
     const val PACKAGE_NAME = "app.visto"
-    const val VERSION_NAME = "1.0.7"
-    const val VERSION_CODE = 20
+    const val VERSION_NAME = "1.1.0"
+    const val VERSION_CODE = 21
 }
