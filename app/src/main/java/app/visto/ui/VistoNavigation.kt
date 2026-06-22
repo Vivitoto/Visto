@@ -1,6 +1,7 @@
 package app.visto.ui
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.PhotoAlbum
 import androidx.compose.material.icons.filled.Settings
@@ -13,7 +14,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 
-enum class HomeTab { ALBUMS, BROWSER, SETTINGS }
+enum class HomeTab { ALBUMS, BOOKSHELF, BROWSER, SETTINGS }
 
 @Composable
 fun VistoBottomBar(
@@ -29,6 +30,13 @@ fun VistoBottomBar(
             onClick = { onSelect(HomeTab.ALBUMS) },
             icon = { Icon(Icons.Filled.PhotoAlbum, contentDescription = Strings.ALBUMS_TITLE) },
             label = { Text(Strings.ALBUMS_TITLE) },
+            colors = itemColors(),
+        )
+        NavigationBarItem(
+            selected = selected == HomeTab.BOOKSHELF,
+            onClick = { onSelect(HomeTab.BOOKSHELF) },
+            icon = { Icon(Icons.Filled.Book, contentDescription = "书架") },
+            label = { Text("书架") },
             colors = itemColors(),
         )
         NavigationBarItem(

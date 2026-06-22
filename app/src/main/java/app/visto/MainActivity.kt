@@ -22,6 +22,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -72,6 +73,9 @@ import app.visto.ui.albums.AlbumListUiState
 import app.visto.ui.albums.FolderPickerNavigator
 import app.visto.ui.albums.FolderPickerScreen
 import app.visto.ui.albums.FolderPickerState
+import app.visto.ui.bookshelf.BookshelfScreen
+import app.visto.ui.bookshelf.BookshelfStateBuilder
+import app.visto.ui.bookshelf.BookshelfUiState
 import app.visto.ui.browser.BrowserNavigator
 import app.visto.ui.browser.BrowserScreen
 import app.visto.ui.browser.BrowserStateBuilder
@@ -82,9 +86,12 @@ import app.visto.ui.theme.ThemeMode
 import app.visto.ui.theme.VistoTheme
 import app.visto.ui.viewer.ViewerScreen
 import app.visto.ui.viewer.ViewerSession
+import java.io.File
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -175,7 +182,7 @@ fun VistoRoot(
             val summary = account
             val creds = credentials
             if (summary == null || creds == null) when (selectedTab) {
-                HomeTab.ALBUMS, HomeTab.BROWSER -> NoAccountHome(
+                HomeTab.ALBUMS, HomeTab.BOOKSHELF, HomeTab.BROWSER -> NoAccountHome(
                     selectedTab = selectedTab,
                     onTabSelected = { selectedTab = it },
                     onAddServer = { screen = Screen.Account },
@@ -210,6 +217,10 @@ fun VistoRoot(
                     gridDensity = gridDensity,
                     onGridDensityChange = onGridDensityChange,
                     selectedTab = selectedTab,
+                    onTabSelected = { selectedTab = it },
+                )
+                HomeTab.BOOKSHELF -> BookshelfHost(
+                    summary = summary,
                     onTabSelected = { selectedTab = it },
                 )
                 HomeTab.BROWSER -> BrowserHost(
@@ -834,6 +845,54 @@ private fun AlbumsHost(
             }
         }
     }
+}
+
+@Composable
+private fun BookshelfHost(
+    summary: AccountSummary,
+    onTabSelected: (HomeTab) -> Unit,
+) {
+    val context = LocalContext.current
+    val app = remember(context) { context.applicationContext as VistoApplication }
+    val scope = rememberCoroutineScope()
+    val dao = remember(app) { app.database.bookProgressDao() }
+    val state by remember(summary.id) {
+        BookshelfStateBuilder.fromFlow(dao.getAllByAccount(summary.id))
+    }.collectAsState(initial = BookshelfUiState())
+
+    BookshelfScreen(
+        state = state,
+        onOpenBook = { book ->
+            // TODO(book-reader): enter ReaderScreen once the reader host from Phase 2 is wired here.
+            // Keep this as a no-op placeholder for now so the bookshelf UI can compile independently.
+            @Suppress("UNUSED_VARIABLE")
+            val pendingBook = book
+        },
+        onRemoveBook = { book ->
+            scope.launch {
+                withContext(Dispatchers.IO) {
+                    dao.delete(summary.id, book.path)
+                    clearBookCache(context.cacheDir, summary.id, book.path)
+                }
+            }
+        },
+        onTabSelected = onTabSelected,
+    )
+}
+
+private fun clearBookCache(cacheDir: File, accountId: Long, path: String) {
+    val booksRoot = File(cacheDir, "books")
+    val pathDigest = java.security.MessageDigest.getInstance("SHA-256")
+        .digest(path.toByteArray(Charsets.UTF_8))
+        .take(8)
+        .joinToString(separator = "") { byte -> "%02x".format(byte) }
+    booksRoot.walkTopDown()
+        .filter { it.isFile && it.name.contains(pathDigest) }
+        .forEach { runCatching { it.delete() } }
+    // Future reader integration is expected to place files under books/{accountId}; if an
+    // older cache shape exists, the digest scan above removes the exact file without touching
+    // other cached books.
+    File(booksRoot, accountId.toString()).takeIf { it.isDirectory && it.list().isNullOrEmpty() }?.delete()
 }
 
 @Composable
