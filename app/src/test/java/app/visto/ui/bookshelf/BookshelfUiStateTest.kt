@@ -13,13 +13,16 @@ import org.junit.Test
 class BookshelfUiStateTest {
 
     private fun book(
+        id: Long = 0L,
+        accountId: Long = 1L,
         name: String = "小说.txt",
         chapterIndex: Int = 2,
         chapterTitle: String? = "第三章 风起",
         totalChapters: Int = 10,
         lastReadAt: Long = 1_700_000_000_000L,
     ) = BookProgressEntity(
-        accountId = 1L,
+        id = id,
+        accountId = accountId,
         path = "/Books/$name",
         name = name,
         sizeBytes = 1024,
@@ -65,6 +68,32 @@ class BookshelfUiStateTest {
         val summary = BookshelfStateBuilder.progressSummary(book(chapterIndex = 2, chapterTitle = null, totalChapters = 0))
 
         assertEquals("第3章", summary)
+    }
+
+    @Test
+    fun readingProgressFractionClampsToBounds() {
+        assertEquals(0.3f, BookshelfStateBuilder.readingProgressFraction(book(chapterIndex = 2, totalChapters = 10)), 0.0001f)
+        assertEquals(0f, BookshelfStateBuilder.readingProgressFraction(book(totalChapters = 0)), 0.0001f)
+        assertEquals(1f, BookshelfStateBuilder.readingProgressFraction(book(chapterIndex = 999, totalChapters = 10)), 0.0001f)
+    }
+
+    @Test
+    fun stableBookKeyUsesIdOrAccountPathFallback() {
+        assertEquals("book:42", BookshelfStateBuilder.stableBookKey(book(id = 42L)))
+        assertEquals(
+            "book:7:/Books/a.txt",
+            BookshelfStateBuilder.stableBookKey(book(accountId = 7L, name = "a.txt")),
+        )
+    }
+
+    @Test
+    fun coverPaletteIndexIsStableAndBounded() {
+        val book = book(accountId = 7L, name = "a.txt")
+        val index = BookshelfStateBuilder.coverPaletteIndex(book, paletteSize = 6)
+
+        assertEquals(index, BookshelfStateBuilder.coverPaletteIndex(book, paletteSize = 6))
+        assertTrue(index in 0 until 6)
+        assertEquals(0, BookshelfStateBuilder.coverPaletteIndex(book, paletteSize = 0))
     }
 
     @Test

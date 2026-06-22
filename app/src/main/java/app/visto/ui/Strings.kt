@@ -113,6 +113,9 @@ object Strings {
     const val BOOKSHELF_REMOVE_CONFIRM_MESSAGE = "从书架移除不会删除 WebDAV 上的文件"
     const val BOOKSHELF_REMOVE_CONFIRM = "移除"
     const val BOOKSHELF_EMPTY = "浏览中打开 TXT 文件后自动加入书架"
+    const val BOOKSHELF_VIEW_MODE = "视图"
+    const val BOOKSHELF_GRID_VIEW = "书架"
+    const val BOOKSHELF_LIST_VIEW = "列表"
     const val BOOKSHELF_JUST_NOW = "刚刚"
     const val BOOKSHELF_LONG_AGO = "很久以前"
 

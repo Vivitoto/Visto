@@ -4,28 +4,32 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.items as listItems
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -40,6 +44,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,6 +64,7 @@ fun BookshelfScreen(
 ) {
     var selectedBook by remember { mutableStateOf<BookProgressEntity?>(null) }
     var bookPendingRemove by remember { mutableStateOf<BookProgressEntity?>(null) }
+    var layoutMode by remember { mutableStateOf(BookshelfLayoutMode.GRID) }
 
     Scaffold(
         bottomBar = { VistoBottomBar(selected = HomeTab.BOOKSHELF, onSelect = onTabSelected) },
@@ -70,16 +77,21 @@ fun BookshelfScreen(
             when {
                 state.isLoading -> BookshelfSkeleton()
                 state.books.isEmpty() -> BookshelfEmptyState()
-                else -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 104.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(state.books, key = { it.id.takeIf { id -> id != 0L } ?: it.path.hashCode().toLong() }) { book ->
-                        BookshelfRow(
-                            book = book,
-                            onClick = { onOpenBook(book) },
-                            onLongClick = { selectedBook = book },
+                else -> Column(modifier = Modifier.fillMaxSize()) {
+                    BookshelfViewModeBar(
+                        current = layoutMode,
+                        onChange = { layoutMode = it },
+                    )
+                    when (layoutMode) {
+                        BookshelfLayoutMode.GRID -> BookshelfGrid(
+                            books = state.books,
+                            onOpenBook = onOpenBook,
+                            onSelectBook = { selectedBook = it },
+                        )
+                        BookshelfLayoutMode.LIST -> BookshelfList(
+                            books = state.books,
+                            onOpenBook = onOpenBook,
+                            onSelectBook = { selectedBook = it },
                         )
                     }
                 }
@@ -173,92 +185,324 @@ fun BookshelfScreen(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+private enum class BookshelfLayoutMode { GRID, LIST }
+
 @Composable
-private fun BookshelfRow(
-    book: BookProgressEntity,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
+private fun BookshelfViewModeBar(
+    current: BookshelfLayoutMode,
+    onChange: (BookshelfLayoutMode) -> Unit,
 ) {
-    Card(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            .padding(start = 16.dp, top = 8.dp, end = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            BookIcon()
-            Column(
-                modifier = Modifier
-                    .padding(start = 14.dp)
-                    .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    text = book.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = BookshelfStateBuilder.progressSummary(book),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = Strings.bookshelfLastRead(BookshelfStateBuilder.relativeLastReadTime(book.lastReadAt)),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.56f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Filled.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                    modifier = Modifier.size(20.dp),
-                )
-            }
+        Text(
+            text = Strings.BOOKSHELF_VIEW_MODE,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        BookshelfModeButton(
+            label = Strings.BOOKSHELF_GRID_VIEW,
+            selected = current == BookshelfLayoutMode.GRID,
+            onClick = { onChange(BookshelfLayoutMode.GRID) },
+        )
+        BookshelfModeButton(
+            label = Strings.BOOKSHELF_LIST_VIEW,
+            selected = current == BookshelfLayoutMode.LIST,
+            onClick = { onChange(BookshelfLayoutMode.LIST) },
+        )
+    }
+}
+
+@Composable
+private fun BookshelfModeButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    TextButton(onClick = onClick) {
+        Text(
+            text = label,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun BookshelfGrid(
+    books: List<BookProgressEntity>,
+    onOpenBook: (BookProgressEntity) -> Unit,
+    onSelectBook: (BookProgressEntity) -> Unit,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 150.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 104.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        gridItems(books, key = BookshelfStateBuilder::stableBookKey) { book ->
+            BookshelfBookCard(
+                book = book,
+                onClick = { onOpenBook(book) },
+                onLongClick = { onSelectBook(book) },
+            )
         }
     }
 }
 
 @Composable
-private fun BookIcon() {
-    Box(
-        modifier = Modifier
-            .size(64.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f)),
-        contentAlignment = Alignment.Center,
+private fun BookshelfList(
+    books: List<BookProgressEntity>,
+    onOpenBook: (BookProgressEntity) -> Unit,
+    onSelectBook: (BookProgressEntity) -> Unit,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 104.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Icon(
-            Icons.Filled.Book,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.size(32.dp),
-        )
+        listItems(books, key = BookshelfStateBuilder::stableBookKey) { book ->
+            BookshelfListRow(
+                book = book,
+                onClick = { onOpenBook(book) },
+                onLongClick = { onSelectBook(book) },
+            )
+        }
     }
 }
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun BookshelfBookCard(
+    book: BookProgressEntity,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        GeneratedBookCover(book = book)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Text(
+                text = BookshelfStateBuilder.progressSummary(book),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.86f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            LinearProgressIndicator(
+                progress = { BookshelfStateBuilder.readingProgressFraction(book) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp)),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+            )
+            Text(
+                text = Strings.bookshelfLastRead(BookshelfStateBuilder.relativeLastReadTime(book.lastReadAt)),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun BookshelfListRow(
+    book: BookProgressEntity,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.54f))
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        GeneratedBookCover(
+            book = book,
+            modifier = Modifier.width(70.dp),
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = book.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = BookshelfStateBuilder.progressSummary(book),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.86f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            LinearProgressIndicator(
+                progress = { BookshelfStateBuilder.readingProgressFraction(book) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp)),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+            )
+            Text(
+                text = Strings.bookshelfLastRead(BookshelfStateBuilder.relativeLastReadTime(book.lastReadAt)),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun GeneratedBookCover(
+    book: BookProgressEntity,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+) {
+    val palette = BookCoverPalettes[BookshelfStateBuilder.coverPaletteIndex(book, BookCoverPalettes.size)]
+    Box(
+        modifier = modifier
+            .aspectRatio(0.68f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Brush.verticalGradient(colors = listOf(palette.top, palette.bottom))),
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .fillMaxHeight()
+                .width(18.dp)
+                .background(Color.Black.copy(alpha = 0.18f)),
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 30.dp, top = 24.dp)
+                .width(44.dp)
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(palette.accent.copy(alpha = 0.92f)),
+        )
+        Text(
+            text = "TXT",
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(14.dp),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = palette.ink.copy(alpha = 0.82f),
+            maxLines = 1,
+        )
+        Text(
+            text = book.name,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 30.dp, top = 54.dp, end = 18.dp, bottom = 70.dp),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = palette.ink,
+            maxLines = 5,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(start = 30.dp, end = 18.dp, bottom = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.74f)
+                    .height(2.dp)
+                    .clip(RoundedCornerShape(1.dp))
+                    .background(palette.ink.copy(alpha = 0.36f)),
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.52f)
+                    .height(2.dp)
+                    .clip(RoundedCornerShape(1.dp))
+                    .background(palette.ink.copy(alpha = 0.26f)),
+            )
+        }
+    }
+}
+
+private data class BookCoverPalette(
+    val top: Color,
+    val bottom: Color,
+    val accent: Color,
+    val ink: Color,
+)
+
+private val BookCoverPalettes = listOf(
+    BookCoverPalette(
+        top = Color(0xFF8D3D43),
+        bottom = Color(0xFF3B1E2A),
+        accent = Color(0xFFE7B866),
+        ink = Color(0xFFFFF7E8),
+    ),
+    BookCoverPalette(
+        top = Color(0xFF2F746F),
+        bottom = Color(0xFF123B44),
+        accent = Color(0xFFE9CF8C),
+        ink = Color(0xFFF4FAF4),
+    ),
+    BookCoverPalette(
+        top = Color(0xFF715C2F),
+        bottom = Color(0xFF30351E),
+        accent = Color(0xFFD8D07A),
+        ink = Color(0xFFFFF9DD),
+    ),
+    BookCoverPalette(
+        top = Color(0xFF4E5E91),
+        bottom = Color(0xFF232941),
+        accent = Color(0xFFFFC67A),
+        ink = Color(0xFFF4F6FF),
+    ),
+    BookCoverPalette(
+        top = Color(0xFF7A4C6B),
+        bottom = Color(0xFF352338),
+        accent = Color(0xFFF0B98D),
+        ink = Color(0xFFFFF4F8),
+    ),
+    BookCoverPalette(
+        top = Color(0xFF8A5234),
+        bottom = Color(0xFF3D2A24),
+        accent = Color(0xFF9FD0C5),
+        ink = Color(0xFFFFF4EA),
+    ),
+)
 
 @Composable
 private fun BookshelfEmptyState() {
@@ -289,20 +533,37 @@ private fun BookshelfEmptyState() {
 
 @Composable
 private fun BookshelfSkeleton() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 150.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 104.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        repeat(8) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(72.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.56f)),
-            )
+        gridItems(count = 8) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(0.68f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.56f)),
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.72f)
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)),
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)),
+                )
+            }
         }
     }
 }

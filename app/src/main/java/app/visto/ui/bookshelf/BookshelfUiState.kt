@@ -50,6 +50,24 @@ object BookshelfStateBuilder {
         return chapter + progress
     }
 
+    fun readingProgressFraction(book: BookProgressEntity): Float {
+        if (book.totalChapters <= 0) return 0f
+        val currentChapter = (book.chapterIndex + 1).coerceAtLeast(1)
+        return (currentChapter.toFloat() / book.totalChapters.toFloat()).coerceIn(0f, 1f)
+    }
+
+    fun stableBookKey(book: BookProgressEntity): String =
+        if (book.id != 0L) {
+            "book:${book.id}"
+        } else {
+            "book:${book.accountId}:${book.path}"
+        }
+
+    fun coverPaletteIndex(book: BookProgressEntity, paletteSize: Int): Int {
+        if (paletteSize <= 0) return 0
+        return Math.floorMod("${book.accountId}:${book.path}:${book.name}".hashCode(), paletteSize)
+    }
+
     fun relativeLastReadTime(lastReadAt: Long, now: Long = System.currentTimeMillis()): String {
         val diff = (now - lastReadAt).coerceAtLeast(0L)
         val minute = 60_000L
