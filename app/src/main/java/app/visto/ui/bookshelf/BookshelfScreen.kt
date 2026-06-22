@@ -610,7 +610,7 @@ private fun BookshelfSkeleton() {
         verticalArrangement = Arrangement.spacedBy(10.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        gridItems(count = 8) {
+        gridItems(List(8) { it }) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(
                     modifier = Modifier
