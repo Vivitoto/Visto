@@ -23,6 +23,14 @@ object MediaTypeDetector {
         "mp4", "mov", "m4v", "webm", "mkv", "3gp",
     )
 
+    private val TEXT_BOOK_EXTENSIONS = setOf(
+        "txt", "md",
+    )
+
+    private val EPUB_BOOK_EXTENSIONS = setOf(
+        "epub",
+    )
+
     /**
      * Detect a [MediaType] from a file [name] and optional [mimeType].
      *
@@ -41,18 +49,22 @@ object MediaTypeDetector {
             extension in ANIMATED_IMAGE_EXTENSIONS -> MediaType.ANIMATED_IMAGE
             extension in IMAGE_EXTENSIONS -> MediaType.IMAGE
             extension in VIDEO_EXTENSIONS -> MediaType.VIDEO
+            extension in TEXT_BOOK_EXTENSIONS -> MediaType.TEXT_BOOK
+            extension in EPUB_BOOK_EXTENSIONS -> MediaType.EPUB_BOOK
             else -> MediaType.OTHER
         }
     }
 
     private fun classifyMime(mimeType: String): MediaType {
-        val normalized = mimeType.trim().lowercase()
+        val normalized = mimeType.substringBefore(';').trim().lowercase()
         if (normalized.isEmpty() || normalized == "application/octet-stream") {
             return MediaType.UNKNOWN
         }
         return when {
             normalized == "image/gif" -> MediaType.ANIMATED_IMAGE
             normalized == "image/webp" -> MediaType.ANIMATED_IMAGE
+            normalized == "text/plain" -> MediaType.TEXT_BOOK
+            normalized == "application/epub+zip" -> MediaType.EPUB_BOOK
             normalized.startsWith("image/") -> MediaType.IMAGE
             normalized.startsWith("video/") -> MediaType.VIDEO
             else -> MediaType.OTHER

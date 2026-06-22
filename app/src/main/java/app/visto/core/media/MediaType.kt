@@ -17,7 +17,13 @@ enum class MediaType {
     /** Video container playable by Media3/ExoPlayer in detail view. */
     VIDEO,
 
-    /** Known file type that is not image or video, hidden from media grid by default. */
+    /** Plain text book formats readable by the built-in reader. */
+    TEXT_BOOK,
+
+    /** EPUB book archive. Detected for routing even before EPUB reading is implemented. */
+    EPUB_BOOK,
+
+    /** Known file type that is not image, video, or book, hidden from media grid by default. */
     OTHER,
 
     /** Could not determine a usable type. */

@@ -30,8 +30,24 @@ class MediaTypeDetectorTest {
 
     @Test
     fun unknownExtensionFallsBackToOther() {
-        assertEquals(MediaType.OTHER, MediaTypeDetector.detect("notes.txt"))
         assertEquals(MediaType.OTHER, MediaTypeDetector.detect("archive.zip"))
+    }
+
+    @Test
+    fun textBookExtensionsAreDetectedAsTextBook() {
+        assertEquals(MediaType.TEXT_BOOK, MediaTypeDetector.detect("notes.txt"))
+        assertEquals(MediaType.TEXT_BOOK, MediaTypeDetector.detect("README.md"))
+    }
+
+    @Test
+    fun epubExtensionIsDetectedAsEpubBook() {
+        assertEquals(MediaType.EPUB_BOOK, MediaTypeDetector.detect("novel.epub"))
+    }
+
+    @Test
+    fun bookMimeTypesAreDetected() {
+        assertEquals(MediaType.TEXT_BOOK, MediaTypeDetector.detect("download", mimeType = "text/plain"))
+        assertEquals(MediaType.EPUB_BOOK, MediaTypeDetector.detect("download", mimeType = "application/epub+zip"))
     }
 
     @Test
