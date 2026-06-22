@@ -1,11 +1,16 @@
 package app.visto.core.book
 
 import app.visto.data.webdav.WebDavClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 import java.io.File
+import java.io.IOException
 import java.nio.charset.Charset
 import java.security.MessageDigest
+import java.util.Properties
 
-/** Text loaded from WebDAV and cached locally for later reader sessions. */
+/** Decoded text and local cache information for a downloaded book file. */
 data class BookTextResult(
     val text: String,
     val encoding: String,
@@ -13,77 +18,96 @@ data class BookTextResult(
     val cachedFile: File,
 )
 
-class BookTextLoader(
-    private val webDavClient: WebDavClient,
-    private val cacheDir: File,
-) {
-    suspend fun load(
-        path: String,
-        knownEtag: String? = null,
-        knownSize: Long? = null,
-    ): BookTextResult {
-        cacheDir.mkdirs()
-        val cachedFile = cacheFileFor(path)
+/** Downloads WebDAV text books, detects their encoding, and stores UTF-8 decoded cache files. */
+object BookTextLoader {
+    private const val CACHE_SUBDIR = "books"
+    private const val META_SUFFIX = ".meta"
+    private val httpClient = OkHttpClient()
 
-        if (cachedFile.exists() && cachedFile.canRead() && isRemoteUnchanged(path, knownEtag, knownSize)) {
-            val bytes = cachedFile.readBytes()
-            val encoding = TextEncodingDetector.detect(bytes)
-            return BookTextResult(
-                text = decode(bytes, encoding),
-                encoding = encoding,
-                sizeBytes = bytes.size.toLong(),
-                cachedFile = cachedFile,
+    suspend fun load(
+        webDavClient: WebDavClient,
+        path: String,
+        cacheDir: File,
+        expectedEtag: String? = null,
+    ): BookTextResult = withContext(Dispatchers.IO) {
+        val cacheFile = cacheFile(cacheDir, path)
+        val metaFile = metaFile(cacheFile)
+        val metadata = readMetadata(metaFile)
+
+        if (cacheFile.exists() && expectedEtag != null && metadata.etag == expectedEtag) {
+            val text = cacheFile.readText(Charsets.UTF_8)
+            return@withContext BookTextResult(
+                text = text,
+                encoding = metadata.encoding ?: "UTF-8",
+                sizeBytes = metadata.sizeBytes ?: cacheFile.length(),
+                cachedFile = cacheFile,
             )
         }
 
-        val bytes = webDavClient.getBytes(path)
-        val encoding = TextEncodingDetector.detect(bytes)
-        val text = decode(bytes, encoding)
-        cachedFile.writeText(text, Charsets.UTF_8)
+        cacheFile.parentFile?.mkdirs()
+        val request = webDavClient.buildMediaRequest(path)
+        val response = httpClient.newCall(request).execute()
+        response.use { resp ->
+            if (!resp.isSuccessful) {
+                throw IOException("GET $path failed with HTTP ${resp.code}")
+            }
+            val bytes = resp.body?.bytes() ?: ByteArray(0)
+            val encoding = TextEncodingDetector.detect(bytes)
+            val text = String(bytes, Charset.forName(encoding)).removePrefix("\uFEFF")
+            cacheFile.writeText(text, Charsets.UTF_8)
+            writeMetadata(
+                metaFile = metaFile,
+                etag = resp.header("ETag"),
+                encoding = encoding,
+                sizeBytes = bytes.size.toLong(),
+            )
+            BookTextResult(
+                text = text,
+                encoding = encoding,
+                sizeBytes = bytes.size.toLong(),
+                cachedFile = cacheFile,
+            )
+        }
+    }
 
-        return BookTextResult(
-            text = text,
-            encoding = encoding,
-            sizeBytes = bytes.size.toLong(),
-            cachedFile = cachedFile,
+    private fun cacheFile(cacheDir: File, path: String): File =
+        File(File(cacheDir, CACHE_SUBDIR), "${sha256(path)}.txt")
+
+    private fun metaFile(cacheFile: File): File = File(cacheFile.parentFile, "${cacheFile.name}$META_SUFFIX")
+
+    private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
+        .digest(value.toByteArray(Charsets.UTF_8))
+        .joinToString(separator = "") { byte -> "%02x".format(byte) }
+
+    private fun readMetadata(file: File): CacheMetadata {
+        if (!file.exists()) return CacheMetadata()
+        val props = Properties()
+        runCatching { file.inputStream().use(props::load) }
+        return CacheMetadata(
+            etag = props.getProperty("etag"),
+            encoding = props.getProperty("encoding"),
+            sizeBytes = props.getProperty("sizeBytes")?.toLongOrNull(),
         )
     }
 
-    private suspend fun isRemoteUnchanged(path: String, knownEtag: String?, knownSize: Long?): Boolean {
-        if (knownEtag == null && knownSize == null) return true
-        val metadata = runCatching { webDavClient.headFile(path) }.getOrNull() ?: return true
-        val etagSame = knownEtag == null || normalizeEtag(metadata.etag) == normalizeEtag(knownEtag)
-        val sizeSame = knownSize == null || metadata.sizeBytes == null || metadata.sizeBytes == knownSize
-        return etagSame && sizeSame
-    }
-
-    private fun cacheFileFor(path: String): File = File(cacheDir, "${sanitize(path)}.txt")
-
-    private fun sanitize(path: String): String {
-        val readable = path.trim('/').replace(Regex("[^A-Za-z0-9._-]+"), "_").trim('_')
-        val digest = MessageDigest.getInstance("SHA-256")
-            .digest(path.toByteArray(Charsets.UTF_8))
-            .take(8)
-            .joinToString(separator = "") { byte -> "%02x".format(byte) }
-        return listOf(readable.ifEmpty { "book" }.take(48), digest).joinToString("-")
-    }
-
-    private fun decode(bytes: ByteArray, encoding: String): String {
-        val charset = Charset.forName(encoding)
-        val offset = when {
-            encoding == "UTF-8" && bytes.size >= 3 &&
-                bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte() -> 3
-            encoding == "UTF-16LE" && bytes.size >= 2 &&
-                bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte() -> 2
-            encoding == "UTF-16BE" && bytes.size >= 2 &&
-                bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte() -> 2
-            else -> 0
+    private fun writeMetadata(
+        metaFile: File,
+        etag: String?,
+        encoding: String,
+        sizeBytes: Long,
+    ) {
+        metaFile.parentFile?.mkdirs()
+        val props = Properties().apply {
+            etag?.let { setProperty("etag", it) }
+            setProperty("encoding", encoding)
+            setProperty("sizeBytes", sizeBytes.toString())
         }
-        return bytes.copyOfRange(offset, bytes.size).toString(charset)
+        metaFile.outputStream().use { props.store(it, null) }
     }
 
-    private fun normalizeEtag(value: String?): String? = value
-        ?.removePrefix("W/")
-        ?.trim()
-        ?.trim('"')
+    private data class CacheMetadata(
+        val etag: String? = null,
+        val encoding: String? = null,
+        val sizeBytes: Long? = null,
+    )
 }

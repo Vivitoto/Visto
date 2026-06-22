@@ -1,12 +1,14 @@
 package app.visto.ui.reader
 
-import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,311 +19,285 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
 
 @Composable
 fun ReaderScreen(
     session: ReaderSession,
-    onAction: (ReaderAction) -> Unit,
     onBack: () -> Unit,
-    onSaveProgress: () -> Unit,
+    onChapterSelect: (Int) -> Unit,
+    onSettingsToggle: () -> Unit,
+    onSaveProgress: (ReaderSession) -> Unit,
 ) {
-    HideStatusBar()
+    val theme = session.theme
+    var chromeVisible by remember { mutableStateOf(true) }
+    var currentPage by remember(session.filePath, session.currentChapterIndex, session.currentPage) {
+        mutableStateOf(session.currentPage)
+    }
+    var showChapterList by remember { mutableStateOf(false) }
 
-    val colors = session.theme.colors()
-    var viewportSize by remember { mutableStateOf(IntSize.Zero) }
-    var showSettings by remember { mutableStateOf(false) }
-    var showChapters by remember { mutableStateOf(false) }
-    var dragDistance by remember { mutableFloatStateOf(0f) }
+    val pages = session.pagesForCurrentChapter
+    val safePage = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
+    val currentChapter = session.chapters.getOrNull(session.currentChapterIndex)
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.background)
-            .onSizeChanged { viewportSize = it }
-            .pointerInput(viewportSize, session.currentPage, session.showToolbar) {
-                detectTapGestures { offset ->
-                    val width = viewportSize.width.takeIf { it > 0 } ?: size.width
-                    when {
-                        offset.x <= width * 0.20f -> onAction(ReaderAction.PrevPage)
-                        offset.x >= width * 0.80f -> onAction(ReaderAction.NextPage)
-                        else -> onAction(ReaderAction.ToggleToolbar)
+    LaunchedEffect(pages.size) {
+        currentPage = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
+    }
+
+    fun saveProgress(page: Int = safePage) {
+        onSaveProgress(session.copy(currentPage = page.coerceIn(0, pages.lastIndex.coerceAtLeast(0))))
+    }
+
+    fun closeReader() {
+        saveProgress()
+        onBack()
+    }
+
+    BackHandler(onBack = ::closeReader)
+
+    Scaffold { innerPadding: PaddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(theme.backgroundColor),
+        ) {
+            when {
+                session.isLoading -> ReaderLoading(theme)
+                session.errorMessage != null -> ReaderError(theme, session.errorMessage, onBack = closeReader)
+                pages.isEmpty() -> ReaderEmpty(theme, onBack = closeReader)
+                else -> {
+                    BoxWithConstraints(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(session.currentChapterIndex, pages.size) {
+                                detectTapGestures { offset ->
+                                    val leftEdge = size.width / 3f
+                                    val rightEdge = size.width * 2f / 3f
+                                    when {
+                                        offset.x < leftEdge -> {
+                                            if (currentPage > 0) {
+                                                currentPage -= 1
+                                                saveProgress(currentPage)
+                                            } else if (session.currentChapterIndex > 0) {
+                                                onChapterSelect(session.currentChapterIndex - 1)
+                                            }
+                                        }
+                                        offset.x > rightEdge -> {
+                                            if (currentPage < pages.lastIndex) {
+                                                currentPage += 1
+                                                saveProgress(currentPage)
+                                            } else if (session.currentChapterIndex < session.chapters.lastIndex) {
+                                                onChapterSelect(session.currentChapterIndex + 1)
+                                            }
+                                        }
+                                        else -> chromeVisible = !chromeVisible
+                                    }
+                                }
+                            },
+                    ) {
+                        val horizontalPadding = 22.dp
+                        val verticalPadding = if (chromeVisible) 88.dp else 28.dp
+                        Text(
+                            text = pages.getOrNull(safePage)?.text.orEmpty(),
+                            color = theme.textColor,
+                            fontSize = session.fontSizeSp.sp,
+                            lineHeight = (session.fontSizeSp * session.lineSpacing).sp,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+                        )
                     }
                 }
             }
-            .pointerInput(session.currentPage) {
-                detectHorizontalDragGestures(
-                    onDragStart = { dragDistance = 0f },
-                    onHorizontalDrag = { _, dragAmount -> dragDistance += dragAmount },
-                    onDragEnd = {
-                        when {
-                            dragDistance < -48f -> onAction(ReaderAction.NextPage)
-                            dragDistance > 48f -> onAction(ReaderAction.PrevPage)
-                        }
-                        dragDistance = 0f
-                    },
-                    onDragCancel = { dragDistance = 0f },
+
+            if (chromeVisible && !session.isLoading && session.errorMessage == null && pages.isNotEmpty()) {
+                ReaderTopBar(
+                    title = currentChapter?.title ?: session.fileName,
+                    theme = theme,
+                    onToggle = { chromeVisible = false },
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(start = 12.dp, top = 12.dp, end = 12.dp),
                 )
-            },
-    ) {
-        when {
-            session.isLoading -> LoadingState(colors = colors)
-            session.errorMessage != null -> ErrorState(
-                message = session.errorMessage,
-                colors = colors,
-                onRetry = { onAction(ReaderAction.Retry) },
-            )
-            session.pagesForCurrentChapter.isEmpty() -> EmptyState(colors = colors)
-            else -> ReaderPageContent(session = session, colors = colors)
-        }
-
-        if (session.showToolbar) {
-            ReaderTopToolbar(
-                session = session,
-                colors = colors,
-                onBack = {
-                    onSaveProgress()
-                    onBack()
-                },
-                modifier = Modifier.align(Alignment.TopCenter),
-            )
-            ReaderBottomToolbar(
-                session = session,
-                colors = colors,
-                onOpenChapters = { showChapters = true },
-                onOpenSettings = { showSettings = true },
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
+                ReaderBottomBar(
+                    chapterTitle = currentChapter?.title ?: "当前章节",
+                    page = safePage + 1,
+                    totalPages = pages.size,
+                    theme = theme,
+                    onChapterList = { showChapterList = true },
+                    onSettings = onSettingsToggle,
+                    onBack = closeReader,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+                )
+            }
         }
     }
 
-    if (showSettings) {
-        ReaderSettingsSheet(
-            fontSizeSp = session.fontSizeSp,
-            lineSpacing = session.lineSpacing,
-            theme = session.theme,
-            onDismiss = { showSettings = false },
-            onApply = { fontSizeSp, lineSpacing, theme ->
-                onAction(ReaderAction.SetFontSize(fontSizeSp))
-                onAction(ReaderAction.SetLineSpacing(lineSpacing))
-                onAction(ReaderAction.SetTheme(theme))
-            },
-        )
-    }
-
-    if (showChapters) {
+    if (showChapterList) {
         ChapterListSheet(
             chapters = session.chapters,
-            currentChapterIndex = session.currentChapterIndex,
-            onSelectChapter = { onAction(ReaderAction.GoToChapter(it)) },
-            onDismiss = { showChapters = false },
+            currentIndex = session.currentChapterIndex,
+            onSelect = onChapterSelect,
+            onDismiss = { showChapterList = false },
         )
     }
 }
 
 @Composable
-private fun HideStatusBar() {
-    val view = LocalView.current
-    DisposableEffect(view) {
-        val window = (view.context as? Activity)?.window
-        if (window != null) {
-            val controller = WindowCompat.getInsetsController(window, view)
-            controller.hide(WindowInsetsCompat.Type.statusBars())
-            onDispose { controller.show(WindowInsetsCompat.Type.statusBars()) }
-        } else {
-            onDispose { }
-        }
-    }
-}
-
-@Composable
-private fun ReaderTopToolbar(
-    session: ReaderSession,
-    colors: ReaderColors,
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        color = colors.toolbarBackground,
-        shadowElevation = 4.dp,
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "返回", tint = colors.toolbarText)
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = session.chapters.getOrNull(session.currentChapterIndex)?.title ?: session.fileName,
-                        color = colors.toolbarText,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = "${(session.currentPage + 1).coerceAtLeast(1)} / ${session.pagesForCurrentChapter.size.coerceAtLeast(1)}",
-                        color = colors.toolbarText.copy(alpha = 0.68f),
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                }
-            }
-            HorizontalDivider(color = colors.divider)
-        }
-    }
-}
-
-@Composable
-private fun ReaderBottomToolbar(
-    session: ReaderSession,
-    colors: ReaderColors,
-    onOpenChapters: () -> Unit,
-    onOpenSettings: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        color = colors.toolbarBackground,
-        shadowElevation = 6.dp,
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column {
-            HorizontalDivider(color = colors.divider)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "${session.currentChapterIndex + 1} / ${session.chapters.size.coerceAtLeast(1)} 章 · ${session.currentPage + 1} / ${session.pagesForCurrentChapter.size.coerceAtLeast(1)} 页",
-                    color = colors.toolbarText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(onClick = onOpenChapters) {
-                    Icon(Icons.Filled.MenuBook, contentDescription = "目录", tint = colors.toolbarText)
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                IconButton(onClick = onOpenSettings) {
-                    Icon(Icons.Filled.Settings, contentDescription = "设置", tint = colors.toolbarText)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ReaderPageContent(
-    session: ReaderSession,
-    colors: ReaderColors,
-) {
-    val pageText = session.pagesForCurrentChapter.getOrNull(session.currentPage)?.text.orEmpty()
+private fun ReaderLoading(theme: ReaderTheme) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 88.dp),
+            .background(theme.backgroundColor),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = pageText,
-            color = colors.text,
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontSize = session.fontSizeSp.sp,
-                lineHeight = (session.fontSizeSp * session.lineSpacing).sp,
-            ),
-            textAlign = TextAlign.Start,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        CircularProgressIndicator(color = theme.textColor)
     }
 }
 
 @Composable
-private fun LoadingState(colors: ReaderColors) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        CircularProgressIndicator(color = colors.text)
-    }
-}
-
-@Composable
-private fun ErrorState(
-    message: String,
-    colors: ReaderColors,
-    onRetry: () -> Unit,
-) {
+private fun ReaderError(theme: ReaderTheme, message: String, onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .background(theme.backgroundColor)
+            .padding(28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
+        Text(text = "加载失败", color = theme.textColor, style = MaterialTheme.typography.titleLarge)
         Text(
             text = message,
-            color = colors.text,
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
+            color = theme.textColor.copy(alpha = 0.72f),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = 8.dp),
         )
-        Spacer(modifier = Modifier.size(16.dp))
-        Button(onClick = onRetry) {
-            Text("重试")
+        Button(onClick = onBack, modifier = Modifier.padding(top = 20.dp)) {
+            Text("返回")
         }
     }
 }
 
 @Composable
-private fun EmptyState(colors: ReaderColors) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
+private fun ReaderEmpty(theme: ReaderTheme, onBack: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(theme.backgroundColor)
+            .padding(28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(text = "暂无可阅读内容", color = theme.textColor, style = MaterialTheme.typography.titleLarge)
+        Button(onClick = onBack, modifier = Modifier.padding(top = 20.dp)) {
+            Text("返回")
+        }
+    }
+}
+
+@Composable
+private fun ReaderTopBar(
+    title: String,
+    theme: ReaderTheme,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = theme.toolbarColor,
+        contentColor = theme.textColor,
+        shape = RoundedCornerShape(22.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+        )
+    }
+}
+
+@Composable
+private fun ReaderBottomBar(
+    chapterTitle: String,
+    page: Int,
+    totalPages: Int,
+    theme: ReaderTheme,
+    onChapterList: () -> Unit,
+    onSettings: () -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Surface(
-            color = colors.toolbarBackground,
-            shape = RoundedCornerShape(20.dp),
+            color = theme.toolbarColor,
+            contentColor = theme.textColor,
+            shape = RoundedCornerShape(22.dp),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
-                text = "无内容",
-                color = colors.toolbarText,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                text = "$chapterTitle $page/$totalPages 页",
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
             )
+        }
+        Surface(
+            color = theme.toolbarColor,
+            contentColor = theme.textColor,
+            shape = RoundedCornerShape(28.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onChapterList, modifier = Modifier.size(44.dp)) {
+                    Icon(Icons.Filled.List, contentDescription = "目录")
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(text = "目录", style = MaterialTheme.typography.labelMedium)
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = onSettings, modifier = Modifier.size(44.dp)) {
+                    Icon(Icons.Filled.Settings, contentDescription = "设置")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
+                    Icon(Icons.Filled.ArrowBack, contentDescription = "返回")
+                }
+            }
         }
     }
 }

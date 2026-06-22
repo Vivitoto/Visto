@@ -2,40 +2,25 @@ package app.visto.ui.reader
 
 import androidx.compose.ui.graphics.Color
 
-enum class ReaderTheme {
-    LIGHT,
-    DARK,
-    CREAM,
-}
-
-data class ReaderColors(
-    val background: Color,
-    val text: Color,
-    val toolbarBackground: Color,
-    val toolbarText: Color,
-    val divider: Color,
-)
-
-fun ReaderTheme.colors(): ReaderColors = when (this) {
-    ReaderTheme.LIGHT -> ReaderColors(
-        background = Color(0xFFFFFFFF),
-        text = Color(0xFF1A1A1A),
-        toolbarBackground = Color(0xEEFFFFFF),
-        toolbarText = Color(0xFF1A1A1A),
-        divider = Color(0xFFE0E0E0),
-    )
-    ReaderTheme.DARK -> ReaderColors(
-        background = Color(0xFF1A1A1A),
-        text = Color(0xFFE0E0E0),
-        toolbarBackground = Color(0xEE202020),
-        toolbarText = Color(0xFFE0E0E0),
-        divider = Color(0xFF424242),
-    )
-    ReaderTheme.CREAM -> ReaderColors(
-        background = Color(0xFFF5E6D3),
-        text = Color(0xFF3E2723),
-        toolbarBackground = Color(0xEEF5E6D3),
-        toolbarText = Color(0xFF3E2723),
-        divider = Color(0xFFD7C3A7),
-    )
+/** Reader color presets for plain-text books. */
+enum class ReaderTheme(
+    val backgroundColor: Color,
+    val textColor: Color,
+    val toolbarColor: Color,
+) {
+    LIGHT(
+        backgroundColor = Color(0xFFFFFFFF),
+        textColor = Color(0xFF1A1A1A),
+        toolbarColor = Color(0xF2FFFFFF),
+    ),
+    DARK(
+        backgroundColor = Color(0xFF1A1A1A),
+        textColor = Color(0xFFD0D0D0),
+        toolbarColor = Color(0xF2242424),
+    ),
+    CREAM(
+        backgroundColor = Color(0xFFF5F0E8),
+        textColor = Color(0xFF3D3222),
+        toolbarColor = Color(0xF2EFE5D6),
+    );
 }
