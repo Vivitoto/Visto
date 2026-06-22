@@ -39,11 +39,15 @@ import app.visto.data.account.AlbumViewMode
 import app.visto.data.account.AccountService
 import app.visto.data.account.AccountSummary
 import app.visto.data.account.GridDensity
+import app.visto.core.book.BookTextLoader
+import app.visto.core.book.ChapterParser
+import app.visto.core.media.MediaType
 import app.visto.core.model.DavPath
 import app.visto.data.album.AlbumPreviewFinder
 import app.visto.data.album.AlbumCoverFinder
 import app.visto.data.cache.AlbumIndexCache
 import app.visto.data.db.AlbumSourceEntity
+import app.visto.data.db.BookProgressEntity
 import app.visto.data.db.RemoteEntryRepository
 import app.visto.data.thumbnail.AnimatedThumbnailCache
 import app.visto.data.thumbnail.GeneratedThumbnailCache
@@ -80,6 +84,12 @@ import app.visto.ui.browser.BrowserNavigator
 import app.visto.ui.browser.BrowserScreen
 import app.visto.ui.browser.BrowserStateBuilder
 import app.visto.ui.browser.BrowserUiState
+import app.visto.ui.reader.ReaderAction
+import app.visto.ui.reader.ReaderReducer
+import app.visto.ui.reader.ReaderScreen
+import app.visto.ui.reader.ReaderSession
+import app.visto.ui.reader.ReaderSettingsSheet
+import app.visto.ui.reader.ReaderTheme
 import app.visto.ui.settings.SettingsScreen
 import app.visto.ui.settings.SettingsUiState
 import app.visto.ui.theme.ThemeMode
@@ -264,6 +274,107 @@ private sealed interface Screen {
     data object Loading : Screen
     data object Account : Screen
     data object Home : Screen
+}
+
+@Composable
+private fun ActiveReaderScreen(
+    session: ReaderSession,
+    onSessionChange: (ReaderSession) -> Unit,
+    onClose: () -> Unit,
+    onPersistProgress: (ReaderSession) -> Unit,
+) {
+    var showSettings by remember(session.filePath) { mutableStateOf(false) }
+
+    fun updateSession(action: ReaderAction) {
+        val updated = ReaderReducer.reduce(session, action)
+        onSessionChange(updated)
+        onPersistProgress(updated)
+    }
+
+    ReaderScreen(
+        session = session,
+        onBack = onClose,
+        onChapterSelect = { updateSession(ReaderAction.GoToChapter(it)) },
+        onSettingsToggle = { showSettings = true },
+        onSaveProgress = { saved ->
+            onSessionChange(saved)
+            onPersistProgress(saved)
+        },
+    )
+
+    if (showSettings) {
+        ReaderSettingsSheet(
+            current = session,
+            onFontSize = { updateSession(ReaderAction.SetFontSize(it)) },
+            onLineSpacing = { updateSession(ReaderAction.SetLineSpacing(it)) },
+            onTheme = { updateSession(ReaderAction.SetTheme(it)) },
+            onDismiss = { showSettings = false },
+        )
+    }
+}
+
+private fun readerLoadingSession(
+    filePath: String,
+    fileName: String,
+    progress: BookProgressEntity? = null,
+): ReaderSession = ReaderSession(
+    filePath = filePath,
+    fileName = fileName,
+    encoding = progress?.encoding ?: "UTF-8",
+    fullText = "",
+    chapters = emptyList(),
+    currentChapterIndex = progress?.chapterIndex ?: 0,
+    currentPage = progress?.pageOffset ?: 0,
+    pagesForCurrentChapter = emptyList(),
+    fontSizeSp = progress?.fontSizeSp ?: 18,
+    lineSpacing = progress?.lineSpacing ?: 1.5f,
+    theme = progress?.theme.toReaderTheme(),
+    isLoading = true,
+    errorMessage = null,
+)
+
+private fun String?.toReaderTheme(): ReaderTheme = when (this?.lowercase()) {
+    "dark" -> ReaderTheme.DARK
+    "cream" -> ReaderTheme.CREAM
+    else -> ReaderTheme.LIGHT
+}
+
+private fun ReaderTheme.toProgressTheme(): String = when (this) {
+    ReaderTheme.LIGHT -> "light"
+    ReaderTheme.DARK -> "dark"
+    ReaderTheme.CREAM -> "cream"
+}
+
+private suspend fun saveBookProgress(
+    entity: BookProgressEntity?,
+    session: ReaderSession,
+    accountId: Long,
+    sizeBytes: Long?,
+    etag: String?,
+    upsert: (BookProgressEntity) -> Unit,
+) = withContext(Dispatchers.IO) {
+    val now = System.currentTimeMillis()
+    val chapter = session.chapters.getOrNull(session.currentChapterIndex)
+    upsert(
+        BookProgressEntity(
+            id = entity?.id ?: 0,
+            accountId = accountId,
+            path = session.filePath,
+            name = session.fileName,
+            sizeBytes = sizeBytes ?: entity?.sizeBytes,
+            etag = etag ?: entity?.etag,
+            encoding = session.encoding.ifBlank { entity?.encoding ?: "UTF-8" },
+            chapterIndex = session.currentChapterIndex,
+            chapterTitle = chapter?.title,
+            pageOffset = session.currentPage,
+            totalChapters = session.chapters.size,
+            fontSizeSp = session.fontSizeSp,
+            lineSpacing = session.lineSpacing,
+            theme = session.theme.toProgressTheme(),
+            lastReadAt = now,
+            addedAt = entity?.addedAt ?: now,
+        )
+    )
 }
 
 @Composable
@@ -859,15 +970,83 @@ private fun BookshelfHost(
     val state by remember(summary.id) {
         BookshelfStateBuilder.fromFlow(dao.getAllByAccount(summary.id))
     }.collectAsState(initial = BookshelfUiState())
+    var readerSession by remember(summary.id) { mutableStateOf<ReaderSession?>(null) }
+    var activeReaderSizeBytes by remember { mutableStateOf<Long?>(null) }
+    var activeReaderEtag by remember { mutableStateOf<String?>(null) }
+    var activeReaderJob by remember { mutableStateOf<Job?>(null) }
+
+    fun persistProgress(session: ReaderSession) {
+        scope.launch {
+            val existing = withContext(Dispatchers.IO) { dao.getByPath(summary.id, session.filePath) }
+            saveBookProgress(
+                entity = existing,
+                session = session,
+                accountId = summary.id,
+                sizeBytes = activeReaderSizeBytes,
+                etag = activeReaderEtag,
+                upsert = dao::upsert,
+            )
+        }
+    }
+
+    fun openBook(book: BookProgressEntity) {
+        activeReaderJob?.cancel()
+        activeReaderSizeBytes = book.sizeBytes
+        activeReaderEtag = book.etag
+        readerSession = readerLoadingSession(
+            filePath = book.path,
+            fileName = book.name,
+            progress = book,
+        )
+        activeReaderJob = scope.launch {
+            try {
+                val creds = app.accountService.credentialsFor(summary)
+                    ?: error("无法读取账号凭据")
+                val client = WebDavClient(
+                    credentials = creds,
+                    accountId = summary.id,
+                    httpClient = app.okHttpClient,
+                )
+                val result = BookTextLoader.load(client, book.path, context.cacheDir, expectedEtag = book.etag)
+                val chapters = ChapterParser.parse(result.text)
+                activeReaderSizeBytes = result.sizeBytes
+                val loaded = ReaderReducer.reduce(
+                    readerSession ?: readerLoadingSession(book.path, book.name, book),
+                    ReaderAction.Loaded(
+                        encoding = result.encoding,
+                        fullText = result.text,
+                        chapters = chapters,
+                        currentChapterIndex = book.chapterIndex,
+                        currentPage = book.pageOffset,
+                    ),
+                )
+                readerSession = loaded
+                persistProgress(loaded)
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Throwable) {
+                readerSession = (readerSession ?: readerLoadingSession(book.path, book.name, book)).copy(
+                    isLoading = false,
+                    errorMessage = AccountErrorMessages.forWebDavError(e),
+                )
+            }
+        }
+    }
+
+    val activeReader = readerSession
+    if (activeReader != null) {
+        ActiveReaderScreen(
+            session = activeReader,
+            onSessionChange = { readerSession = it },
+            onClose = { readerSession = null },
+            onPersistProgress = ::persistProgress,
+        )
+        return
+    }
 
     BookshelfScreen(
         state = state,
-        onOpenBook = { book ->
-            // TODO(book-reader): enter ReaderScreen once the reader host from Phase 2 is wired here.
-            // Keep this as a no-op placeholder for now so the bookshelf UI can compile independently.
-            @Suppress("UNUSED_VARIABLE")
-            val pendingBook = book
-        },
+        onOpenBook = ::openBook,
         onRemoveBook = { book ->
             scope.launch {
                 withContext(Dispatchers.IO) {
@@ -1166,7 +1345,11 @@ private fun BrowserHost(
     }
     var uiState by remember(summary.id) { mutableStateOf(BrowserUiState(currentPath = initialPath)) }
     var viewerSession by remember { mutableStateOf<ViewerSession?>(null) }
+    var readerSession by remember(summary.id) { mutableStateOf<ReaderSession?>(null) }
+    var activeReaderSizeBytes by remember { mutableStateOf<Long?>(null) }
+    var activeReaderEtag by remember { mutableStateOf<String?>(null) }
     var activeBrowserLoadJob by remember { mutableStateOf<Job?>(null) }
+    var activeReaderJob by remember { mutableStateOf<Job?>(null) }
     var activeBrowserLoadGeneration by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
     val client = remember(summary.id) {
@@ -1223,6 +1406,78 @@ private fun BrowserHost(
 
     LaunchedEffect(summary.id) { loadCurrent(forceRefresh = true) }
 
+    fun persistProgress(session: ReaderSession) {
+        scope.launch {
+            val existing = withContext(Dispatchers.IO) { app.database.bookProgressDao().getByPath(summary.id, session.filePath) }
+            saveBookProgress(
+                entity = existing,
+                session = session,
+                accountId = summary.id,
+                sizeBytes = activeReaderSizeBytes,
+                etag = activeReaderEtag,
+                upsert = app.database.bookProgressDao()::upsert,
+            )
+        }
+    }
+
+    fun openBook(book: app.visto.core.model.RemoteEntry) {
+        activeReaderJob?.cancel()
+        activeReaderSizeBytes = book.sizeBytes
+        activeReaderEtag = book.etag
+        readerSession = readerLoadingSession(filePath = book.path, fileName = book.name)
+
+        if (book.mediaType == MediaType.EPUB_BOOK) {
+            readerSession = readerSession?.copy(
+                isLoading = false,
+                errorMessage = "EPUB 阅读暂未支持",
+            )
+            return
+        }
+
+        activeReaderJob = scope.launch {
+            try {
+                val dao = app.database.bookProgressDao()
+                val progress = withContext(Dispatchers.IO) { dao.getByPath(summary.id, book.path) }
+                if (progress != null) {
+                    readerSession = readerLoadingSession(book.path, book.name, progress)
+                }
+                val result = BookTextLoader.load(client, book.path, context.cacheDir, expectedEtag = book.etag)
+                val chapters = ChapterParser.parse(result.text)
+                activeReaderSizeBytes = result.sizeBytes
+                val loaded = ReaderReducer.reduce(
+                    readerSession ?: readerLoadingSession(book.path, book.name, progress),
+                    ReaderAction.Loaded(
+                        encoding = result.encoding,
+                        fullText = result.text,
+                        chapters = chapters,
+                        currentChapterIndex = progress?.chapterIndex ?: 0,
+                        currentPage = progress?.pageOffset ?: 0,
+                    ),
+                )
+                readerSession = loaded
+                persistProgress(loaded)
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Throwable) {
+                readerSession = (readerSession ?: readerLoadingSession(book.path, book.name)).copy(
+                    isLoading = false,
+                    errorMessage = AccountErrorMessages.forWebDavError(e),
+                )
+            }
+        }
+    }
+
+    val activeReader = readerSession
+    if (activeReader != null) {
+        ActiveReaderScreen(
+            session = activeReader,
+            onSessionChange = { readerSession = it },
+            onClose = { readerSession = null },
+            onPersistProgress = ::persistProgress,
+        )
+        return
+    }
+
     val activeSession = viewerSession
     if (activeSession != null) {
         ViewerScreen(
@@ -1268,6 +1523,7 @@ private fun BrowserHost(
             val all = uiState.media
             viewerSession = ViewerSession.build(all, opened.path)
         },
+        onOpenBook = ::openBook,
         onRefresh = { loadCurrent(forceRefresh = true) },
         canGoBack = navigator.canGoBack,
         canGoRoot = navigator.canGoRoot,
