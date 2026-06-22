@@ -31,10 +31,15 @@ fun ReaderSettingsSheet(
     current: ReaderSession,
     onFontSize: (Int) -> Unit,
     onLineSpacing: (Float) -> Unit,
+    onFontChoice: (ReaderFontChoice) -> Unit,
+    onImportFont: () -> Unit,
     onTheme: (ReaderTheme) -> Unit,
     onSetDefaultSettings: () -> Unit,
     onDismiss: () -> Unit,
+    fontImportError: String? = null,
 ) {
+    val previewFontFamily = rememberReaderFontFamily(current.fontChoice)
+
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
@@ -52,6 +57,36 @@ fun ReaderSettingsSheet(
                     valueRange = 14f..28f,
                     steps = 13,
                 )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = Strings.READER_FONT, style = MaterialTheme.typography.titleMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ReaderFontChoice.BUILT_IN.forEach { choice ->
+                        FontChip(readerFontLabel(choice), choice, current.fontChoice, onFontChoice)
+                    }
+                }
+                if (current.fontChoice is ReaderFontChoice.Custom) {
+                    FontChip(
+                        label = readerFontLabel(current.fontChoice),
+                        value = current.fontChoice,
+                        current = current.fontChoice,
+                        onFontChoice = onFontChoice,
+                    )
+                }
+                OutlinedButton(
+                    onClick = onImportFont,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(Strings.READER_FONT_IMPORT)
+                }
+                if (fontImportError != null) {
+                    Text(
+                        text = fontImportError,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -94,6 +129,7 @@ fun ReaderSettingsSheet(
                         color = current.theme.textColor,
                         fontSize = current.fontSizeSp.sp,
                         lineHeight = (current.fontSizeSp * current.lineSpacing).sp,
+                        fontFamily = previewFontFamily,
                         maxLines = 4,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -108,6 +144,27 @@ fun ReaderSettingsSheet(
             }
         }
     }
+}
+
+@Composable
+private fun FontChip(
+    label: String,
+    value: ReaderFontChoice,
+    current: ReaderFontChoice,
+    onFontChoice: (ReaderFontChoice) -> Unit,
+) {
+    FilterChip(
+        selected = current == value,
+        onClick = { onFontChoice(value) },
+        label = { Text(label) },
+    )
+}
+
+private fun readerFontLabel(choice: ReaderFontChoice): String = when (choice) {
+    ReaderFontChoice.SystemDefault -> Strings.READER_FONT_SYSTEM
+    ReaderFontChoice.Sans -> Strings.READER_FONT_SANS
+    ReaderFontChoice.Serif -> Strings.READER_FONT_SERIF
+    is ReaderFontChoice.Custom -> Strings.readerCustomFont(choice.fileName.substringBeforeLast('.', choice.fileName))
 }
 
 @Composable

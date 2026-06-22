@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,6 +60,7 @@ fun ReaderScreen(
     onViewportChange: (ReaderViewport) -> Unit = {},
 ) {
     val theme = session.theme
+    val readerFontFamily = rememberReaderFontFamily(session.fontChoice)
     var chromeVisible by remember { mutableStateOf(true) }
     var currentPage by remember(session.filePath, session.currentChapterIndex, session.currentPage) {
         mutableStateOf(session.currentPage)
@@ -200,6 +202,7 @@ fun ReaderScreen(
                             theme = theme,
                             fontSizeSp = session.fontSizeSp,
                             lineSpacing = session.lineSpacing,
+                            fontFamily = readerFontFamily,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(horizontal = horizontalPadding, vertical = verticalPadding),
@@ -275,6 +278,7 @@ private fun ReaderPageText(
     theme: ReaderTheme,
     fontSizeSp: Int,
     lineSpacing: Float,
+    fontFamily: FontFamily?,
     modifier: Modifier = Modifier,
 ) {
     if (!presentation.hasStyledTitle) {
@@ -283,6 +287,7 @@ private fun ReaderPageText(
             color = theme.textColor,
             fontSize = fontSizeSp.sp,
             lineHeight = (fontSizeSp * lineSpacing).sp,
+            fontFamily = fontFamily,
             modifier = modifier,
         )
         return
@@ -295,6 +300,7 @@ private fun ReaderPageText(
             fontSize = (fontSizeSp + 5).sp,
             fontWeight = FontWeight.Bold,
             lineHeight = (fontSizeSp * 1.35f).sp,
+            fontFamily = fontFamily,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -305,6 +311,7 @@ private fun ReaderPageText(
                 color = theme.textColor,
                 fontSize = fontSizeSp.sp,
                 lineHeight = (fontSizeSp * lineSpacing).sp,
+                fontFamily = fontFamily,
                 modifier = Modifier.fillMaxWidth(),
             )
         }

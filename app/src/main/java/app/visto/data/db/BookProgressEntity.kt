@@ -50,6 +50,8 @@ data class BookProgressEntity(
     val lineSpacing: Float = 1.5f,
     @ColumnInfo(name = "theme")
     val theme: String = "light",
+    @ColumnInfo(name = "fontChoice")
+    val fontChoice: String = "system",
     @ColumnInfo(name = "lastReadAt")
     val lastReadAt: Long,
     @ColumnInfo(name = "addedAt")

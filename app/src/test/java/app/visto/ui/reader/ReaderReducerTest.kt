@@ -57,6 +57,17 @@ class ReaderReducerTest {
     }
 
     @Test
+    fun fontChoiceUpdatesSessionWithoutChangingChapter() {
+        val session = loadedSession()
+
+        val next = ReaderReducer.reduce(session, ReaderAction.SetFontChoice(ReaderFontChoice.Sans))
+
+        assertEquals(ReaderFontChoice.Sans, next.fontChoice)
+        assertEquals(session.currentChapterIndex, next.currentChapterIndex)
+        assertTrue(next.pagesForCurrentChapter.isNotEmpty())
+    }
+
+    @Test
     fun viewportChangeRecalculatesPagesWithoutChangingChapter() {
         val session = loadedSession()
         val viewport = ReaderViewport(widthPx = 160, heightPx = 200, density = 1f)

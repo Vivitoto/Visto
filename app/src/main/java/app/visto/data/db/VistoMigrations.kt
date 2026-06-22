@@ -58,4 +58,10 @@ object VistoMigrations {
             db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_book_progress_accountId_path` ON `book_progress` (`accountId`, `path`)")
         }
     }
+
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `book_progress` ADD COLUMN `fontChoice` TEXT NOT NULL DEFAULT 'system'")
+        }
+    }
 }

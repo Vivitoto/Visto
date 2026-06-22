@@ -3,8 +3,11 @@ package app.visto
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +31,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,11 +90,13 @@ import app.visto.ui.browser.BrowserScreen
 import app.visto.ui.browser.BrowserStateBuilder
 import app.visto.ui.browser.BrowserUiState
 import app.visto.ui.reader.ReaderAction
+import app.visto.ui.reader.ReaderFontChoice
 import app.visto.ui.reader.ReaderReducer
 import app.visto.ui.reader.ReaderScreen
 import app.visto.ui.reader.ReaderSession
 import app.visto.ui.reader.ReaderSettingsSheet
 import app.visto.ui.reader.ReaderTheme
+import app.visto.ui.reader.readerFontDirectory
 import app.visto.ui.settings.SettingsScreen
 import app.visto.ui.settings.SettingsUiState
 import app.visto.ui.theme.ThemeMode
@@ -98,6 +104,7 @@ import app.visto.ui.theme.VistoTheme
 import app.visto.ui.viewer.ViewerScreen
 import app.visto.ui.viewer.ViewerSession
 import java.io.File
+import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -289,14 +296,36 @@ private fun ActiveReaderScreen(
     onPersistProgress: (ReaderSession) -> Unit,
     onSetDefaultSettings: (ReaderSession) -> Unit,
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val latestSession by rememberUpdatedState(session)
     var showSettings by remember(session.filePath) { mutableStateOf(false) }
+    var fontImportError by remember(session.filePath) { mutableStateOf<String?>(null) }
 
     fun updateSession(action: ReaderAction, persist: Boolean = true) {
-        val updated = ReaderReducer.reduce(session, action)
-        if (updated == session) return
+        val base = latestSession
+        val updated = ReaderReducer.reduce(base, action)
+        if (updated == base) return
         onSessionChange(updated)
         if (persist) {
             onPersistProgress(updated)
+        }
+    }
+
+    val fontPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val imported = try {
+                withContext(Dispatchers.IO) { importReaderFontFromUri(context, uri) }
+            } catch (_: UnsupportedReaderFontException) {
+                fontImportError = Strings.READER_FONT_IMPORT_UNSUPPORTED
+                return@launch
+            } catch (_: Throwable) {
+                fontImportError = Strings.READER_FONT_IMPORT_FAILED
+                return@launch
+            }
+            fontImportError = null
+            updateSession(ReaderAction.SetFontChoice(imported))
         }
     }
 
@@ -319,9 +348,18 @@ private fun ActiveReaderScreen(
             current = session,
             onFontSize = { updateSession(ReaderAction.SetFontSize(it)) },
             onLineSpacing = { updateSession(ReaderAction.SetLineSpacing(it)) },
+            onFontChoice = {
+                fontImportError = null
+                updateSession(ReaderAction.SetFontChoice(it))
+            },
+            onImportFont = {
+                fontImportError = null
+                fontPicker.launch(READER_FONT_PICKER_MIME_TYPES)
+            },
             onTheme = { updateSession(ReaderAction.SetTheme(it)) },
-            onSetDefaultSettings = { onSetDefaultSettings(session) },
+            onSetDefaultSettings = { onSetDefaultSettings(latestSession) },
             onDismiss = { showSettings = false },
+            fontImportError = fontImportError,
         )
     }
 }
@@ -342,6 +380,7 @@ private fun readerLoadingSession(
     pagesForCurrentChapter = emptyList(),
     fontSizeSp = progress?.fontSizeSp ?: defaultSettings.fontSizeSp,
     lineSpacing = progress?.lineSpacing ?: defaultSettings.lineSpacing,
+    fontChoice = ReaderFontChoice.fromStorage(progress?.fontChoice ?: defaultSettings.fontChoice),
     theme = (progress?.theme ?: defaultSettings.theme).toReaderTheme(),
     isLoading = true,
     errorMessage = null,
@@ -363,6 +402,7 @@ private fun ReaderSession.toDefaultSettings(): ReaderDefaultSettings = ReaderDef
     fontSizeSp = fontSizeSp,
     lineSpacing = lineSpacing,
     theme = theme.toProgressTheme(),
+    fontChoice = fontChoice.storageKey,
 )
 
 private suspend fun saveBookProgress(
@@ -391,10 +431,65 @@ private suspend fun saveBookProgress(
             fontSizeSp = session.fontSizeSp,
             lineSpacing = session.lineSpacing,
             theme = session.theme.toProgressTheme(),
+            fontChoice = session.fontChoice.storageKey,
             lastReadAt = now,
             addedAt = entity?.addedAt ?: now,
         )
     )
+}
+
+private val READER_FONT_PICKER_MIME_TYPES = arrayOf(
+    "font/ttf",
+    "font/otf",
+    "application/x-font-ttf",
+    "application/x-font-otf",
+    "application/octet-stream",
+    "*/*",
+)
+
+private class UnsupportedReaderFontException : Exception()
+
+private fun importReaderFontFromUri(context: android.content.Context, uri: Uri): ReaderFontChoice.Custom {
+    val displayName = context.readerFontDisplayName(uri)
+    val targetName = importedReaderFontFileName(displayName, System.currentTimeMillis())
+        ?: throw UnsupportedReaderFontException()
+    val targetDir = readerFontDirectory(context).apply { mkdirs() }
+    val targetFile = File(targetDir, targetName)
+
+    val resolver = context.contentResolver
+    resolver.openInputStream(uri)?.use { input ->
+        targetFile.outputStream().use { output -> input.copyTo(output) }
+    } ?: throw IOException("Unable to open reader font input stream")
+
+    return ReaderFontChoice.Custom(targetFile.name)
+}
+
+private fun android.content.Context.readerFontDisplayName(uri: Uri): String {
+    contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (index >= 0) {
+                val name = cursor.getString(index)
+                if (!name.isNullOrBlank()) return name
+            }
+        }
+    }
+    return uri.lastPathSegment?.substringAfterLast('/') ?: "reader-font.ttf"
+}
+
+internal fun importedReaderFontFileName(displayName: String, nowMillis: Long): String? {
+    val trimmed = displayName.trim()
+    val extension = trimmed.substringAfterLast('.', missingDelimiterValue = "")
+        .lowercase()
+        .takeIf { it == "ttf" || it == "otf" }
+        ?: return null
+    val base = trimmed
+        .substringBeforeLast('.', missingDelimiterValue = "font")
+        .replace(Regex("[^A-Za-z0-9._-]+"), "_")
+        .trim('_', '.', '-')
+        .take(48)
+        .ifBlank { "font" }
+    return "${nowMillis}_${base}.$extension"
 }
 
 @Composable

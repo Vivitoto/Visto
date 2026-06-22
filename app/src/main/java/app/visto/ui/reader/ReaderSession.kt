@@ -29,6 +29,7 @@ data class ReaderSession(
     val pagesForCurrentChapter: List<Page> = emptyList(),
     val fontSizeSp: Int = 18,
     val lineSpacing: Float = 1.5f,
+    val fontChoice: ReaderFontChoice = ReaderFontChoice.DEFAULT,
     val viewport: ReaderViewport = ReaderViewport.DEFAULT,
     val theme: ReaderTheme = ReaderTheme.LIGHT,
     val isLoading: Boolean = true,
@@ -89,6 +90,7 @@ sealed class ReaderSessionAction {
     data object NextPage : ReaderSessionAction()
     data class SetFontSize(val sp: Int) : ReaderSessionAction()
     data class SetLineSpacing(val value: Float) : ReaderSessionAction()
+    data class SetFontChoice(val choice: ReaderFontChoice) : ReaderSessionAction()
     data class SetViewport(val viewport: ReaderViewport) : ReaderSessionAction()
     data class SetTheme(val theme: ReaderTheme) : ReaderSessionAction()
 }
@@ -107,6 +109,7 @@ sealed class ReaderAction {
     data class GoToChapter(val index: Int) : ReaderAction()
     data class SetFontSize(val sp: Int) : ReaderAction()
     data class SetLineSpacing(val spacing: Float) : ReaderAction()
+    data class SetFontChoice(val choice: ReaderFontChoice) : ReaderAction()
     data class SetViewport(val viewport: ReaderViewport) : ReaderAction()
     data class SetTheme(val theme: ReaderTheme) : ReaderAction()
     data object NextPage : ReaderAction()
@@ -145,6 +148,10 @@ object ReaderReducer {
             session,
             ReaderSessionAction.SetLineSpacing(action.spacing),
         )
+        is ReaderAction.SetFontChoice -> ReaderSessionReducer.reduce(
+            session,
+            ReaderSessionAction.SetFontChoice(action.choice),
+        )
         is ReaderAction.SetViewport -> ReaderSessionReducer.reduce(
             session,
             ReaderSessionAction.SetViewport(action.viewport),
@@ -180,6 +187,7 @@ object ReaderSessionReducer {
         pagesForCurrentChapter = emptyList(),
         fontSizeSp = DEFAULT_FONT_SIZE_SP,
         lineSpacing = DEFAULT_LINE_SPACING,
+        fontChoice = ReaderFontChoice.DEFAULT,
         viewport = ReaderViewport.DEFAULT,
         theme = ReaderTheme.LIGHT,
         isLoading = loading,
@@ -230,6 +238,17 @@ object ReaderSessionReducer {
             } else {
                 repaginate(
                     state.copy(lineSpacing = lineSpacing),
+                    resetPage = false,
+                    targetStartChar = state.currentPageStartChar(),
+                )
+            }
+        }
+        is ReaderSessionAction.SetFontChoice -> {
+            if (action.choice == state.fontChoice) {
+                state
+            } else {
+                repaginate(
+                    state.copy(fontChoice = action.choice),
                     resetPage = false,
                     targetStartChar = state.currentPageStartChar(),
                 )

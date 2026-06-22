@@ -31,6 +31,7 @@ class VistoPreferencesTest {
                 fontSizeSp = 18,
                 lineSpacing = 1.5f,
                 theme = "light",
+                fontChoice = "system",
             ),
             prefs.defaultReaderSettings,
         )
@@ -44,12 +45,14 @@ class VistoPreferencesTest {
             fontSizeSp = 40,
             lineSpacing = 5.0f,
             theme = "DARK",
+            fontChoice = "serif",
         )
 
         val reloaded = VistoPreferences(context).defaultReaderSettings
         assertEquals(28, reloaded.fontSizeSp)
         assertEquals(2.4f, reloaded.lineSpacing, 0.0f)
         assertEquals("dark", reloaded.theme)
+        assertEquals("serif", reloaded.fontChoice)
     }
 
     @Test
@@ -64,8 +67,21 @@ class VistoPreferencesTest {
         assertEquals("light", prefs.defaultReaderSettings.theme)
     }
 
+    @Test
+    fun malformedStoredReaderFontFallsBackToSystem() {
+        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_READER_DEFAULT_FONT_CHOICE, "custom:../bad.ttf")
+            .commit()
+
+        val prefs = VistoPreferences(context)
+
+        assertEquals("system", prefs.defaultReaderSettings.fontChoice)
+    }
+
     private companion object {
         const val PREF_NAME = "visto_settings"
         const val KEY_READER_DEFAULT_THEME = "reader_default_theme"
+        const val KEY_READER_DEFAULT_FONT_CHOICE = "reader_default_font_choice"
     }
 }

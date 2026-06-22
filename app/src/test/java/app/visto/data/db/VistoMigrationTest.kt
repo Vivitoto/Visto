@@ -27,7 +27,7 @@ class VistoMigrationTest {
             val sqlite = db.openHelper.writableDatabase
             sqlite.query("PRAGMA user_version").use { cursor ->
                 assertTrue(cursor.moveToFirst())
-                assertEquals(3, cursor.getInt(0))
+                assertEquals(4, cursor.getInt(0))
             }
 
             sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'book_progress'").use { cursor ->
@@ -53,6 +53,17 @@ class VistoMigrationTest {
                 assertEquals("accountId", cursor.getString(cursor.getColumnIndexOrThrow("from")))
                 assertEquals("id", cursor.getString(cursor.getColumnIndexOrThrow("to")))
                 assertEquals("CASCADE", cursor.getString(cursor.getColumnIndexOrThrow("on_delete")))
+            }
+
+            sqlite.query("PRAGMA table_info(`book_progress`)").use { cursor ->
+                var foundFontChoice = false
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(cursor.getColumnIndexOrThrow("name")) == "fontChoice") {
+                        foundFontChoice = true
+                        assertEquals("TEXT", cursor.getString(cursor.getColumnIndexOrThrow("type")))
+                    }
+                }
+                assertTrue("book_progress should persist reader font choice", foundFontChoice)
             }
         } finally {
             db.close()
@@ -83,6 +94,68 @@ class VistoMigrationTest {
             sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'book_progress'").use { cursor ->
                 assertTrue("migration should create book_progress", cursor.moveToFirst())
                 assertNotNull(cursor.getString(0))
+            }
+        } finally {
+            helper.close()
+            context.deleteDatabase(dbName)
+        }
+    }
+
+    @Test
+    fun migration3To4AddsReaderFontChoiceDefault() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val dbName = "migration-3-4-${System.nanoTime()}.db"
+        context.deleteDatabase(dbName)
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(dbName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(3) {
+                        override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) = Unit
+                        override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+                    }
+                )
+                .build()
+        )
+
+        try {
+            val sqlite = helper.writableDatabase
+            sqlite.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `book_progress` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `accountId` INTEGER NOT NULL,
+                    `path` TEXT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `sizeBytes` INTEGER,
+                    `etag` TEXT,
+                    `encoding` TEXT NOT NULL,
+                    `chapterIndex` INTEGER NOT NULL,
+                    `chapterTitle` TEXT,
+                    `pageOffset` INTEGER NOT NULL,
+                    `totalChapters` INTEGER NOT NULL,
+                    `fontSizeSp` INTEGER NOT NULL,
+                    `lineSpacing` REAL NOT NULL,
+                    `theme` TEXT NOT NULL,
+                    `lastReadAt` INTEGER NOT NULL,
+                    `addedAt` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            sqlite.execSQL(
+                """
+                INSERT INTO `book_progress` (
+                    `accountId`, `path`, `name`, `encoding`, `chapterIndex`, `pageOffset`,
+                    `totalChapters`, `fontSizeSp`, `lineSpacing`, `theme`, `lastReadAt`, `addedAt`
+                ) VALUES (1, '/Books/a.txt', 'a.txt', 'UTF-8', 0, 0, 1, 18, 1.5, 'light', 100, 50)
+                """.trimIndent()
+            )
+
+            VistoMigrations.MIGRATION_3_4.migrate(sqlite)
+
+            sqlite.query("SELECT fontChoice FROM book_progress WHERE path = '/Books/a.txt'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("system", cursor.getString(0))
             }
         } finally {
             helper.close()

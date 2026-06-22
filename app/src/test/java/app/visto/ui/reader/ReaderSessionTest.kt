@@ -76,6 +76,27 @@ class ReaderSessionTest {
     }
 
     @Test
+    fun setFontChoicePersistsChoiceAndKeepsCurrentReadingPosition() {
+        val loaded = ReaderSessionReducer.reduce(loadedState(), ReaderSessionAction.NextPage)
+        val originalPageStart = loaded.pagesForCurrentChapter[loaded.currentPage].startChar
+
+        val next = ReaderSessionReducer.reduce(loaded, ReaderSessionAction.SetFontChoice(ReaderFontChoice.Serif))
+
+        assertEquals(ReaderFontChoice.Serif, next.fontChoice)
+        assertEquals(loaded.currentChapterIndex, next.currentChapterIndex)
+        assertTrue(originalPageStart >= next.pagesForCurrentChapter[next.currentPage].startChar)
+        assertTrue(originalPageStart <= next.pagesForCurrentChapter[next.currentPage].endChar)
+    }
+
+    @Test
+    fun readerFontChoiceStorageSanitizesCustomFileNames() {
+        assertEquals(ReaderFontChoice.Sans, ReaderFontChoice.fromStorage("sans"))
+        assertEquals(ReaderFontChoice.Custom("mine.ttf"), ReaderFontChoice.fromStorage("custom:mine.ttf"))
+        assertEquals(ReaderFontChoice.SystemDefault, ReaderFontChoice.fromStorage("custom:../bad.ttf"))
+        assertEquals(ReaderFontChoice.SystemDefault, ReaderFontChoice.fromStorage("custom:bad.txt"))
+    }
+
+    @Test
     fun viewportUpdateWhileLoadingKeepsSavedPage() {
         val loading = ReaderSessionReducer.initial(loading = true).copy(currentPage = 8)
         val viewport = ReaderViewport(widthPx = 240, heightPx = 320, density = 2f)

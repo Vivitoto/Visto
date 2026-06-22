@@ -37,6 +37,7 @@ class BookProgressEntityTest {
         assertEquals(18, entity.fontSizeSp)
         assertEquals(1.5f, entity.lineSpacing, 0.0001f)
         assertEquals("light", entity.theme)
+        assertEquals("system", entity.fontChoice)
         assertEquals(100L, entity.lastReadAt)
         assertEquals(50L, entity.addedAt)
     }
