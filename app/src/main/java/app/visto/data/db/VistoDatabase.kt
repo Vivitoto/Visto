@@ -11,8 +11,9 @@ import androidx.room.RoomDatabase
         RemoteEntryEntity::class,
         ThumbnailCacheEntity::class,
         AlbumSourceEntity::class,
+        BookProgressEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class VistoDatabase : RoomDatabase() {
@@ -28,6 +29,9 @@ abstract class VistoDatabase : RoomDatabase() {
             context.applicationContext,
             VistoDatabase::class.java,
             DB_NAME,
-        ).addMigrations(VistoMigrations.MIGRATION_1_2).build()
+        ).addMigrations(
+            VistoMigrations.MIGRATION_1_2,
+            VistoMigrations.MIGRATION_2_3,
+        ).build()
     }
 }
