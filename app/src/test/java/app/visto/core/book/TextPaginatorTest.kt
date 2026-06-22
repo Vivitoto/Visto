@@ -42,7 +42,7 @@ class TextPaginatorTest {
     fun longerTextReturnsMultiplePagesWithoutOverlappingCharacters() {
         val text = (1..80).joinToString(separator = "\n") { "第${it}行正文" }
 
-        val pages = TextPaginator.paginate(text, 120f, 80f, 18f, 1.5f, 1f)
+        val pages = TextPaginator.paginate(text, 120f, 1f, 18f, 1.5f, 1f)
 
         assertTrue(pages.size > 1)
         assertEquals(0, pages.first().startChar)
