@@ -44,7 +44,9 @@ object DirectorySorter {
         MediaType.IMAGE -> 0
         MediaType.ANIMATED_IMAGE -> 1
         MediaType.VIDEO -> 2
-        MediaType.OTHER -> 3
-        MediaType.UNKNOWN -> 4
+        MediaType.TEXT_BOOK -> 3
+        MediaType.EPUB_BOOK -> 4
+        MediaType.OTHER -> 5
+        MediaType.UNKNOWN -> 6
     }
 }

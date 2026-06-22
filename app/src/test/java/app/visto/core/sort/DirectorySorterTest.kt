@@ -78,9 +78,14 @@ class DirectorySorterTest {
 
     @Test
     fun typeSortGroupsByMediaType() {
-        val sorted = DirectorySorter.sort(mixed, SortMode.TYPE).map { it.name }
-        // folders first, then IMAGE -> ANIMATED_IMAGE -> VIDEO
-        assertEquals(listOf("Camera", "Travel", "z.jpg", "b.gif", "a.mp4"), sorted)
+        val withBooks = mixed + listOf(
+            image("book.txt", type = MediaType.TEXT_BOOK),
+            image("novel.epub", type = MediaType.EPUB_BOOK),
+        )
+
+        val sorted = DirectorySorter.sort(withBooks, SortMode.TYPE).map { it.name }
+
+        assertEquals(listOf("Camera", "Travel", "z.jpg", "b.gif", "a.mp4", "book.txt", "novel.epub"), sorted)
     }
 
     @Test

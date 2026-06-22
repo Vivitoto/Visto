@@ -67,6 +67,7 @@ fun ReaderScreen(
     }
 
     fun saveProgress(page: Int = safePage) {
+        if (session.isLoading || session.errorMessage != null || pages.isEmpty()) return
         onSaveProgress(session.copy(currentPage = page.coerceIn(0, pages.lastIndex.coerceAtLeast(0))))
     }
 

@@ -33,7 +33,7 @@ import kotlin.coroutines.resumeWithException
  */
 class WebDavClient(
     private val credentials: WebDavCredentials,
-    private val accountId: Long,
+    val accountId: Long,
     httpClient: OkHttpClient? = null,
 ) {
 

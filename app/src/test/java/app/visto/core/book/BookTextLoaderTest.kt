@@ -43,8 +43,10 @@ class BookTextLoaderTest {
         assertEquals("第一章 开始\n你好 Visto", result.text)
         assertEquals("UTF-8", result.encoding)
         assertEquals("第一章 开始\n你好 Visto".toByteArray(Charsets.UTF_8).size.toLong(), result.sizeBytes)
+        assertEquals("book-v1", result.etag)
         assertTrue(result.cachedFile.exists())
-        assertEquals("books", result.cachedFile.parentFile?.name)
+        assertEquals("1", result.cachedFile.parentFile?.name)
+        assertEquals("books", result.cachedFile.parentFile?.parentFile?.name)
         assertEquals("第一章 开始\n你好 Visto", result.cachedFile.readText(Charsets.UTF_8))
         assertEquals("GET", server.takeRequest().method)
     }
@@ -73,15 +75,29 @@ class BookTextLoaderTest {
 
         assertEquals("旧内容", result.text)
         assertEquals("UTF-8", result.encoding)
+        assertEquals("same", result.etag)
         assertEquals(1, server.requestCount)
     }
 
-    private fun client(): WebDavClient = WebDavClient(
+    @Test
+    fun cacheIsScopedByAccountId() = runBlocking {
+        val cacheDir = temporaryFolder.newFolder("cache")
+        server.enqueue(MockResponse().setBody("账号一").setHeader("ETag", "same"))
+        server.enqueue(MockResponse().setBody("账号二").setHeader("ETag", "same"))
+
+        BookTextLoader.load(client(accountId = 1L), "/books/a.txt", cacheDir)
+        val result = BookTextLoader.load(client(accountId = 2L), "/books/a.txt", cacheDir, expectedEtag = "same")
+
+        assertEquals("账号二", result.text)
+        assertEquals(2, server.requestCount)
+    }
+
+    private fun client(accountId: Long = 1L): WebDavClient = WebDavClient(
         credentials = WebDavCredentials(
             baseUrl = server.url("/dav").toString(),
             username = "alice",
             password = "secret",
         ),
-        accountId = 1L,
+        accountId = accountId,
     )
 }

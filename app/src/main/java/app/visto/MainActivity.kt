@@ -366,7 +366,7 @@ private suspend fun saveBookProgress(
             path = session.filePath,
             name = session.fileName,
             sizeBytes = sizeBytes ?: entity?.sizeBytes,
-            etag = etag ?: entity?.etag,
+            etag = etag,
             encoding = session.encoding.ifBlank { entity?.encoding ?: "UTF-8" },
             chapterIndex = session.currentChapterIndex,
             chapterTitle = chapter?.title,
@@ -1014,6 +1014,7 @@ private fun BookshelfHost(
                 val result = BookTextLoader.load(client, book.path, context.cacheDir, expectedEtag = book.etag)
                 val chapters = ChapterParser.parse(result.text)
                 activeReaderSizeBytes = result.sizeBytes
+                activeReaderEtag = result.etag
                 val loaded = ReaderReducer.reduce(
                     readerSession ?: readerLoadingSession(book.path, book.name, book),
                     ReaderAction.Loaded(
@@ -1042,7 +1043,11 @@ private fun BookshelfHost(
         ActiveReaderScreen(
             session = activeReader,
             onSessionChange = { readerSession = it },
-            onClose = { readerSession = null },
+            onClose = {
+                activeReaderJob?.cancel()
+                activeReaderJob = null
+                readerSession = null
+            },
             onPersistProgress = ::persistProgress,
         )
         return
@@ -1067,15 +1072,18 @@ private fun clearBookCache(cacheDir: File, accountId: Long, path: String) {
     val booksRoot = File(cacheDir, "books")
     val pathDigest = java.security.MessageDigest.getInstance("SHA-256")
         .digest(path.toByteArray(Charsets.UTF_8))
-        .take(8)
         .joinToString(separator = "") { byte -> "%02x".format(byte) }
-    booksRoot.walkTopDown()
+
+    val accountDir = File(booksRoot, accountId.toString())
+    accountDir.walkTopDown()
         .filter { it.isFile && it.name.contains(pathDigest) }
         .forEach { runCatching { it.delete() } }
-    // Future reader integration is expected to place files under books/{accountId}; if an
-    // older cache shape exists, the digest scan above removes the exact file without touching
-    // other cached books.
-    File(booksRoot, accountId.toString()).takeIf { it.isDirectory && it.list().isNullOrEmpty() }?.delete()
+    accountDir.takeIf { it.isDirectory && it.list().isNullOrEmpty() }?.delete()
+
+    // Remove legacy path-only cache files written directly under books/.
+    booksRoot.listFiles()
+        ?.filter { it.isFile && it.name.contains(pathDigest) }
+        ?.forEach { runCatching { it.delete() } }
 }
 
 private fun clearAllBookCache(cacheDir: File) {
@@ -1462,6 +1470,7 @@ private fun BrowserHost(
                 val result = BookTextLoader.load(client, book.path, context.cacheDir, expectedEtag = book.etag)
                 val chapters = ChapterParser.parse(result.text)
                 activeReaderSizeBytes = result.sizeBytes
+                activeReaderEtag = result.etag
                 val loaded = ReaderReducer.reduce(
                     readerSession ?: readerLoadingSession(book.path, book.name, progress),
                     ReaderAction.Loaded(
@@ -1490,7 +1499,11 @@ private fun BrowserHost(
         ActiveReaderScreen(
             session = activeReader,
             onSessionChange = { readerSession = it },
-            onClose = { readerSession = null },
+            onClose = {
+                activeReaderJob?.cancel()
+                activeReaderJob = null
+                readerSession = null
+            },
             onPersistProgress = ::persistProgress,
         )
         return

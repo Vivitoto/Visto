@@ -15,6 +15,7 @@ data class BookTextResult(
     val text: String,
     val encoding: String,
     val sizeBytes: Long,
+    val etag: String?,
     val cachedFile: File,
 )
 
@@ -30,7 +31,7 @@ object BookTextLoader {
         cacheDir: File,
         expectedEtag: String? = null,
     ): BookTextResult = withContext(Dispatchers.IO) {
-        val cacheFile = cacheFile(cacheDir, path)
+        val cacheFile = cacheFile(cacheDir, webDavClient.accountId, path)
         val metaFile = metaFile(cacheFile)
         val metadata = readMetadata(metaFile)
 
@@ -40,6 +41,7 @@ object BookTextLoader {
                 text = text,
                 encoding = metadata.encoding ?: "UTF-8",
                 sizeBytes = metadata.sizeBytes ?: cacheFile.length(),
+                etag = metadata.etag,
                 cachedFile = cacheFile,
             )
         }
@@ -55,9 +57,10 @@ object BookTextLoader {
             val encoding = TextEncodingDetector.detect(bytes)
             val text = String(bytes, Charset.forName(encoding)).removePrefix("\uFEFF")
             cacheFile.writeText(text, Charsets.UTF_8)
+            val etag = resp.header("ETag")
             writeMetadata(
                 metaFile = metaFile,
-                etag = resp.header("ETag"),
+                etag = etag,
                 encoding = encoding,
                 sizeBytes = bytes.size.toLong(),
             )
@@ -65,13 +68,14 @@ object BookTextLoader {
                 text = text,
                 encoding = encoding,
                 sizeBytes = bytes.size.toLong(),
+                etag = etag,
                 cachedFile = cacheFile,
             )
         }
     }
 
-    private fun cacheFile(cacheDir: File, path: String): File =
-        File(File(cacheDir, CACHE_SUBDIR), "${sha256(path)}.txt")
+    private fun cacheFile(cacheDir: File, accountId: Long, path: String): File =
+        File(File(File(cacheDir, CACHE_SUBDIR), accountId.toString()), "${sha256(path)}.txt")
 
     private fun metaFile(cacheFile: File): File = File(cacheFile.parentFile, "${cacheFile.name}$META_SUFFIX")
 
