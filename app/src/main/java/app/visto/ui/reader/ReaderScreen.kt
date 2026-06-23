@@ -117,15 +117,15 @@ fun ReaderScreen(
         ) {
             val density = LocalDensity.current
             val horizontalPadding = if (maxWidth < 360.dp) 18.dp else 22.dp
-            val hiddenVerticalPadding = if (maxHeight < 600.dp) 24.dp else 28.dp
-            val topContentPadding = if (chromeVisible) 64.dp else hiddenVerticalPadding
-            val bottomContentPadding = if (chromeVisible) 104.dp else hiddenVerticalPadding
+            // Keep pagination stable when the chrome is toggled; toolbar/footer are overlays.
+            val verticalPadding = if (maxHeight < 600.dp) 24.dp else 28.dp
+            val topContentPadding = verticalPadding
+            val bottomContentPadding = verticalPadding
             val viewport = remember(
                 maxWidth,
                 maxHeight,
                 horizontalPadding,
-                topContentPadding,
-                bottomContentPadding,
+                verticalPadding,
                 density,
             ) {
                 with(density) {
