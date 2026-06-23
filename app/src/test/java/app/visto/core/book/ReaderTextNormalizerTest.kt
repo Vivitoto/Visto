@@ -22,13 +22,13 @@ class ReaderTextNormalizerTest {
     }
 
     @Test
-    fun blankLinesPreserveParagraphSeparation() {
+    fun blankLinesSeparateParagraphsWithoutVisibleBlankDisplayLines() {
         val text = "第一段的第一行，\n第二行仍是一段。\n\n   \n第二段的第一行，\r第二行仍是一段。"
 
         val normalized = ReaderTextNormalizer.normalize(text)
 
         assertEquals(
-            "\u3000\u3000第一段的第一行，第二行仍是一段。\n\n\u3000\u3000第二段的第一行，第二行仍是一段。",
+            "\u3000\u3000第一段的第一行，第二行仍是一段。\n\u3000\u3000第二段的第一行，第二行仍是一段。",
             normalized,
         )
     }
@@ -64,11 +64,29 @@ class ReaderTextNormalizerTest {
     }
 
     @Test
+    fun blankLinesAroundMarkdownStandaloneLinesDoNotCreateDisplayGaps() {
+        val text = "# 标题\n\n- 项目\n\n正文"
+
+        val normalized = ReaderTextNormalizer.normalize(text)
+
+        assertEquals("# 标题\n- 项目\n\u3000\u3000正文", normalized)
+    }
+
+    @Test
     fun fencedCodeBlocksAreNotIndented() {
         val text = "```kotlin\nprintln(\"hi\")\n```\n正文"
 
         val normalized = ReaderTextNormalizer.normalize(text)
 
         assertEquals("```kotlin\nprintln(\"hi\")\n```\n\u3000\u3000正文", normalized)
+    }
+
+    @Test
+    fun fencedCodeBlockInternalBlankLinesArePreserved() {
+        val text = "```kotlin\nval a = 1\n\nval b = 2\n```\n\n正文"
+
+        val normalized = ReaderTextNormalizer.normalize(text)
+
+        assertEquals("```kotlin\nval a = 1\n\nval b = 2\n```\n\u3000\u3000正文", normalized)
     }
 }

@@ -34,11 +34,8 @@ object ReaderTextNormalizer {
             paragraphLines.clear()
         }
 
-        fun appendParagraphBreak() {
+        fun separateParagraph() {
             flushParagraph()
-            if (output.isNotEmpty() && output.last().isNotEmpty()) {
-                output += ""
-            }
         }
 
         normalizeLineEndings(text).split('\n').forEach { rawLine ->
@@ -53,7 +50,7 @@ object ReaderTextNormalizer {
             }
 
             if (line.isEmpty()) {
-                appendParagraphBreak()
+                separateParagraph()
                 return@forEach
             }
 

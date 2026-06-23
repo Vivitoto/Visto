@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -46,6 +47,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.visto.ui.Strings
@@ -118,31 +121,28 @@ fun ReaderScreen(
                 .background(palette.backgroundColor),
         ) {
             val density = LocalDensity.current
-            val horizontalPadding = if (maxWidth < 360.dp) 18.dp else 22.dp
-            // Keep pagination stable when the chrome is toggled; toolbar/footer are overlays.
-            val verticalPadding = if (maxHeight < 600.dp) 24.dp else 28.dp
-            val topContentPadding = verticalPadding
-            val bottomContentPadding = verticalPadding
+            var measuredFooterHeight by remember { mutableStateOf(ReaderLayoutMetrics.FooterHeightReserve) }
+            var measuredBottomBarHeight by remember { mutableStateOf(ReaderLayoutMetrics.DefaultBottomBarHeight) }
+            val layoutPadding = remember(maxWidth, maxHeight, measuredFooterHeight, measuredBottomBarHeight) {
+                ReaderLayoutMetrics.contentPadding(
+                    maxWidth = maxWidth,
+                    maxHeight = maxHeight,
+                    measuredFooterHeight = measuredFooterHeight,
+                    measuredBottomBarHeight = measuredBottomBarHeight,
+                )
+            }
             val viewport = remember(
                 maxWidth,
                 maxHeight,
-                horizontalPadding,
-                verticalPadding,
+                layoutPadding,
                 density,
             ) {
-                with(density) {
-                    ReaderViewport(
-                        widthPx = (maxWidth - horizontalPadding * 2)
-                            .coerceAtLeast(1.dp)
-                            .toPx()
-                            .roundToInt(),
-                        heightPx = (maxHeight - topContentPadding - bottomContentPadding)
-                            .coerceAtLeast(1.dp)
-                            .toPx()
-                            .roundToInt(),
-                        density = density.density * density.fontScale,
-                    )
-                }
+                ReaderLayoutMetrics.viewport(
+                    maxWidth = maxWidth,
+                    maxHeight = maxHeight,
+                    padding = layoutPadding,
+                    density = density,
+                )
             }
 
             LaunchedEffect(viewport, session.viewport) {
@@ -205,22 +205,23 @@ fun ReaderScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(
-                                    start = horizontalPadding,
-                                    top = topContentPadding,
-                                    end = horizontalPadding,
-                                    bottom = bottomContentPadding,
+                                    start = layoutPadding.horizontalPadding,
+                                    top = layoutPadding.topContentPadding,
+                                    end = layoutPadding.horizontalPadding,
+                                    bottom = layoutPadding.bottomContentPadding,
                                 ),
                         )
                         ReaderPageFooter(
                             chapterTitle = currentChapter?.title ?: Strings.READER_CURRENT_CHAPTER,
                             progressPercent = progressPercent,
                             palette = palette,
+                            onMeasuredHeight = { measuredFooterHeight = it },
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .padding(
-                                    start = horizontalPadding,
-                                    end = horizontalPadding,
-                                    bottom = if (chromeVisible) 92.dp else 14.dp,
+                                    start = layoutPadding.horizontalPadding,
+                                    end = layoutPadding.horizontalPadding,
+                                    bottom = layoutPadding.footerBottomPadding(chromeVisible),
                                 ),
                         )
                     }
@@ -241,9 +242,14 @@ fun ReaderScreen(
                     onChapterList = { showChapterList = true },
                     onSettings = onSettingsToggle,
                     onBack = ::closeReader,
+                    onMeasuredHeight = { measuredBottomBarHeight = it },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
+                        .padding(
+                            start = 12.dp,
+                            end = 12.dp,
+                            bottom = ReaderLayoutMetrics.BottomBarBottomPadding,
+                        ),
                 )
             }
         }
@@ -256,6 +262,93 @@ fun ReaderScreen(
             onSelect = onChapterSelect,
             onDismiss = { showChapterList = false },
         )
+    }
+}
+
+internal data class ReaderContentPadding(
+    val horizontalPadding: Dp,
+    val topContentPadding: Dp,
+    val bottomContentPadding: Dp,
+    val footerBottomPaddingWithChrome: Dp,
+    val footerBottomPaddingWithoutChrome: Dp,
+) {
+    fun footerBottomPadding(chromeVisible: Boolean): Dp =
+        if (chromeVisible) footerBottomPaddingWithChrome else footerBottomPaddingWithoutChrome
+}
+
+internal object ReaderLayoutMetrics {
+    private val CompactWidthThreshold = 360.dp
+    private val CompactHeightThreshold = 600.dp
+    private val CompactHorizontalPadding = 18.dp
+    private val RegularHorizontalPadding = 22.dp
+    private val CompactVerticalPadding = 24.dp
+    private val RegularVerticalPadding = 28.dp
+    internal val BottomBarBottomPadding = 10.dp
+    internal val BottomBarHorizontalPadding = 5.dp
+    internal val BottomBarVerticalPadding = 5.dp
+    internal val ChromeIconButtonSize = 40.dp
+    private val MinimumInteractiveButtonSize = 48.dp
+    internal val DefaultBottomBarHeight = MinimumInteractiveButtonSize + BottomBarVerticalPadding * 2
+    private val FooterGapAboveBottomBar = 32.dp
+    private val FooterBottomPaddingWithoutChrome = 14.dp
+    internal val FooterHeightReserve = 28.dp
+    internal val FooterTextClearance = 12.dp
+
+    fun contentPadding(
+        maxWidth: Dp,
+        maxHeight: Dp,
+        measuredFooterHeight: Dp = FooterHeightReserve,
+        measuredBottomBarHeight: Dp = DefaultBottomBarHeight,
+    ): ReaderContentPadding {
+        val horizontalPadding = if (maxWidth < CompactWidthThreshold) {
+            CompactHorizontalPadding
+        } else {
+            RegularHorizontalPadding
+        }
+        val baseVerticalPadding = if (maxHeight < CompactHeightThreshold) {
+            CompactVerticalPadding
+        } else {
+            RegularVerticalPadding
+        }
+        val safeFooterHeight = maxOf(FooterHeightReserve, measuredFooterHeight)
+        val safeBottomBarHeight = maxOf(DefaultBottomBarHeight, measuredBottomBarHeight)
+        val footerBottomPaddingWithChrome =
+            BottomBarBottomPadding + safeBottomBarHeight + FooterGapAboveBottomBar
+        val bottomOverlayReserve = footerBottomPaddingWithChrome + safeFooterHeight + FooterTextClearance
+        val bottomContentPadding = if (baseVerticalPadding > bottomOverlayReserve) {
+            baseVerticalPadding
+        } else {
+            bottomOverlayReserve
+        }
+        return ReaderContentPadding(
+            horizontalPadding = horizontalPadding,
+            topContentPadding = baseVerticalPadding,
+            bottomContentPadding = bottomContentPadding,
+            footerBottomPaddingWithChrome = footerBottomPaddingWithChrome,
+            footerBottomPaddingWithoutChrome = FooterBottomPaddingWithoutChrome,
+        )
+    }
+
+    fun viewport(
+        maxWidth: Dp,
+        maxHeight: Dp,
+        padding: ReaderContentPadding,
+        density: Density,
+    ): ReaderViewport {
+        val viewportDensity = density.density * density.fontScale
+        return with(density) {
+            ReaderViewport(
+                widthPx = (maxWidth - padding.horizontalPadding * 2)
+                    .coerceAtLeast(1.dp)
+                    .toPx()
+                    .roundToInt(),
+                heightPx = (maxHeight - padding.topContentPadding - padding.bottomContentPadding)
+                    .coerceAtLeast(1.dp)
+                    .toPx()
+                    .roundToInt(),
+                density = viewportDensity,
+            )
+        }
     }
 }
 
@@ -396,8 +489,10 @@ private fun ReaderPageFooter(
     chapterTitle: String,
     progressPercent: Int,
     palette: ReaderPalette,
+    onMeasuredHeight: (Dp) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val density = LocalDensity.current
     Surface(
         color = palette.toolbarColor.copy(alpha = if (palette.isDark) 0.28f else 0.36f),
         contentColor = palette.textColor.copy(alpha = 0.58f),
@@ -407,27 +502,35 @@ private fun ReaderPageFooter(
             .widthIn(max = 560.dp)
             .fillMaxWidth(),
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
+            modifier = Modifier.onSizeChanged { size ->
+                with(density) {
+                    onMeasuredHeight(size.height.toDp())
+                }
+            },
         ) {
-            Text(
-                text = chapterTitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = palette.textColor.copy(alpha = 0.58f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = "$progressPercent%",
-                style = MaterialTheme.typography.labelSmall,
-                color = palette.textColor.copy(alpha = 0.58f),
-                maxLines = 1,
-                textAlign = TextAlign.End,
-                modifier = Modifier.padding(start = 12.dp),
-            )
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = chapterTitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = palette.textColor.copy(alpha = 0.58f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = "$progressPercent%",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = palette.textColor.copy(alpha = 0.58f),
+                    maxLines = 1,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.padding(start = 12.dp),
+                )
+            }
         }
     }
 }
@@ -438,8 +541,10 @@ private fun ReaderBottomBar(
     onChapterList: () -> Unit,
     onSettings: () -> Unit,
     onBack: () -> Unit,
+    onMeasuredHeight: (Dp) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val density = LocalDensity.current
     Surface(
         color = palette.toolbarColor.copy(alpha = if (palette.isDark) 0.82f else 0.88f),
         contentColor = palette.textColor,
@@ -449,29 +554,40 @@ private fun ReaderBottomBar(
         border = BorderStroke(1.dp, palette.textColor.copy(alpha = if (palette.isDark) 0.08f else 0.06f)),
         modifier = modifier,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 5.dp, vertical = 5.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
+            modifier = Modifier.onSizeChanged { size ->
+                with(density) {
+                    onMeasuredHeight(size.height.toDp())
+                }
+            },
         ) {
-            ReaderChromeIconButton(
-                icon = Icons.Filled.List,
-                contentDescription = Strings.READER_CHAPTERS,
-                palette = palette,
-                onClick = onChapterList,
-            )
-            ReaderChromeIconButton(
-                icon = Icons.Filled.Settings,
-                contentDescription = Strings.SETTINGS_TITLE,
-                palette = palette,
-                onClick = onSettings,
-            )
-            ReaderChromeIconButton(
-                icon = Icons.Filled.ArrowBack,
-                contentDescription = Strings.BACK,
-                palette = palette,
-                onClick = onBack,
-            )
+            Row(
+                modifier = Modifier.padding(
+                    horizontal = ReaderLayoutMetrics.BottomBarHorizontalPadding,
+                    vertical = ReaderLayoutMetrics.BottomBarVerticalPadding,
+                ),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ReaderChromeIconButton(
+                    icon = Icons.Filled.List,
+                    contentDescription = Strings.READER_CHAPTERS,
+                    palette = palette,
+                    onClick = onChapterList,
+                )
+                ReaderChromeIconButton(
+                    icon = Icons.Filled.Settings,
+                    contentDescription = Strings.SETTINGS_TITLE,
+                    palette = palette,
+                    onClick = onSettings,
+                )
+                ReaderChromeIconButton(
+                    icon = Icons.Filled.ArrowBack,
+                    contentDescription = Strings.BACK,
+                    palette = palette,
+                    onClick = onBack,
+                )
+            }
         }
     }
 }
@@ -489,7 +605,7 @@ private fun ReaderChromeIconButton(
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, palette.textColor.copy(alpha = if (palette.isDark) 0.08f else 0.05f)),
     ) {
-        IconButton(onClick = onClick, modifier = Modifier.size(40.dp)) {
+        IconButton(onClick = onClick, modifier = Modifier.size(ReaderLayoutMetrics.ChromeIconButtonSize)) {
             Icon(icon, contentDescription = contentDescription)
         }
     }
