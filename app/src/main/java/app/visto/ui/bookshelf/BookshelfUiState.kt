@@ -1,5 +1,7 @@
 package app.visto.ui.bookshelf
 
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import app.visto.data.db.BookProgressEntity
 import app.visto.ui.Strings
 import kotlinx.coroutines.flow.Flow
@@ -16,15 +18,18 @@ data class BookshelfUiState(
     val scanMessage: String? = null,
 )
 
-enum class BookshelfLayoutMode(val gridColumns: Int?) {
-    LIST(null),
-    GRID_3(3),
-    GRID_5(5);
+enum class BookshelfLayoutMode(
+    val gridMinCellWidth: Dp?,
+    val displayLabel: String?,
+) {
+    LIST(null, null),
+    GRID_STANDARD(112.dp, "标准"),
+    GRID_COMPACT(72.dp, "紧凑");
 
     fun next(): BookshelfLayoutMode = when (this) {
-        LIST -> GRID_3
-        GRID_3 -> GRID_5
-        GRID_5 -> LIST
+        LIST -> GRID_STANDARD
+        GRID_STANDARD -> GRID_COMPACT
+        GRID_COMPACT -> LIST
     }
 }
 

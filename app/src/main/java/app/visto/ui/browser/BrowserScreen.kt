@@ -33,14 +33,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.visto.core.media.MediaType
 import app.visto.core.model.RemoteEntry
 import app.visto.ui.Strings
+import app.visto.ui.layout.VistoLayoutMetrics
 
 /**
  * Renders the WebDAV browser as a plain file/path list.
@@ -61,9 +68,19 @@ fun BrowserScreen(
     canGoRoot: Boolean = false,
     bottomBar: @Composable () -> Unit = {},
 ) {
+    val density = LocalDensity.current
+    var fabHeight by remember { mutableStateOf(VistoLayoutMetrics.DefaultFloatingActionButtonHeight) }
+
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = onRefresh) {
+            FloatingActionButton(
+                onClick = onRefresh,
+                modifier = Modifier.onSizeChanged { size ->
+                    with(density) {
+                        fabHeight = size.height.toDp()
+                    }
+                },
+            ) {
                 if (state.isRefreshing) {
                     CircularProgressIndicator(
                         strokeWidth = 2.dp,
@@ -76,6 +93,9 @@ fun BrowserScreen(
         },
         bottomBar = bottomBar,
     ) { innerPadding: PaddingValues ->
+        val bottomContentPadding = VistoLayoutMetrics.scrollEndPadding(
+            floatingActionButtonHeight = fabHeight,
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -105,7 +125,7 @@ fun BrowserScreen(
             }
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 12.dp, top = 4.dp, end = 12.dp, bottom = 96.dp),
+                contentPadding = PaddingValues(start = 12.dp, top = 4.dp, end = 12.dp, bottom = bottomContentPadding),
                 verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 item(key = "browser-path") {

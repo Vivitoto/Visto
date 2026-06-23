@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,6 +53,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
@@ -65,6 +68,8 @@ import app.visto.data.thumbnail.GeneratedThumbnailCache
 import app.visto.data.thumbnail.ThumbnailCacheKey
 import app.visto.ui.components.AnimatedThumbnailImage
 import app.visto.ui.components.GeneratedThumbnailImage
+import app.visto.ui.layout.VistoLayoutMetrics
+import app.visto.ui.layout.ViewerOverlayMetrics
 import coil.ImageLoader
 import coil.compose.SubcomposeAsyncImage
 import coil.request.CachePolicy
@@ -151,12 +156,13 @@ fun ViewerScreen(
     }
 
     Scaffold { innerPadding: PaddingValues ->
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .background(Color.Black),
         ) {
+            val overlayMetrics = VistoLayoutMetrics.viewerOverlay(maxWidth, maxHeight)
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
@@ -176,6 +182,7 @@ fun ViewerScreen(
                             loaded = loaded,
                             onLoadRequest = { manualLoaded[item.path] = true },
                             onToggleChrome = { chromeVisible = !chromeVisible },
+                            overlayMetrics = overlayMetrics,
                         )
                     }
                 }
@@ -189,7 +196,12 @@ fun ViewerScreen(
                     onClose = onClose,
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(start = 12.dp, top = 12.dp, end = 12.dp),
+                        .padding(
+                            start = overlayMetrics.edgePadding,
+                            top = overlayMetrics.topPadding,
+                            end = overlayMetrics.edgePadding,
+                        ),
+                    maxWidth = overlayMetrics.infoBarMaxWidth,
                 )
             }
         }
@@ -203,11 +215,14 @@ private fun ViewerInfoBar(
     total: Int,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    maxWidth: Dp,
 ) {
     Surface(
         color = Color.Black.copy(alpha = 0.56f),
         shape = RoundedCornerShape(24.dp),
-        modifier = modifier.fillMaxWidth(0.88f),
+        modifier = modifier
+            .widthIn(max = maxWidth)
+            .fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier.padding(start = 4.dp, end = 14.dp, top = 4.dp, bottom = 4.dp),
@@ -254,6 +269,7 @@ private fun ImagePage(
     loaded: Boolean,
     onLoadRequest: () -> Unit,
     onToggleChrome: () -> Unit,
+    overlayMetrics: ViewerOverlayMetrics,
 ) {
     var scale by remember { mutableStateOf(1f) }
     var offsetX by remember { mutableStateOf(0f) }
@@ -416,7 +432,7 @@ private fun ImagePage(
                     translationY = offsetY,
                 ),
             )
-            LoadOriginalOverlay(item, onLoadRequest)
+            LoadOriginalOverlay(item, onLoadRequest, overlayMetrics)
         }
     }
 }
@@ -463,7 +479,11 @@ private fun ThumbnailBackdrop(
 }
 
 @Composable
-private fun LoadOriginalOverlay(item: RemoteEntry, onLoad: () -> Unit) {
+private fun LoadOriginalOverlay(
+    item: RemoteEntry,
+    onLoad: () -> Unit,
+    overlayMetrics: ViewerOverlayMetrics,
+) {
     // Sits on top of the thumbnail backdrop. No solid background so the
     // thumbnail underneath stays visible; just a small pill at the bottom.
     Box(modifier = Modifier.fillMaxSize()) {
@@ -475,7 +495,11 @@ private fun LoadOriginalOverlay(item: RemoteEntry, onLoad: () -> Unit) {
             shadowElevation = 0.dp,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 24.dp),
+                .padding(
+                    horizontal = overlayMetrics.edgePadding,
+                    bottom = overlayMetrics.bottomPadding,
+                )
+                .widthIn(max = overlayMetrics.actionMaxWidth),
         ) {
             Row(
                 modifier = Modifier

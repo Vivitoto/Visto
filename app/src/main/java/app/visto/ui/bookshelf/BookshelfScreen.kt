@@ -43,6 +43,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,14 +53,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.visto.data.db.BookProgressEntity
 import app.visto.ui.HomeTab
 import app.visto.ui.Strings
 import app.visto.ui.VistoBottomBar
+import app.visto.ui.layout.VistoLayoutMetrics
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -72,11 +77,22 @@ fun BookshelfScreen(
 ) {
     var selectedBook by remember { mutableStateOf<BookProgressEntity?>(null) }
     var bookPendingRemove by remember { mutableStateOf<BookProgressEntity?>(null) }
-    var layoutMode by remember { mutableStateOf(BookshelfLayoutMode.GRID_3) }
+    var layoutMode by remember { mutableStateOf(BookshelfLayoutMode.GRID_STANDARD) }
+    var statusOverlayHeight by remember { mutableStateOf(0.dp) }
+    val density = LocalDensity.current
+
+    LaunchedEffect(state.errorMessage, state.scanMessage) {
+        if (state.errorMessage == null && state.scanMessage == null) {
+            statusOverlayHeight = 0.dp
+        }
+    }
 
     Scaffold(
         bottomBar = { VistoBottomBar(selected = HomeTab.BOOKSHELF, onSelect = onTabSelected) },
     ) { innerPadding: PaddingValues ->
+        val bottomContentPadding = VistoLayoutMetrics.scrollEndPadding(
+            bottomOverlayHeight = statusOverlayHeight,
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -101,13 +117,15 @@ fun BookshelfScreen(
                         when (layoutMode) {
                             BookshelfLayoutMode.LIST -> BookshelfList(
                                 books = state.books,
+                                bottomContentPadding = bottomContentPadding,
                                 onOpenBook = onOpenBook,
                                 onSelectBook = { selectedBook = it },
                             )
-                            BookshelfLayoutMode.GRID_3,
-                            BookshelfLayoutMode.GRID_5 -> BookshelfGrid(
+                            BookshelfLayoutMode.GRID_STANDARD,
+                            BookshelfLayoutMode.GRID_COMPACT -> BookshelfGrid(
                                 books = state.books,
-                                columns = layoutMode.gridColumns ?: 3,
+                                minCellWidth = layoutMode.gridMinCellWidth ?: 112.dp,
+                                bottomContentPadding = bottomContentPadding,
                                 onOpenBook = onOpenBook,
                                 onSelectBook = { selectedBook = it },
                             )
@@ -119,7 +137,12 @@ fun BookshelfScreen(
                     scanMessage = state.scanMessage,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(16.dp),
+                        .padding(16.dp)
+                        .onSizeChanged { size ->
+                            with(density) {
+                                statusOverlayHeight = size.height.toDp()
+                            }
+                        },
                 )
             }
         }
@@ -311,7 +334,7 @@ private fun BookshelfViewCycleButton(
         Icon(
             imageVector = if (next == BookshelfLayoutMode.LIST) Icons.AutoMirrored.Filled.List else Icons.Filled.GridView,
             tint = if (isList) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimaryContainer,
-            contentDescription = next.gridColumns
+            contentDescription = next.displayLabel
                 ?.let(Strings::bookshelfSwitchToGrid)
                 ?: Strings.BOOKSHELF_SWITCH_TO_LIST,
             modifier = Modifier.size(22.dp),
@@ -322,14 +345,15 @@ private fun BookshelfViewCycleButton(
 @Composable
 private fun BookshelfGrid(
     books: List<BookProgressEntity>,
-    columns: Int,
+    minCellWidth: Dp,
+    bottomContentPadding: Dp,
     onOpenBook: (BookProgressEntity) -> Unit,
     onSelectBook: (BookProgressEntity) -> Unit,
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(columns),
+        columns = GridCells.Adaptive(minSize = minCellWidth),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 104.dp),
+        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = bottomContentPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -346,12 +370,13 @@ private fun BookshelfGrid(
 @Composable
 private fun BookshelfList(
     books: List<BookProgressEntity>,
+    bottomContentPadding: Dp,
     onOpenBook: (BookProgressEntity) -> Unit,
     onSelectBook: (BookProgressEntity) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 104.dp),
+        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = bottomContentPadding),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         listItems(books, key = BookshelfStateBuilder::stableBookKey) { book ->
@@ -696,9 +721,14 @@ private fun BookshelfEmptyState() {
 @Composable
 private fun BookshelfSkeleton() {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(BookshelfLayoutMode.GRID_3.gridColumns ?: 3),
+        columns = GridCells.Adaptive(minSize = BookshelfLayoutMode.GRID_STANDARD.gridMinCellWidth ?: 112.dp),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 104.dp),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = 14.dp,
+            end = 16.dp,
+            bottom = VistoLayoutMetrics.scrollEndPadding(),
+        ),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {

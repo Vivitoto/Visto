@@ -2,6 +2,8 @@ package app.visto.ui.albums
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +39,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -45,11 +52,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import app.visto.data.db.AlbumSourceEntity
 import app.visto.ui.Strings
 import app.visto.ui.components.PausableAsyncImage
 import app.visto.ui.components.rememberThumbnailAnimationsEnabled
+import app.visto.ui.layout.VistoLayoutMetrics
 import coil.ImageLoader
 import coil.request.ImageRequest
 import coil.size.Precision
@@ -75,9 +85,26 @@ fun AlbumListScreen(
 ) {
     val listState = rememberLazyListState()
     val playThumbnailAnimations = rememberThumbnailAnimationsEnabled(listState.isScrollInProgress)
+    val density = LocalDensity.current
+    var fabHeight by remember { mutableStateOf(VistoLayoutMetrics.DefaultFloatingActionButtonHeight) }
+    var errorOverlayHeight by remember { mutableStateOf(0.dp) }
+
+    LaunchedEffect(state.errorMessage) {
+        if (state.errorMessage == null) {
+            errorOverlayHeight = 0.dp
+        }
+    }
+
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddRequested) {
+            FloatingActionButton(
+                onClick = onAddRequested,
+                modifier = Modifier.onSizeChanged { size ->
+                    with(density) {
+                        fabHeight = size.height.toDp()
+                    }
+                },
+            ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
                     contentDescription = Strings.ALBUMS_ADD,
@@ -91,6 +118,10 @@ fun AlbumListScreen(
             bottomBar()
         },
     ) { innerPadding: PaddingValues ->
+        val bottomContentPadding = VistoLayoutMetrics.scrollEndPadding(
+            bottomOverlayHeight = errorOverlayHeight,
+            floatingActionButtonHeight = fabHeight,
+        )
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             when {
                 state.isLoading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -100,7 +131,7 @@ fun AlbumListScreen(
                 else -> LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 104.dp),
+                    contentPadding = PaddingValues(start = 14.dp, top = 12.dp, end = 14.dp, bottom = bottomContentPadding),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     itemsIndexed(state.albums, key = { _, it -> it.id }) { index, album ->
@@ -125,7 +156,12 @@ fun AlbumListScreen(
                     text = it,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(16.dp),
+                        .padding(16.dp)
+                        .onSizeChanged { size ->
+                            with(density) {
+                                errorOverlayHeight = size.height.toDp()
+                            }
+                        },
                 )
             }
         }
@@ -387,7 +423,10 @@ private fun AlbumAddDialog(
         onDismissRequest = onDismiss,
         title = { Text(Strings.ALBUMS_ADD_DIALOG_TITLE) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 OutlinedTextField(
                     value = form.path,
                     onValueChange = { onChange(AlbumAddFormReducer.updatePath(form, it)) },

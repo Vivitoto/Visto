@@ -70,6 +70,7 @@ import app.visto.ui.components.AnimatedThumbnailImage
 import app.visto.ui.components.GeneratedThumbnailImage
 import app.visto.ui.components.PausableAsyncImage
 import app.visto.ui.components.rememberThumbnailAnimationsEnabled
+import app.visto.ui.layout.VistoLayoutMetrics
 import coil.ImageLoader
 import coil.request.ImageRequest
 import coil.size.Precision
@@ -406,7 +407,7 @@ private fun FolderIconGrid(
     }
     val playThumbnailAnimations = rememberThumbnailAnimationsEnabled(gridState.isScrollInProgress)
     LazyVerticalGrid(
-        columns = GridCells.Fixed(gridDensity.folderColumns),
+        columns = GridCells.Adaptive(minSize = VistoLayoutMetrics.albumGridMinCellWidth(gridDensity)),
         state = gridState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),

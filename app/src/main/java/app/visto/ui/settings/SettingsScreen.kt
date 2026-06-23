@@ -5,12 +5,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -38,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.visto.AppInfo
 import app.visto.data.account.GridDensity
@@ -50,12 +54,10 @@ import app.visto.ui.reader.ReaderBackgroundStyle
 import app.visto.ui.reader.ReaderFontChoice
 import app.visto.ui.reader.ReaderTextColor
 import app.visto.ui.reader.ReaderTheme
+import app.visto.ui.layout.VistoLayoutMetrics
 import app.visto.ui.theme.ThemeMode
 import kotlin.math.roundToInt
 
-private val SettingsPageHorizontalPadding = 16.dp
-private val SettingsPageTopPadding = 14.dp
-private val SettingsPageBottomPadding = 12.dp
 private val SettingsSectionGap = 12.dp
 private val SettingsTitleGap = 4.dp
 private val SettingsCardPadding = 10.dp
@@ -89,68 +91,76 @@ fun SettingsScreen(
     Scaffold(
         bottomBar = bottomBar,
     ) { innerPadding: PaddingValues ->
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(innerPadding)
-                .padding(
-                    start = SettingsPageHorizontalPadding,
-                    top = SettingsPageTopPadding,
-                    end = SettingsPageHorizontalPadding,
-                    bottom = SettingsPageBottomPadding,
-                )
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(SettingsSectionGap),
+                .fillMaxSize()
+                .padding(innerPadding),
         ) {
-            SettingsSection(Strings.SETTINGS_ACCOUNT) {
-                AccountsSection(
-                    state = state,
-                    onAddServer = onAddServer,
-                    onSwitchAccount = onSwitchAccount,
-                    onDeleteAccount = onDeleteAccount,
-                    onTestActiveConnection = onTestActiveConnection,
-                )
-            }
+            val metrics = VistoLayoutMetrics.settingsContent(maxWidth)
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .widthIn(max = metrics.maxContentWidth)
+                    .fillMaxWidth()
+                    .padding(
+                        start = metrics.horizontalPadding,
+                        top = metrics.topPadding,
+                        end = metrics.horizontalPadding,
+                        bottom = metrics.bottomPadding,
+                    )
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(SettingsSectionGap),
+            ) {
+                SettingsSection(Strings.SETTINGS_ACCOUNT) {
+                    AccountsSection(
+                        state = state,
+                        onAddServer = onAddServer,
+                        onSwitchAccount = onSwitchAccount,
+                        onDeleteAccount = onDeleteAccount,
+                        onTestActiveConnection = onTestActiveConnection,
+                    )
+                }
 
-            SettingsSection(Strings.SETTINGS_APPEARANCE) {
-                ThemeSection(state.themeMode, onThemeModeChange)
-            }
+                SettingsSection(Strings.SETTINGS_APPEARANCE) {
+                    ThemeSection(state.themeMode, onThemeModeChange)
+                }
 
-            SettingsSection(Strings.SETTINGS_IMAGE) {
-                ImageSettingsSection(
-                    autoLoadOriginalImages = state.autoLoadOriginalImages,
-                    blurThumbnails = state.blurThumbnails,
-                    gridDensity = state.gridDensity,
-                    thumbnailCacheBytes = state.thumbnailCacheBytes,
-                    thumbnailCacheLimit = state.thumbnailCacheLimit,
-                    isClearingCache = state.isClearingCache,
-                    message = state.message,
-                    onAutoLoadOriginalImagesChange = onAutoLoadOriginalImagesChange,
-                    onBlurThumbnailsChange = onBlurThumbnailsChange,
-                    onGridDensityChange = onGridDensityChange,
-                    onClearCache = onClearCache,
-                    onCacheLimitChange = onCacheLimitChange,
-                )
-            }
+                SettingsSection(Strings.SETTINGS_IMAGE) {
+                    ImageSettingsSection(
+                        autoLoadOriginalImages = state.autoLoadOriginalImages,
+                        blurThumbnails = state.blurThumbnails,
+                        gridDensity = state.gridDensity,
+                        thumbnailCacheBytes = state.thumbnailCacheBytes,
+                        thumbnailCacheLimit = state.thumbnailCacheLimit,
+                        isClearingCache = state.isClearingCache,
+                        message = state.message,
+                        onAutoLoadOriginalImagesChange = onAutoLoadOriginalImagesChange,
+                        onBlurThumbnailsChange = onBlurThumbnailsChange,
+                        onGridDensityChange = onGridDensityChange,
+                        onClearCache = onClearCache,
+                        onCacheLimitChange = onCacheLimitChange,
+                    )
+                }
 
-            SettingsSection(Strings.SETTINGS_READING) {
-                ReadingSettingsSection(
-                    defaults = state.readerDefaultSettings,
-                    isClearingCache = state.isClearingCache,
-                    message = state.message,
-                    onClearBookCache = onClearBookCache,
-                )
-            }
+                SettingsSection(Strings.SETTINGS_READING) {
+                    ReadingSettingsSection(
+                        defaults = state.readerDefaultSettings,
+                        isClearingCache = state.isClearingCache,
+                        message = state.message,
+                        onClearBookCache = onClearBookCache,
+                    )
+                }
 
-            SettingsSection(Strings.SETTINGS_ABOUT_TITLE) {
-                AboutCard(
-                    update = state.update,
-                    onCheckUpdate = onCheckUpdate,
-                    onDownloadUpdate = onDownloadUpdate,
-                    onInstallUpdate = onInstallUpdate,
-                    onOpenReleasePage = onOpenReleasePage,
-                    onDismissUpdateMessage = onDismissUpdateMessage,
-                )
+                SettingsSection(Strings.SETTINGS_ABOUT_TITLE) {
+                    AboutCard(
+                        update = state.update,
+                        onCheckUpdate = onCheckUpdate,
+                        onDownloadUpdate = onDownloadUpdate,
+                        onInstallUpdate = onInstallUpdate,
+                        onOpenReleasePage = onOpenReleasePage,
+                        onDismissUpdateMessage = onDismissUpdateMessage,
+                    )
+                }
             }
         }
     }
@@ -200,44 +210,14 @@ private fun AccountsSection(
             } else {
                 state.accounts.forEach { account ->
                     val active = account.id == state.activeAccountId
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(SettingsItemGap),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Storage,
-                            contentDescription = null,
-                            tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (active) "${account.displayName} · ${Strings.SETTINGS_ACTIVE_SERVER}" else account.displayName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 1,
-                            )
-                            Text(
-                                text = account.baseUrl,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                            )
-                            Text(
-                                text = "${Strings.SETTINGS_ROOT_LABEL}${account.rootPath}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                            )
-                        }
-                        if (!active) {
-                            Button(onClick = { onSwitchAccount(account.id) }) {
-                                Text(Strings.SETTINGS_SET_ACTIVE_SERVER)
-                            }
-                        }
-                        Button(onClick = { onDeleteAccount(account.id) }) {
-                            Text(Strings.ALBUMS_DELETE)
-                        }
-                    }
+                    AccountRow(
+                        displayName = account.displayName,
+                        baseUrl = account.baseUrl,
+                        rootPath = account.rootPath,
+                        active = active,
+                        onSwitch = { onSwitchAccount(account.id) },
+                        onDelete = { onDeleteAccount(account.id) },
+                    )
                 }
             }
             if (state.activeAccountId != null) {
@@ -256,6 +236,112 @@ private fun AccountsSection(
             ) {
                 Text(Strings.SETTINGS_ADD_SERVER)
             }
+        }
+    }
+}
+
+@Composable
+private fun AccountRow(
+    displayName: String,
+    baseUrl: String,
+    rootPath: String,
+    active: Boolean,
+    onSwitch: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val stackActions = VistoLayoutMetrics.shouldStackActions(maxWidth)
+        if (stackActions) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(SettingsItemGap),
+            ) {
+                AccountIdentityRow(
+                    displayName = displayName,
+                    baseUrl = baseUrl,
+                    rootPath = rootPath,
+                    active = active,
+                )
+                if (!active) {
+                    Button(
+                        onClick = onSwitch,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(Strings.SETTINGS_SET_ACTIVE_SERVER, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                Button(
+                    onClick = onDelete,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(Strings.ALBUMS_DELETE, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(SettingsItemGap),
+            ) {
+                AccountIdentityRow(
+                    displayName = displayName,
+                    baseUrl = baseUrl,
+                    rootPath = rootPath,
+                    active = active,
+                    modifier = Modifier.weight(1f),
+                )
+                if (!active) {
+                    Button(onClick = onSwitch) {
+                        Text(Strings.SETTINGS_SET_ACTIVE_SERVER, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                Button(onClick = onDelete) {
+                    Text(Strings.ALBUMS_DELETE, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountIdentityRow(
+    displayName: String,
+    baseUrl: String,
+    rootPath: String,
+    active: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SettingsItemGap),
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Storage,
+            contentDescription = null,
+            tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = if (active) "${displayName} · ${Strings.SETTINGS_ACTIVE_SERVER}" else displayName,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = baseUrl,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "${Strings.SETTINGS_ROOT_LABEL}$rootPath",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -783,31 +869,98 @@ private fun AboutCard(
 
             if (info != null && info.hasUpdate) {
                 val downloaded = update.downloaded
-                Row(
+                UpdateActionButtons(
+                    downloaded = downloaded != null,
+                    isDownloading = update.isDownloading,
+                    onDownloadUpdate = onDownloadUpdate,
+                    onInstallUpdate = onInstallUpdate,
+                    onOpenReleasePage = onOpenReleasePage,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpdateActionButtons(
+    downloaded: Boolean,
+    isDownloading: Boolean,
+    onDownloadUpdate: () -> Unit,
+    onInstallUpdate: () -> Unit,
+    onOpenReleasePage: () -> Unit,
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val stackActions = VistoLayoutMetrics.shouldStackActions(maxWidth)
+        if (stackActions) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(SettingsItemGap),
+            ) {
+                PrimaryUpdateButton(
+                    downloaded = downloaded,
+                    isDownloading = isDownloading,
+                    onDownloadUpdate = onDownloadUpdate,
+                    onInstallUpdate = onInstallUpdate,
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(SettingsItemGap),
+                )
+                OutlinedButton(
+                    onClick = onOpenReleasePage,
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    if (downloaded != null) {
-                        Button(
-                            onClick = onInstallUpdate,
-                            modifier = Modifier.weight(1f),
-                        ) { Text(text = Strings.SETTINGS_INSTALL_NOW) }
-                    } else {
-                        Button(
-                            onClick = onDownloadUpdate,
-                            enabled = !update.isDownloading,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Text(text = if (update.isDownloading) Strings.SETTINGS_DOWNLOADING else Strings.SETTINGS_DOWNLOAD_AND_INSTALL)
-                        }
-                    }
-                    OutlinedButton(
-                        onClick = onOpenReleasePage,
-                        modifier = Modifier.weight(1f),
-                    ) { Text(text = Strings.SETTINGS_OPEN_RELEASE_PAGE) }
+                    Text(text = Strings.SETTINGS_OPEN_RELEASE_PAGE, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(SettingsItemGap),
+            ) {
+                PrimaryUpdateButton(
+                    downloaded = downloaded,
+                    isDownloading = isDownloading,
+                    onDownloadUpdate = onDownloadUpdate,
+                    onInstallUpdate = onInstallUpdate,
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedButton(
+                    onClick = onOpenReleasePage,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(text = Strings.SETTINGS_OPEN_RELEASE_PAGE, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PrimaryUpdateButton(
+    downloaded: Boolean,
+    isDownloading: Boolean,
+    onDownloadUpdate: () -> Unit,
+    onInstallUpdate: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (downloaded) {
+        Button(
+            onClick = onInstallUpdate,
+            modifier = modifier,
+        ) {
+            Text(text = Strings.SETTINGS_INSTALL_NOW, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        return
+    }
+
+    Button(
+        onClick = onDownloadUpdate,
+        enabled = !isDownloading,
+        modifier = modifier,
+    ) {
+        Text(
+            text = if (isDownloading) Strings.SETTINGS_DOWNLOADING else Strings.SETTINGS_DOWNLOAD_AND_INSTALL,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

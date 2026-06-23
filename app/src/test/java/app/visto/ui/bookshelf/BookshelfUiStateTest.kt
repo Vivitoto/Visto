@@ -1,6 +1,7 @@
 package app.visto.ui.bookshelf
 
 import app.visto.data.db.BookProgressEntity
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -38,17 +39,17 @@ class BookshelfUiStateTest {
     )
 
     @Test
-    fun layoutModeCyclesListThreeColumnsFiveColumnsThenList() {
-        assertEquals(BookshelfLayoutMode.GRID_3, BookshelfLayoutMode.LIST.next())
-        assertEquals(BookshelfLayoutMode.GRID_5, BookshelfLayoutMode.GRID_3.next())
-        assertEquals(BookshelfLayoutMode.LIST, BookshelfLayoutMode.GRID_5.next())
+    fun layoutModeCyclesListStandardGridCompactGridThenList() {
+        assertEquals(BookshelfLayoutMode.GRID_STANDARD, BookshelfLayoutMode.LIST.next())
+        assertEquals(BookshelfLayoutMode.GRID_COMPACT, BookshelfLayoutMode.GRID_STANDARD.next())
+        assertEquals(BookshelfLayoutMode.LIST, BookshelfLayoutMode.GRID_COMPACT.next())
     }
 
     @Test
-    fun layoutModeUsesFixedBookshelfGridColumns() {
-        assertNull(BookshelfLayoutMode.LIST.gridColumns)
-        assertEquals(3, BookshelfLayoutMode.GRID_3.gridColumns)
-        assertEquals(5, BookshelfLayoutMode.GRID_5.gridColumns)
+    fun layoutModeUsesAdaptiveBookshelfGridCellWidths() {
+        assertNull(BookshelfLayoutMode.LIST.gridMinCellWidth)
+        assertEquals(112.dp, BookshelfLayoutMode.GRID_STANDARD.gridMinCellWidth)
+        assertEquals(72.dp, BookshelfLayoutMode.GRID_COMPACT.gridMinCellWidth)
     }
 
     @Test

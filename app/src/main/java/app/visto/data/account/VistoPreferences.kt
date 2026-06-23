@@ -191,12 +191,10 @@ enum class AlbumViewMode(val storageKey: String) {
 enum class GridDensity(
     val storageKey: String,
     val displayLabel: String,
-    val mediaColumns: Int,
-    val folderColumns: Int,
 ) {
-    COMFORTABLE("comfortable", "舒适", mediaColumns = 2, folderColumns = 2),
-    STANDARD("standard", "标准", mediaColumns = 3, folderColumns = 3),
-    COMPACT("compact", "紧凑", mediaColumns = 5, folderColumns = 5);
+    COMFORTABLE("comfortable", "舒适"),
+    STANDARD("standard", "标准"),
+    COMPACT("compact", "紧凑");
 
     fun next(): GridDensity = when (this) {
         COMFORTABLE -> STANDARD
@@ -213,8 +211,8 @@ enum class GridDensity(
 }
 
 /**
- * Album icon-grid cycles through the visible column counts, then returns to the
- * list view. Returning null means the next visible state is the list view.
+ * Album icon-grid cycles through density modes, then returns to the list view.
+ * Returning null means the next visible state is the list view.
  */
 fun GridDensity.nextAlbumFolderGridDensityOrNull(): GridDensity? = when (this) {
     GridDensity.COMFORTABLE -> GridDensity.STANDARD
