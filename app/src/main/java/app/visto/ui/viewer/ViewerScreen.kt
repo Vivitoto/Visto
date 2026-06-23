@@ -496,7 +496,8 @@ private fun LoadOriginalOverlay(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(
-                    horizontal = overlayMetrics.edgePadding,
+                    start = overlayMetrics.edgePadding,
+                    end = overlayMetrics.edgePadding,
                     bottom = overlayMetrics.bottomPadding,
                 )
                 .widthIn(max = overlayMetrics.actionMaxWidth),
