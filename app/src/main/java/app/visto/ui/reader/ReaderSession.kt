@@ -68,40 +68,8 @@ data class ReaderSession(
 )
 
 internal data class ReaderPagePresentation(
-    val title: String?,
     val body: String,
-) {
-    val hasStyledTitle: Boolean = title != null
-}
-
-internal object ReaderPagePresenter {
-    fun present(page: Page?, chapter: Chapter?): ReaderPagePresentation {
-        val text = page?.text.orEmpty()
-        if (page == null || chapter == null || page.startChar != 0 || text.isEmpty()) {
-            return ReaderPagePresentation(title = null, body = text)
-        }
-
-        val firstLineEnd = text.indexOf('\n').takeIf { it >= 0 } ?: text.length
-        val firstLine = text.substring(0, firstLineEnd).trimReaderHeadingWhitespace()
-        val chapterTitle = chapter.title.trimReaderHeadingWhitespace()
-        if (firstLine != chapterTitle) {
-            return ReaderPagePresentation(title = null, body = text)
-        }
-
-        val bodyStart = if (firstLineEnd < text.length && text[firstLineEnd] == '\n') {
-            firstLineEnd + 1
-        } else {
-            firstLineEnd
-        }
-        return ReaderPagePresentation(
-            title = chapter.title,
-            body = text.substring(bodyStart),
-        )
-    }
-
-    private fun String.trimReaderHeadingWhitespace(): String =
-        trim { it == ' ' || it == '\t' || it == '\u3000' }
-}
+)
 
 internal object ReaderProgressEstimator {
     fun percent(

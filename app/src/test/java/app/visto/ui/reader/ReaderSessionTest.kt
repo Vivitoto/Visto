@@ -1,7 +1,6 @@
 package app.visto.ui.reader
 
 import app.visto.core.book.Chapter
-import app.visto.core.book.Page
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -174,38 +173,6 @@ class ReaderSessionTest {
         assertEquals(ReaderBackgroundStyle.BLACK, background.backgroundStyle)
         assertEquals(loaded.pagesForCurrentChapter, background.pagesForCurrentChapter)
         assertTrue(background.readerPalette().isDark)
-    }
-
-    @Test
-    fun pagePresenterStylesChapterTitleOnlyAtChapterStart() {
-        val page = Page(
-            startChar = 0,
-            endChar = 15,
-            text = "第一章 开始\n这是正文",
-        )
-
-        val styled = ReaderPagePresenter.present(page, chapters[0])
-        val normal = ReaderPagePresenter.present(page.copy(startChar = 4), chapters[0])
-
-        assertTrue(styled.hasStyledTitle)
-        assertEquals("第一章 开始", styled.title)
-        assertEquals("这是正文", styled.body)
-        assertFalse(normal.hasStyledTitle)
-        assertEquals(page.text, normal.body)
-    }
-
-    @Test
-    fun pagePresenterFallsBackWhenFirstLineIsNotChapterTitle() {
-        val page = Page(
-            startChar = 0,
-            endChar = 10,
-            text = "序言\n第一章 开始",
-        )
-
-        val presentation = ReaderPagePresenter.present(page, chapters[0])
-
-        assertFalse(presentation.hasStyledTitle)
-        assertEquals(page.text, presentation.body)
     }
 
     @Test

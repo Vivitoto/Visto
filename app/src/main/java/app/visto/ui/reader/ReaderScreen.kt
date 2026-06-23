@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -155,8 +154,8 @@ fun ReaderScreen(
                 else -> {
                     val swipeThresholdPx = with(density) { 48.dp.toPx() }
                     val page = pages.getOrNull(safePage)
-                    val pagePresentation = remember(page, currentChapter) {
-                        ReaderPagePresenter.present(page, currentChapter)
+                    val pagePresentation = remember(page) {
+                        ReaderPagePresentation(body = page?.text.orEmpty())
                     }
                     val progressPercent = ReaderProgressEstimator.percent(
                         currentChapterIndex = session.currentChapterIndex,
@@ -232,7 +231,7 @@ fun ReaderScreen(
                     onToggle = { chromeVisible = false },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(start = 12.dp, top = 10.dp, end = 12.dp),
+                        .padding(start = 12.dp, top = ReaderLayoutMetrics.TopBarTopPadding, end = 12.dp),
                 )
                 ReaderBottomBar(
                     palette = palette,
@@ -279,14 +278,13 @@ internal object ReaderLayoutMetrics {
     internal val BottomBarVerticalPadding = 5.dp
     internal val ChromeIconButtonWidth = 56.dp
     internal val ChromeIconButtonHeight = 40.dp
+    internal val TopBarTopPadding = 10.dp
     private val FooterBottomPadding = 14.dp
     private val BottomBarFooterGap = 10.dp
     internal val FooterHeightReserve = 28.dp
-    internal val FooterTextClearance = 12.dp
+    internal val FooterTextClearance = 24.dp
     /** Fixed extra space kept below the paginated text so the last line never sits on top of the footer bubble. */
     internal val PageEndClearance = 28.dp
-    internal const val StyledTitleLineHeightMultiplier = 1.35f
-    internal val StyledTitleSpacerHeight = 18.dp
 
     @Suppress("UNUSED_PARAMETER")
     fun contentPadding(
@@ -348,41 +346,14 @@ private fun ReaderPageText(
     fontFamily: FontFamily?,
     modifier: Modifier = Modifier,
 ) {
-    if (!presentation.hasStyledTitle) {
-        Text(
-            text = presentation.body,
-            color = palette.textColor,
-            fontSize = fontSizeSp.sp,
-            lineHeight = (fontSizeSp * lineSpacing).sp,
-            fontFamily = fontFamily,
-            modifier = modifier,
-        )
-        return
-    }
-
-    Column(modifier = modifier) {
-        Text(
-            text = presentation.title.orEmpty(),
-            color = palette.textColor,
-            fontSize = (fontSizeSp + 5).sp,
-            fontWeight = FontWeight.Bold,
-            lineHeight = (fontSizeSp * ReaderLayoutMetrics.StyledTitleLineHeightMultiplier).sp,
-            fontFamily = fontFamily,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(modifier = Modifier.size(ReaderLayoutMetrics.StyledTitleSpacerHeight))
-        if (presentation.body.isNotEmpty()) {
-            Text(
-                text = presentation.body,
-                color = palette.textColor,
-                fontSize = fontSizeSp.sp,
-                lineHeight = (fontSizeSp * lineSpacing).sp,
-                fontFamily = fontFamily,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    }
+    Text(
+        text = presentation.body,
+        color = palette.textColor,
+        fontSize = fontSizeSp.sp,
+        lineHeight = (fontSizeSp * lineSpacing).sp,
+        fontFamily = fontFamily,
+        modifier = modifier,
+    )
 }
 
 @Composable
