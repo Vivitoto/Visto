@@ -10,18 +10,13 @@ class ReaderLayoutMetricsTest {
 
     @Test
     fun contentPaddingReservesStableFooterAndLineSafety() {
-        val textSafety = ReaderLayoutMetrics.textBottomSafetyPadding(
-            fontSizeSp = 18,
-            lineSpacing = 1.5f,
-            fontScale = 1f,
-        )
         val padding = ReaderLayoutMetrics.contentPadding(maxWidth = 390.dp, maxHeight = 800.dp)
 
         assertEquals(22.dp, padding.startContentPadding)
         assertEquals(22.dp, padding.endContentPadding)
         assertEquals(28.dp, padding.topContentPadding)
         assertEquals(54.dp, padding.bottomContentPadding)
-        assertEquals(textSafety, padding.pageEndClearance)
+        assertEquals(ReaderLayoutMetrics.PageEndClearance, padding.pageEndClearance)
         assertEquals(14.dp, padding.footerBottomPadding(chromeVisible = true))
         assertEquals(14.dp, padding.footerBottomPadding(chromeVisible = false))
         assertTrue(
@@ -33,16 +28,8 @@ class ReaderLayoutMetricsTest {
     }
 
     @Test
-    fun viewportUsesTheSameFontScaledReservedPaddingAsPageText() {
-        val padding = ReaderLayoutMetrics.contentPadding(
-            maxWidth = 390.dp,
-            maxHeight = 800.dp,
-            textBottomSafetyPadding = ReaderLayoutMetrics.textBottomSafetyPadding(
-                fontSizeSp = 18,
-                lineSpacing = 1.5f,
-                fontScale = 1.25f,
-            ),
-        )
+    fun pageEndClearanceIsFixedRegardlessOfFontSettings() {
+        val padding = ReaderLayoutMetrics.contentPadding(maxWidth = 390.dp, maxHeight = 800.dp)
 
         val viewport = ReaderLayoutMetrics.viewport(
             maxWidth = 390.dp,
@@ -51,8 +38,11 @@ class ReaderLayoutMetricsTest {
             density = Density(density = 2f, fontScale = 1.25f),
         )
 
+        // pageEndClearance is a fixed 28dp constant, not font-dependent
+        assertEquals(ReaderLayoutMetrics.PageEndClearance, padding.pageEndClearance)
         assertEquals(692, viewport.widthPx)
-        assertEquals(1369, viewport.heightPx)
+        // height: 800 - 28(top) - 54(bottom) - 28(fixed pageEndClearance) = 690dp → 1725px at density 2.5
+        assertEquals(1725, viewport.heightPx)
         assertEquals(2.5f, viewport.density, 0.0f)
     }
 
@@ -100,7 +90,7 @@ class ReaderLayoutMetricsTest {
         )
 
         assertEquals(66.dp, padding.bottomContentPadding)
-        assertEquals(ReaderLayoutMetrics.DefaultTextBottomSafetyPadding, padding.pageEndClearance)
+        assertEquals(ReaderLayoutMetrics.PageEndClearance, padding.pageEndClearance)
         assertEquals(14.dp, padding.footerBottomPadding(chromeVisible = true))
         assertEquals(64.dp, padding.bottomBarBottomPadding)
         assertTrue(
@@ -129,14 +119,8 @@ class ReaderLayoutMetricsTest {
     }
 
     @Test
-    fun textSafetyPaddingCoversStyledTitleOverheadAtTightLineSpacing() {
-        val safety = ReaderLayoutMetrics.textBottomSafetyPadding(
-            fontSizeSp = 14,
-            lineSpacing = 1.0f,
-            fontScale = 1f,
-        )
-
-        assertTrue(safety > 14.dp)
-        assertTrue(safety >= ReaderLayoutMetrics.FooterTextClearance)
+    fun pageEndClearanceIsFixedAt28dp() {
+        val padding = ReaderLayoutMetrics.contentPadding(maxWidth = 390.dp, maxHeight = 800.dp)
+        assertEquals(28.dp, padding.pageEndClearance)
     }
 }

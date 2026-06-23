@@ -37,7 +37,8 @@ data class ReaderPageMargins(
         const val DEFAULT_HORIZONTAL_DP = 22
         const val DEFAULT_TOP_DP = 28
         const val DEFAULT_BOTTOM_DP = 54
-        const val MIN_BOTTOM_DP = DEFAULT_BOTTOM_DP
+        /** Minimum bottom margin matches the fixed page-end clearance so the footer bubble never pushes into text. */
+        const val MIN_BOTTOM_DP = 28
 
         val DEFAULT = ReaderPageMargins()
     }
@@ -132,7 +133,7 @@ sealed class ReaderSessionAction {
     ) : ReaderSessionAction()
 
     data class LoadError(val message: String) : ReaderSessionAction()
-    data class SelectChapter(val index: Int) : ReaderSessionAction()
+    data class SelectChapter(val index: Int, val landingPage: Int = 0) : ReaderSessionAction()
     data object PrevPage : ReaderSessionAction()
     data object NextPage : ReaderSessionAction()
     data class SetFontSize(val sp: Int) : ReaderSessionAction()
@@ -159,7 +160,7 @@ sealed class ReaderAction {
 
     data object ToggleToolbar : ReaderAction()
     data class GoToPage(val page: Int) : ReaderAction()
-    data class GoToChapter(val index: Int) : ReaderAction()
+    data class GoToChapter(val index: Int, val landingPage: Int = 0) : ReaderAction()
     data class SetFontSize(val sp: Int) : ReaderAction()
     data class SetLineSpacing(val spacing: Float) : ReaderAction()
     data class SetFontChoice(val choice: ReaderFontChoice) : ReaderAction()
@@ -197,7 +198,7 @@ object ReaderReducer {
         )
         is ReaderAction.GoToChapter -> ReaderSessionReducer.reduce(
             session,
-            ReaderSessionAction.SelectChapter(action.index),
+            ReaderSessionAction.SelectChapter(action.index, action.landingPage),
         )
         is ReaderAction.SetFontSize -> ReaderSessionReducer.reduce(
             session,
@@ -301,7 +302,10 @@ object ReaderSessionReducer {
         is ReaderSessionAction.LoadError -> state.copy(isLoading = false, errorMessage = action.message)
         is ReaderSessionAction.SelectChapter -> {
             val index = action.index.coerceInChapterBounds(state.chapters)
-            repaginate(state.copy(currentChapterIndex = index, currentPage = 0), resetPage = true)
+            repaginate(
+                state.copy(currentChapterIndex = index, currentPage = action.landingPage.coerceAtLeast(0)),
+                resetPage = false,
+            )
         }
         ReaderSessionAction.PrevPage -> previousPage(state)
         ReaderSessionAction.NextPage -> nextPage(state)

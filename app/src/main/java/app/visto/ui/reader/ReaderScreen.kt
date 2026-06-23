@@ -58,7 +58,7 @@ import kotlin.math.roundToInt
 fun ReaderScreen(
     session: ReaderSession,
     onBack: () -> Unit,
-    onChapterSelect: (Int) -> Unit,
+    onChapterSelect: (Int, Int) -> Unit,
     onSettingsToggle: () -> Unit,
     onSaveProgress: (ReaderSession) -> Unit,
     onViewportChange: (ReaderViewport) -> Unit = {},
@@ -91,7 +91,7 @@ fun ReaderScreen(
             currentPage = target
             saveProgress(target)
         } else if (session.currentChapterIndex > 0) {
-            onChapterSelect(session.currentChapterIndex - 1)
+            onChapterSelect(session.currentChapterIndex - 1, Int.MAX_VALUE)
         }
     }
 
@@ -102,7 +102,7 @@ fun ReaderScreen(
             currentPage = target
             saveProgress(target)
         } else if (session.currentChapterIndex < session.chapters.lastIndex) {
-            onChapterSelect(session.currentChapterIndex + 1)
+            onChapterSelect(session.currentChapterIndex + 1, 0)
         }
     }
 
@@ -122,19 +122,11 @@ fun ReaderScreen(
         ) {
             val density = LocalDensity.current
             var measuredFooterHeight by remember { mutableStateOf(ReaderLayoutMetrics.FooterHeightReserve) }
-            val textBottomSafetyPadding = remember(session.fontSizeSp, session.lineSpacing, density.fontScale) {
-                ReaderLayoutMetrics.textBottomSafetyPadding(
-                    fontSizeSp = session.fontSizeSp,
-                    lineSpacing = session.lineSpacing,
-                    fontScale = density.fontScale,
-                )
-            }
-            val layoutPadding = remember(maxWidth, maxHeight, measuredFooterHeight, textBottomSafetyPadding, session.pageMargins) {
+            val layoutPadding = remember(maxWidth, maxHeight, measuredFooterHeight, session.pageMargins) {
                 ReaderLayoutMetrics.contentPadding(
                     maxWidth = maxWidth,
                     maxHeight = maxHeight,
                     measuredFooterHeight = measuredFooterHeight,
-                    textBottomSafetyPadding = textBottomSafetyPadding,
                     pageMargins = session.pageMargins,
                 )
             }
@@ -265,7 +257,7 @@ fun ReaderScreen(
         ChapterListSheet(
             chapters = session.chapters,
             currentIndex = session.currentChapterIndex,
-            onSelect = onChapterSelect,
+            onSelect = { onChapterSelect(it, 0) },
             onDismiss = { showChapterList = false },
         )
     }
@@ -293,20 +285,16 @@ internal object ReaderLayoutMetrics {
     private val BottomBarFooterGap = 10.dp
     internal val FooterHeightReserve = 28.dp
     internal val FooterTextClearance = 12.dp
+    /** Fixed extra space kept below the paginated text so the last line never sits on top of the footer bubble. */
+    internal val PageEndClearance = 28.dp
     internal const val StyledTitleLineHeightMultiplier = 1.35f
     internal val StyledTitleSpacerHeight = 18.dp
-    internal val DefaultTextBottomSafetyPadding = textBottomSafetyPadding(
-        fontSizeSp = 18,
-        lineSpacing = 1.5f,
-        fontScale = 1f,
-    )
 
     @Suppress("UNUSED_PARAMETER")
     fun contentPadding(
         maxWidth: Dp,
         maxHeight: Dp,
         measuredFooterHeight: Dp = FooterHeightReserve,
-        textBottomSafetyPadding: Dp = DefaultTextBottomSafetyPadding,
         pageMargins: ReaderPageMargins = ReaderPageMargins.DEFAULT,
     ): ReaderContentPadding {
         val margins = pageMargins.clamped()
@@ -320,26 +308,10 @@ internal object ReaderLayoutMetrics {
             endContentPadding = margins.endDp.dp,
             topContentPadding = margins.topDp.dp,
             bottomContentPadding = bottomContentPadding,
-            pageEndClearance = textBottomSafetyPadding,
+            pageEndClearance = PageEndClearance,
             footerBottomPadding = FooterBottomPadding,
             bottomBarBottomPadding = bottomBarBottomPadding,
         )
-    }
-
-    fun textBottomSafetyPadding(
-        fontSizeSp: Int,
-        lineSpacing: Float,
-        fontScale: Float,
-    ): Dp {
-        val safeFontSize = fontSizeSp.coerceAtLeast(1).toFloat()
-        val safeLineSpacing = lineSpacing.coerceAtLeast(0.1f)
-        val safeFontScale = fontScale.coerceAtLeast(0.1f)
-        val bodyLineHeight = (safeFontSize * safeLineSpacing * safeFontScale).dp
-        val styledTitleExtraHeight =
-            (safeFontSize * StyledTitleLineHeightMultiplier * safeFontScale).dp +
-                StyledTitleSpacerHeight -
-                bodyLineHeight
-        return maxOf(FooterTextClearance, bodyLineHeight, styledTitleExtraHeight)
     }
 
     fun viewport(

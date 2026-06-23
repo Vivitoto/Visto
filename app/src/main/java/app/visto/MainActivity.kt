@@ -341,7 +341,7 @@ private fun ActiveReaderScreen(
     ReaderScreen(
         session = session,
         onBack = onClose,
-        onChapterSelect = { updateSession(ReaderAction.GoToChapter(it)) },
+        onChapterSelect = { index, landingPage -> updateSession(ReaderAction.GoToChapter(index, landingPage)) },
         onSettingsToggle = { showSettings = true },
         onSaveProgress = { saved ->
             onSessionChange(saved)
