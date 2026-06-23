@@ -1,27 +1,33 @@
 package app.visto.ui.reader
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,6 +81,7 @@ fun ReaderSettingsSheet(
                     onValueChange = { onFontSize(it.roundToInt()) },
                     valueRange = 14f..28f,
                     steps = 13,
+                    colors = readerSliderColors(),
                 )
             }
 
@@ -120,6 +127,7 @@ fun ReaderSettingsSheet(
                     },
                     valueRange = 1.0f..2.4f,
                     steps = 13,
+                    colors = readerSliderColors(),
                 )
             }
 
@@ -217,7 +225,7 @@ private fun FontChip(
     current: ReaderFontChoice,
     onFontChoice: (ReaderFontChoice) -> Unit,
 ) {
-    FilterChip(
+    ReaderSettingsChip(
         selected = current == value,
         onClick = { onFontChoice(value) },
         label = { ChipLabel(label) },
@@ -237,7 +245,7 @@ private fun TextColorChip(
     current: ReaderTextColor,
     onTextColor: (ReaderTextColor) -> Unit,
 ) {
-    FilterChip(
+    ReaderSettingsChip(
         selected = current == value,
         onClick = { onTextColor(value) },
         label = { ChipLabel(value.displayLabel) },
@@ -250,7 +258,7 @@ private fun BackgroundStyleChip(
     current: ReaderBackgroundStyle,
     onBackgroundStyle: (ReaderBackgroundStyle) -> Unit,
 ) {
-    FilterChip(
+    ReaderSettingsChip(
         selected = current == value,
         onClick = { onBackgroundStyle(value) },
         label = { ChipLabel(value.displayLabel) },
@@ -264,20 +272,75 @@ private fun ThemeChip(
     current: ReaderTheme,
     onTheme: (ReaderTheme) -> Unit,
 ) {
-    FilterChip(
+    ReaderSettingsChip(
         selected = current == value,
         onClick = { onTheme(value) },
         label = { ChipLabel(label) },
         leadingIcon = {
             Surface(
                 color = value.backgroundColor,
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                    .padding(end = 2.dp)
-                    .background(value.backgroundColor),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)),
+                modifier = Modifier.size(16.dp),
             ) {
-                Spacer(modifier = Modifier.padding(6.dp))
+                Spacer(modifier = Modifier.size(16.dp))
             }
         },
     )
 }
+
+@Composable
+private fun ReaderSettingsChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: @Composable () -> Unit,
+    leadingIcon: @Composable (() -> Unit)? = null,
+) {
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.64f)
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)
+    }
+
+    Surface(
+        color = containerColor,
+        contentColor = contentColor,
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, borderColor),
+        modifier = Modifier
+            .heightIn(min = 36.dp)
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = Role.RadioButton,
+            ),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = if (leadingIcon == null) 12.dp else 10.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (leadingIcon != null) {
+                leadingIcon()
+            }
+            label()
+        }
+    }
+}
+
+@Composable
+private fun readerSliderColors() = SliderDefaults.colors(
+    thumbColor = MaterialTheme.colorScheme.primary,
+    activeTrackColor = MaterialTheme.colorScheme.primary,
+    inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+)

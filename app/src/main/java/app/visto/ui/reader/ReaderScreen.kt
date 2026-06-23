@@ -1,6 +1,7 @@
 package app.visto.ui.reader
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -16,7 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -44,6 +45,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.visto.ui.Strings
@@ -363,19 +365,28 @@ private fun ReaderTopBar(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        color = palette.toolbarColor,
+        color = palette.toolbarColor.copy(alpha = if (palette.isDark) 0.84f else 0.88f),
         contentColor = palette.textColor,
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(26.dp),
+        tonalElevation = 2.dp,
+        shadowElevation = 5.dp,
+        border = BorderStroke(1.dp, palette.textColor.copy(alpha = if (palette.isDark) 0.08f else 0.06f)),
         modifier = modifier
-            .fillMaxWidth()
+            .widthIn(max = 540.dp)
+            .fillMaxWidth(0.90f)
             .clickable(onClick = onToggle),
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Medium,
+            color = palette.textColor.copy(alpha = 0.90f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 9.dp),
         )
     }
 }
@@ -387,27 +398,37 @@ private fun ReaderPageFooter(
     palette: ReaderPalette,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        color = palette.toolbarColor.copy(alpha = if (palette.isDark) 0.28f else 0.36f),
+        contentColor = palette.textColor.copy(alpha = 0.58f),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, palette.textColor.copy(alpha = if (palette.isDark) 0.05f else 0.04f)),
+        modifier = modifier
+            .widthIn(max = 560.dp)
+            .fillMaxWidth(),
     ) {
-        Text(
-            text = chapterTitle,
-            style = MaterialTheme.typography.labelSmall,
-            color = palette.textColor.copy(alpha = 0.46f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = "$progressPercent%",
-            style = MaterialTheme.typography.labelSmall,
-            color = palette.textColor.copy(alpha = 0.46f),
-            maxLines = 1,
-            textAlign = TextAlign.End,
-            modifier = Modifier.padding(start = 12.dp),
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = chapterTitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = palette.textColor.copy(alpha = 0.58f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = "$progressPercent%",
+                style = MaterialTheme.typography.labelSmall,
+                color = palette.textColor.copy(alpha = 0.58f),
+                maxLines = 1,
+                textAlign = TextAlign.End,
+                modifier = Modifier.padding(start = 12.dp),
+            )
+        }
     }
 }
 
@@ -419,39 +440,57 @@ private fun ReaderBottomBar(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+    Surface(
+        color = palette.toolbarColor.copy(alpha = if (palette.isDark) 0.82f else 0.88f),
+        contentColor = palette.textColor,
+        shape = RoundedCornerShape(28.dp),
+        tonalElevation = 3.dp,
+        shadowElevation = 7.dp,
+        border = BorderStroke(1.dp, palette.textColor.copy(alpha = if (palette.isDark) 0.08f else 0.06f)),
+        modifier = modifier,
     ) {
-        Surface(
-            color = palette.toolbarColor,
-            contentColor = palette.textColor,
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier.fillMaxWidth(),
+        Row(
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 5.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onChapterList, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Filled.List, contentDescription = Strings.READER_CHAPTERS)
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = Strings.READER_CHAPTERS,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(onClick = onSettings, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Filled.Settings, contentDescription = Strings.SETTINGS_TITLE)
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = Strings.BACK)
-                }
-            }
+            ReaderChromeIconButton(
+                icon = Icons.Filled.List,
+                contentDescription = Strings.READER_CHAPTERS,
+                palette = palette,
+                onClick = onChapterList,
+            )
+            ReaderChromeIconButton(
+                icon = Icons.Filled.Settings,
+                contentDescription = Strings.SETTINGS_TITLE,
+                palette = palette,
+                onClick = onSettings,
+            )
+            ReaderChromeIconButton(
+                icon = Icons.Filled.ArrowBack,
+                contentDescription = Strings.BACK,
+                palette = palette,
+                onClick = onBack,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReaderChromeIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    palette: ReaderPalette,
+    onClick: () -> Unit,
+) {
+    Surface(
+        color = palette.textColor.copy(alpha = if (palette.isDark) 0.12f else 0.07f),
+        contentColor = palette.textColor.copy(alpha = 0.88f),
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, palette.textColor.copy(alpha = if (palette.isDark) 0.08f else 0.05f)),
+    ) {
+        IconButton(onClick = onClick, modifier = Modifier.size(40.dp)) {
+            Icon(icon, contentDescription = contentDescription)
         }
     }
 }
