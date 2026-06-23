@@ -129,12 +129,13 @@ fun ReaderScreen(
                     fontScale = density.fontScale,
                 )
             }
-            val layoutPadding = remember(maxWidth, maxHeight, measuredFooterHeight, textBottomSafetyPadding) {
+            val layoutPadding = remember(maxWidth, maxHeight, measuredFooterHeight, textBottomSafetyPadding, session.pageMargins) {
                 ReaderLayoutMetrics.contentPadding(
                     maxWidth = maxWidth,
                     maxHeight = maxHeight,
                     measuredFooterHeight = measuredFooterHeight,
                     textBottomSafetyPadding = textBottomSafetyPadding,
+                    pageMargins = session.pageMargins,
                 )
             }
             val viewport = remember(
@@ -211,9 +212,9 @@ fun ReaderScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(
-                                    start = layoutPadding.horizontalPadding,
+                                    start = layoutPadding.startContentPadding,
                                     top = layoutPadding.topContentPadding,
-                                    end = layoutPadding.horizontalPadding,
+                                    end = layoutPadding.endContentPadding,
                                     bottom = layoutPadding.bottomContentPadding,
                                 ),
                         )
@@ -225,8 +226,8 @@ fun ReaderScreen(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .padding(
-                                    start = layoutPadding.horizontalPadding,
-                                    end = layoutPadding.horizontalPadding,
+                                    start = layoutPadding.startContentPadding,
+                                    end = layoutPadding.endContentPadding,
                                     bottom = layoutPadding.footerBottomPadding(chromeVisible),
                                 ),
                         )
@@ -271,7 +272,8 @@ fun ReaderScreen(
 }
 
 internal data class ReaderContentPadding(
-    val horizontalPadding: Dp,
+    val startContentPadding: Dp,
+    val endContentPadding: Dp,
     val topContentPadding: Dp,
     val bottomContentPadding: Dp,
     val pageEndClearance: Dp,
@@ -283,12 +285,6 @@ internal data class ReaderContentPadding(
 }
 
 internal object ReaderLayoutMetrics {
-    private val CompactWidthThreshold = 360.dp
-    private val CompactHeightThreshold = 600.dp
-    private val CompactHorizontalPadding = 18.dp
-    private val RegularHorizontalPadding = 22.dp
-    private val CompactVerticalPadding = 24.dp
-    private val RegularVerticalPadding = 28.dp
     internal val BottomBarHorizontalPadding = 5.dp
     internal val BottomBarVerticalPadding = 5.dp
     internal val ChromeIconButtonWidth = 56.dp
@@ -305,34 +301,24 @@ internal object ReaderLayoutMetrics {
         fontScale = 1f,
     )
 
+    @Suppress("UNUSED_PARAMETER")
     fun contentPadding(
         maxWidth: Dp,
         maxHeight: Dp,
         measuredFooterHeight: Dp = FooterHeightReserve,
         textBottomSafetyPadding: Dp = DefaultTextBottomSafetyPadding,
+        pageMargins: ReaderPageMargins = ReaderPageMargins.DEFAULT,
     ): ReaderContentPadding {
-        val horizontalPadding = if (maxWidth < CompactWidthThreshold) {
-            CompactHorizontalPadding
-        } else {
-            RegularHorizontalPadding
-        }
-        val baseVerticalPadding = if (maxHeight < CompactHeightThreshold) {
-            CompactVerticalPadding
-        } else {
-            RegularVerticalPadding
-        }
+        val margins = pageMargins.clamped()
         val safeFooterHeight = maxOf(FooterHeightReserve, measuredFooterHeight)
         val stableFooterReserve =
             FooterBottomPadding + safeFooterHeight + FooterTextClearance
         val bottomBarBottomPadding = FooterBottomPadding + safeFooterHeight + BottomBarFooterGap
-        val bottomContentPadding = if (baseVerticalPadding > stableFooterReserve) {
-            baseVerticalPadding
-        } else {
-            stableFooterReserve
-        }
+        val bottomContentPadding = maxOf(margins.bottomDp.dp, stableFooterReserve)
         return ReaderContentPadding(
-            horizontalPadding = horizontalPadding,
-            topContentPadding = baseVerticalPadding,
+            startContentPadding = margins.startDp.dp,
+            endContentPadding = margins.endDp.dp,
+            topContentPadding = margins.topDp.dp,
             bottomContentPadding = bottomContentPadding,
             pageEndClearance = textBottomSafetyPadding,
             footerBottomPadding = FooterBottomPadding,
@@ -369,7 +355,7 @@ internal object ReaderLayoutMetrics {
                 padding.bottomContentPadding -
                 padding.pageEndClearance
             ReaderViewport(
-                widthPx = (maxWidth - padding.horizontalPadding * 2)
+                widthPx = (maxWidth - padding.startContentPadding - padding.endContentPadding)
                     .coerceAtLeast(1.dp)
                     .toPx()
                     .roundToInt(),

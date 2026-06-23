@@ -36,6 +36,10 @@ class BookProgressEntityTest {
         assertEquals("system", entity.fontChoice)
         assertEquals("default", entity.textColor)
         assertEquals("default", entity.backgroundStyle)
+        assertEquals(28, entity.pageMarginTopDp)
+        assertEquals(54, entity.pageMarginBottomDp)
+        assertEquals(22, entity.pageMarginStartDp)
+        assertEquals(22, entity.pageMarginEndDp)
         assertEquals(100L, entity.lastReadAt)
         assertEquals(50L, entity.addedAt)
     }
@@ -59,6 +63,10 @@ class BookProgressEntityTest {
             fontChoice = "serif",
             textColor = "ink",
             backgroundStyle = "paper",
+            pageMarginTopDp = 34,
+            pageMarginBottomDp = 72,
+            pageMarginStartDp = 30,
+            pageMarginEndDp = 38,
             lastReadAt = 100,
             addedAt = 50,
         )
@@ -73,5 +81,9 @@ class BookProgressEntityTest {
         assertEquals("serif", entity.fontChoice)
         assertEquals("ink", entity.textColor)
         assertEquals("paper", entity.backgroundStyle)
+        assertEquals(34, entity.pageMarginTopDp)
+        assertEquals(72, entity.pageMarginBottomDp)
+        assertEquals(30, entity.pageMarginStartDp)
+        assertEquals(38, entity.pageMarginEndDp)
     }
 }

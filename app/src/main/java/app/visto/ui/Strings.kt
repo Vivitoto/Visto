@@ -138,6 +138,11 @@ object Strings {
     const val READER_FONT_IMPORT_UNSUPPORTED = "请选择 .ttf 或 .otf 字体文件"
     const val READER_FONT_SIZE = "字号"
     const val READER_LINE_SPACING = "行距"
+    const val READER_PAGE_MARGINS = "页面边距"
+    const val READER_MARGIN_TOP = "上边距"
+    const val READER_MARGIN_BOTTOM = "下边距"
+    const val READER_MARGIN_START = "左边距"
+    const val READER_MARGIN_END = "右边距"
     const val READER_THEME = "主题"
     const val READER_THEME_LIGHT = "白天"
     const val READER_THEME_DARK = "夜间"
@@ -173,6 +178,9 @@ object Strings {
         val rounded = kotlin.math.round(value * 10f) / 10f
         return "$READER_LINE_SPACING ${rounded}x"
     }
+    fun readerMarginDp(dp: Int): String = "${dp}dp"
+    fun readerMarginsSummary(topDp: Int, bottomDp: Int, startDp: Int, endDp: Int): String =
+        "边距 上${readerMarginDp(topDp)} / 下${readerMarginDp(bottomDp)} / 左${readerMarginDp(startDp)} / 右${readerMarginDp(endDp)}"
     fun readerPageStatus(chapterTitle: String, page: Int, totalPages: Int): String =
         "$chapterTitle $page/$totalPages 页"
     fun readerChapterNumber(index: Int): String = "第 ${index + 1} 章"

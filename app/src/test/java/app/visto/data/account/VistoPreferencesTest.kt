@@ -2,6 +2,7 @@ package app.visto.data.account
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import app.visto.ui.reader.ReaderPageMargins
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -36,6 +37,7 @@ class VistoPreferencesTest {
                 fontChoice = "system",
                 textColor = "default",
                 backgroundStyle = "default",
+                pageMargins = ReaderPageMargins.DEFAULT,
             ),
             prefs.defaultReaderSettings,
         )
@@ -52,6 +54,12 @@ class VistoPreferencesTest {
             fontChoice = "serif",
             textColor = "warm_brown",
             backgroundStyle = "night",
+            pageMargins = ReaderPageMargins(
+                topDp = 2,
+                bottomDp = 500,
+                startDp = 36,
+                endDp = 42,
+            ),
         )
 
         val reloaded = VistoPreferences(context).defaultReaderSettings
@@ -61,6 +69,15 @@ class VistoPreferencesTest {
         assertEquals("serif", reloaded.fontChoice)
         assertEquals("warm_brown", reloaded.textColor)
         assertEquals("night", reloaded.backgroundStyle)
+        assertEquals(
+            ReaderPageMargins(
+                topDp = ReaderPageMargins.MIN_DP,
+                bottomDp = ReaderPageMargins.MAX_DP,
+                startDp = 36,
+                endDp = 42,
+            ),
+            reloaded.pageMargins,
+        )
     }
 
     @Test

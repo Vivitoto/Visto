@@ -991,5 +991,12 @@ private fun readerDefaultsSummary(defaults: ReaderDefaultSettings): String {
     val textColor = ReaderTextColor.fromStorage(defaults.textColor).displayLabel
     val background = ReaderBackgroundStyle.fromStorage(defaults.backgroundStyle).displayLabel
     val lineSpacing = "%.1f".format(defaults.lineSpacing)
-    return "${defaults.fontSizeSp}sp · ${Strings.READER_LINE_SPACING}$lineSpacing · $theme · $font · $textColor · $background"
+    val margins = defaults.pageMargins.clamped()
+    val marginSummary = Strings.readerMarginsSummary(
+        topDp = margins.topDp,
+        bottomDp = margins.bottomDp,
+        startDp = margins.startDp,
+        endDp = margins.endDp,
+    )
+    return "${defaults.fontSizeSp}sp · ${Strings.READER_LINE_SPACING}$lineSpacing · $theme · $font · $textColor · $background · $marginSummary"
 }

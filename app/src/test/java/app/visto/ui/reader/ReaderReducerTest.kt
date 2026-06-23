@@ -70,6 +70,23 @@ class ReaderReducerTest {
     }
 
     @Test
+    fun pageMarginActionsUpdateClampedMargins() {
+        val session = loadedSession()
+
+        val top = ReaderReducer.reduce(session, ReaderAction.SetPageMarginTop(40))
+        val bottom = ReaderReducer.reduce(top, ReaderAction.SetPageMarginBottom(500))
+        val start = ReaderReducer.reduce(bottom, ReaderAction.SetPageMarginStart(36))
+        val end = ReaderReducer.reduce(start, ReaderAction.SetPageMarginEnd(0))
+
+        assertEquals(40, end.pageMargins.topDp)
+        assertEquals(ReaderPageMargins.MAX_DP, end.pageMargins.bottomDp)
+        assertEquals(36, end.pageMargins.startDp)
+        assertEquals(ReaderPageMargins.MIN_DP, end.pageMargins.endDp)
+        assertEquals(session.currentChapterIndex, end.currentChapterIndex)
+        assertTrue(end.pagesForCurrentChapter.isNotEmpty())
+    }
+
+    @Test
     fun viewportChangeRecalculatesPagesWithoutChangingChapter() {
         val session = loadedSession()
         val viewport = ReaderViewport(widthPx = 160, heightPx = 200, density = 1f)

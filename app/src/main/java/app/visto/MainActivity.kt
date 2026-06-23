@@ -98,6 +98,7 @@ import app.visto.ui.browser.BrowserUiState
 import app.visto.ui.reader.ReaderAction
 import app.visto.ui.reader.ReaderBackgroundStyle
 import app.visto.ui.reader.ReaderFontChoice
+import app.visto.ui.reader.ReaderPageMargins
 import app.visto.ui.reader.ReaderReducer
 import app.visto.ui.reader.ReaderScreen
 import app.visto.ui.reader.ReaderSession
@@ -367,6 +368,10 @@ private fun ActiveReaderScreen(
             onTheme = { updateSession(ReaderAction.SetTheme(it)) },
             onTextColor = { updateSession(ReaderAction.SetTextColor(it)) },
             onBackgroundStyle = { updateSession(ReaderAction.SetBackgroundStyle(it)) },
+            onPageMarginTop = { updateSession(ReaderAction.SetPageMarginTop(it)) },
+            onPageMarginBottom = { updateSession(ReaderAction.SetPageMarginBottom(it)) },
+            onPageMarginStart = { updateSession(ReaderAction.SetPageMarginStart(it)) },
+            onPageMarginEnd = { updateSession(ReaderAction.SetPageMarginEnd(it)) },
             onSetDefaultSettings = { onSetDefaultSettings(latestSession) },
             onDismiss = { showSettings = false },
             fontImportError = fontImportError,
@@ -394,6 +399,7 @@ private fun readerLoadingSession(
     theme = (progress?.theme ?: defaultSettings.theme).toReaderTheme(),
     textColor = ReaderTextColor.fromStorage(progress?.textColor ?: defaultSettings.textColor),
     backgroundStyle = ReaderBackgroundStyle.fromStorage(progress?.backgroundStyle ?: defaultSettings.backgroundStyle),
+    pageMargins = progress?.toReaderPageMargins() ?: defaultSettings.pageMargins.clamped(),
     isLoading = true,
     errorMessage = null,
 )
@@ -409,7 +415,15 @@ private fun ReaderSession.toDefaultSettings(): ReaderDefaultSettings = ReaderDef
     fontChoice = fontChoice.storageKey,
     textColor = textColor.storageKey,
     backgroundStyle = backgroundStyle.storageKey,
+    pageMargins = pageMargins.clamped(),
 )
+
+private fun BookProgressEntity.toReaderPageMargins(): ReaderPageMargins = ReaderPageMargins(
+    topDp = pageMarginTopDp,
+    bottomDp = pageMarginBottomDp,
+    startDp = pageMarginStartDp,
+    endDp = pageMarginEndDp,
+).clamped()
 
 private suspend fun saveBookProgress(
     entity: BookProgressEntity?,
@@ -421,6 +435,7 @@ private suspend fun saveBookProgress(
 ) = withContext(Dispatchers.IO) {
     val now = System.currentTimeMillis()
     val chapter = session.chapters.getOrNull(session.currentChapterIndex)
+    val margins = session.pageMargins.clamped()
     upsert(
         BookProgressEntity(
             id = entity?.id ?: 0,
@@ -440,6 +455,10 @@ private suspend fun saveBookProgress(
             fontChoice = session.fontChoice.storageKey,
             textColor = session.textColor.storageKey,
             backgroundStyle = session.backgroundStyle.storageKey,
+            pageMarginTopDp = margins.topDp,
+            pageMarginBottomDp = margins.bottomDp,
+            pageMarginStartDp = margins.startDp,
+            pageMarginEndDp = margins.endDp,
             lastReadAt = now,
             addedAt = entity?.addedAt ?: now,
         )
@@ -451,26 +470,33 @@ private fun scannedBookProgress(
     entry: RemoteEntry,
     now: Long,
     defaultSettings: ReaderDefaultSettings,
-): BookProgressEntity = BookProgressEntity(
-    accountId = accountId,
-    path = entry.path,
-    name = entry.name,
-    sizeBytes = entry.sizeBytes,
-    etag = entry.etag,
-    encoding = Charsets.UTF_8.name(),
-    chapterIndex = 0,
-    chapterTitle = null,
-    pageOffset = 0,
-    totalChapters = 0,
-    fontSizeSp = defaultSettings.fontSizeSp,
-    lineSpacing = defaultSettings.lineSpacing,
-    theme = defaultSettings.theme,
-    fontChoice = defaultSettings.fontChoice,
-    textColor = defaultSettings.textColor,
-    backgroundStyle = defaultSettings.backgroundStyle,
-    lastReadAt = now,
-    addedAt = now,
-)
+): BookProgressEntity {
+    val margins = defaultSettings.pageMargins.clamped()
+    return BookProgressEntity(
+        accountId = accountId,
+        path = entry.path,
+        name = entry.name,
+        sizeBytes = entry.sizeBytes,
+        etag = entry.etag,
+        encoding = Charsets.UTF_8.name(),
+        chapterIndex = 0,
+        chapterTitle = null,
+        pageOffset = 0,
+        totalChapters = 0,
+        fontSizeSp = defaultSettings.fontSizeSp,
+        lineSpacing = defaultSettings.lineSpacing,
+        theme = defaultSettings.theme,
+        fontChoice = defaultSettings.fontChoice,
+        textColor = defaultSettings.textColor,
+        backgroundStyle = defaultSettings.backgroundStyle,
+        pageMarginTopDp = margins.topDp,
+        pageMarginBottomDp = margins.bottomDp,
+        pageMarginStartDp = margins.startDp,
+        pageMarginEndDp = margins.endDp,
+        lastReadAt = now,
+        addedAt = now,
+    )
+}
 
 private val READER_FONT_PICKER_MIME_TYPES = arrayOf(
     "font/ttf",

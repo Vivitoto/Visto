@@ -17,6 +17,32 @@ data class ReaderViewport(
     }
 }
 
+/** Reader page margins stored as density-independent integer dp values. */
+data class ReaderPageMargins(
+    val topDp: Int = DEFAULT_TOP_DP,
+    val bottomDp: Int = DEFAULT_BOTTOM_DP,
+    val startDp: Int = DEFAULT_HORIZONTAL_DP,
+    val endDp: Int = DEFAULT_HORIZONTAL_DP,
+) {
+    fun clamped(): ReaderPageMargins = ReaderPageMargins(
+        topDp = topDp.coerceIn(MIN_DP, MAX_DP),
+        bottomDp = bottomDp.coerceIn(MIN_BOTTOM_DP, MAX_DP),
+        startDp = startDp.coerceIn(MIN_DP, MAX_DP),
+        endDp = endDp.coerceIn(MIN_DP, MAX_DP),
+    )
+
+    companion object {
+        const val MIN_DP = 8
+        const val MAX_DP = 96
+        const val DEFAULT_HORIZONTAL_DP = 22
+        const val DEFAULT_TOP_DP = 28
+        const val DEFAULT_BOTTOM_DP = 54
+        const val MIN_BOTTOM_DP = DEFAULT_BOTTOM_DP
+
+        val DEFAULT = ReaderPageMargins()
+    }
+}
+
 /** Immutable state for the plain-text reader screen. */
 data class ReaderSession(
     val filePath: String,
@@ -34,6 +60,7 @@ data class ReaderSession(
     val theme: ReaderTheme = ReaderTheme.LIGHT,
     val textColor: ReaderTextColor = ReaderTextColor.DEFAULT,
     val backgroundStyle: ReaderBackgroundStyle = ReaderBackgroundStyle.DEFAULT,
+    val pageMargins: ReaderPageMargins = ReaderPageMargins.DEFAULT,
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
     val showToolbar: Boolean = true,
@@ -115,6 +142,10 @@ sealed class ReaderSessionAction {
     data class SetTheme(val theme: ReaderTheme) : ReaderSessionAction()
     data class SetTextColor(val textColor: ReaderTextColor) : ReaderSessionAction()
     data class SetBackgroundStyle(val backgroundStyle: ReaderBackgroundStyle) : ReaderSessionAction()
+    data class SetPageMarginTop(val dp: Int) : ReaderSessionAction()
+    data class SetPageMarginBottom(val dp: Int) : ReaderSessionAction()
+    data class SetPageMarginStart(val dp: Int) : ReaderSessionAction()
+    data class SetPageMarginEnd(val dp: Int) : ReaderSessionAction()
 }
 
 sealed class ReaderAction {
@@ -136,6 +167,10 @@ sealed class ReaderAction {
     data class SetTheme(val theme: ReaderTheme) : ReaderAction()
     data class SetTextColor(val textColor: ReaderTextColor) : ReaderAction()
     data class SetBackgroundStyle(val backgroundStyle: ReaderBackgroundStyle) : ReaderAction()
+    data class SetPageMarginTop(val dp: Int) : ReaderAction()
+    data class SetPageMarginBottom(val dp: Int) : ReaderAction()
+    data class SetPageMarginStart(val dp: Int) : ReaderAction()
+    data class SetPageMarginEnd(val dp: Int) : ReaderAction()
     data object NextPage : ReaderAction()
     data object PrevPage : ReaderAction()
     data object Retry : ReaderAction()
@@ -192,6 +227,22 @@ object ReaderReducer {
             session,
             ReaderSessionAction.SetBackgroundStyle(action.backgroundStyle),
         )
+        is ReaderAction.SetPageMarginTop -> ReaderSessionReducer.reduce(
+            session,
+            ReaderSessionAction.SetPageMarginTop(action.dp),
+        )
+        is ReaderAction.SetPageMarginBottom -> ReaderSessionReducer.reduce(
+            session,
+            ReaderSessionAction.SetPageMarginBottom(action.dp),
+        )
+        is ReaderAction.SetPageMarginStart -> ReaderSessionReducer.reduce(
+            session,
+            ReaderSessionAction.SetPageMarginStart(action.dp),
+        )
+        is ReaderAction.SetPageMarginEnd -> ReaderSessionReducer.reduce(
+            session,
+            ReaderSessionAction.SetPageMarginEnd(action.dp),
+        )
         ReaderAction.NextPage -> ReaderSessionReducer.reduce(session, ReaderSessionAction.NextPage)
         ReaderAction.PrevPage -> ReaderSessionReducer.reduce(session, ReaderSessionAction.PrevPage)
         ReaderAction.Retry -> session.copy(isLoading = true, errorMessage = null)
@@ -224,6 +275,7 @@ object ReaderSessionReducer {
         theme = ReaderTheme.LIGHT,
         textColor = ReaderTextColor.DEFAULT,
         backgroundStyle = ReaderBackgroundStyle.DEFAULT,
+        pageMargins = ReaderPageMargins.DEFAULT,
         isLoading = loading,
         errorMessage = null,
     )
@@ -303,6 +355,22 @@ object ReaderSessionReducer {
         is ReaderSessionAction.SetTheme -> state.copy(theme = action.theme)
         is ReaderSessionAction.SetTextColor -> state.copy(textColor = action.textColor)
         is ReaderSessionAction.SetBackgroundStyle -> state.copy(backgroundStyle = action.backgroundStyle)
+        is ReaderSessionAction.SetPageMarginTop -> setPageMargins(
+            state,
+            state.pageMargins.copy(topDp = action.dp),
+        )
+        is ReaderSessionAction.SetPageMarginBottom -> setPageMargins(
+            state,
+            state.pageMargins.copy(bottomDp = action.dp),
+        )
+        is ReaderSessionAction.SetPageMarginStart -> setPageMargins(
+            state,
+            state.pageMargins.copy(startDp = action.dp),
+        )
+        is ReaderSessionAction.SetPageMarginEnd -> setPageMargins(
+            state,
+            state.pageMargins.copy(endDp = action.dp),
+        )
     }
 
     private fun previousPage(state: ReaderSession): ReaderSession {
@@ -326,6 +394,18 @@ object ReaderSessionReducer {
         return repaginate(
             state.copy(currentChapterIndex = state.currentChapterIndex + 1, currentPage = 0),
             resetPage = true,
+        )
+    }
+
+    private fun setPageMargins(state: ReaderSession, margins: ReaderPageMargins): ReaderSession {
+        val clamped = margins.clamped()
+        if (clamped == state.pageMargins) {
+            return state
+        }
+        return repaginate(
+            state.copy(pageMargins = clamped),
+            resetPage = false,
+            targetStartChar = state.currentPageStartChar(),
         )
     }
 

@@ -71,4 +71,21 @@ object VistoMigrations {
             db.execSQL("ALTER TABLE `book_progress` ADD COLUMN `backgroundStyle` TEXT NOT NULL DEFAULT 'default'")
         }
     }
+
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE `book_progress` ADD COLUMN `pageMarginTopDp` INTEGER NOT NULL DEFAULT ${BookProgressDefaults.DEFAULT_PAGE_MARGIN_TOP_DP}"
+            )
+            db.execSQL(
+                "ALTER TABLE `book_progress` ADD COLUMN `pageMarginBottomDp` INTEGER NOT NULL DEFAULT ${BookProgressDefaults.DEFAULT_PAGE_MARGIN_BOTTOM_DP}"
+            )
+            db.execSQL(
+                "ALTER TABLE `book_progress` ADD COLUMN `pageMarginStartDp` INTEGER NOT NULL DEFAULT ${BookProgressDefaults.DEFAULT_PAGE_MARGIN_HORIZONTAL_DP}"
+            )
+            db.execSQL(
+                "ALTER TABLE `book_progress` ADD COLUMN `pageMarginEndDp` INTEGER NOT NULL DEFAULT ${BookProgressDefaults.DEFAULT_PAGE_MARGIN_HORIZONTAL_DP}"
+            )
+        }
+    }
 }

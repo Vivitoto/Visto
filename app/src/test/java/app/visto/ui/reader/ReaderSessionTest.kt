@@ -27,6 +27,7 @@ class ReaderSessionTest {
         assertTrue(state.isLoading)
         assertEquals("", state.filePath)
         assertEquals(ReaderTheme.LIGHT, state.theme)
+        assertEquals(ReaderPageMargins.DEFAULT, state.pageMargins)
     }
 
     @Test
@@ -92,6 +93,21 @@ class ReaderSessionTest {
         assertEquals(loaded.currentChapterIndex, next.currentChapterIndex)
         assertTrue(originalPageStart >= next.pagesForCurrentChapter[next.currentPage].startChar)
         assertTrue(originalPageStart <= next.pagesForCurrentChapter[next.currentPage].endChar)
+    }
+
+    @Test
+    fun setPageMarginsClampAndKeepCurrentReadingPosition() {
+        val loaded = ReaderSessionReducer.reduce(loadedState(), ReaderSessionAction.NextPage)
+        val originalPageStart = loaded.pagesForCurrentChapter[loaded.currentPage].startChar
+
+        val widerStart = ReaderSessionReducer.reduce(loaded, ReaderSessionAction.SetPageMarginStart(500))
+        val tighterEnd = ReaderSessionReducer.reduce(widerStart, ReaderSessionAction.SetPageMarginEnd(-2))
+
+        assertEquals(ReaderPageMargins.MAX_DP, widerStart.pageMargins.startDp)
+        assertEquals(ReaderPageMargins.MIN_DP, tighterEnd.pageMargins.endDp)
+        assertEquals(loaded.currentChapterIndex, tighterEnd.currentChapterIndex)
+        assertTrue(originalPageStart >= tighterEnd.pagesForCurrentChapter[tighterEnd.currentPage].startChar)
+        assertTrue(originalPageStart <= tighterEnd.pagesForCurrentChapter[tighterEnd.currentPage].endChar)
     }
 
     @Test

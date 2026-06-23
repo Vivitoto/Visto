@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import app.visto.core.sort.SortMode
 import app.visto.ui.reader.ReaderBackgroundStyle
 import app.visto.ui.reader.ReaderFontChoice
+import app.visto.ui.reader.ReaderPageMargins
 import app.visto.ui.reader.ReaderTextColor
 import app.visto.ui.reader.ReaderTheme
 import app.visto.ui.theme.ThemeMode
@@ -88,8 +89,15 @@ class VistoPreferences(context: Context) {
             backgroundStyle = ReaderBackgroundStyle.sanitizeStorageKey(
                 prefs.getString(KEY_READER_DEFAULT_BACKGROUND_STYLE, ReaderBackgroundStyle.DEFAULT_STYLE.storageKey),
             ),
+            pageMargins = ReaderPageMargins(
+                topDp = prefs.getInt(KEY_READER_DEFAULT_MARGIN_TOP_DP, ReaderPageMargins.DEFAULT_TOP_DP),
+                bottomDp = prefs.getInt(KEY_READER_DEFAULT_MARGIN_BOTTOM_DP, ReaderPageMargins.DEFAULT_BOTTOM_DP),
+                startDp = prefs.getInt(KEY_READER_DEFAULT_MARGIN_START_DP, ReaderPageMargins.DEFAULT_HORIZONTAL_DP),
+                endDp = prefs.getInt(KEY_READER_DEFAULT_MARGIN_END_DP, ReaderPageMargins.DEFAULT_HORIZONTAL_DP),
+            ).clamped(),
         )
         set(value) = prefs.edit {
+            val margins = value.pageMargins.clamped()
             putInt(
                 KEY_READER_DEFAULT_FONT_SIZE_SP,
                 value.fontSizeSp.coerceIn(MIN_READER_FONT_SIZE_SP, MAX_READER_FONT_SIZE_SP),
@@ -102,6 +110,10 @@ class VistoPreferences(context: Context) {
             putString(KEY_READER_DEFAULT_FONT_CHOICE, ReaderFontChoice.sanitizeStorageKey(value.fontChoice))
             putString(KEY_READER_DEFAULT_TEXT_COLOR, ReaderTextColor.sanitizeStorageKey(value.textColor))
             putString(KEY_READER_DEFAULT_BACKGROUND_STYLE, ReaderBackgroundStyle.sanitizeStorageKey(value.backgroundStyle))
+            putInt(KEY_READER_DEFAULT_MARGIN_TOP_DP, margins.topDp)
+            putInt(KEY_READER_DEFAULT_MARGIN_BOTTOM_DP, margins.bottomDp)
+            putInt(KEY_READER_DEFAULT_MARGIN_START_DP, margins.startDp)
+            putInt(KEY_READER_DEFAULT_MARGIN_END_DP, margins.endDp)
         }
 
     /**
@@ -128,6 +140,10 @@ class VistoPreferences(context: Context) {
         private const val KEY_READER_DEFAULT_FONT_CHOICE = "reader_default_font_choice"
         private const val KEY_READER_DEFAULT_TEXT_COLOR = "reader_default_text_color"
         private const val KEY_READER_DEFAULT_BACKGROUND_STYLE = "reader_default_background_style"
+        private const val KEY_READER_DEFAULT_MARGIN_TOP_DP = "reader_default_margin_top_dp"
+        private const val KEY_READER_DEFAULT_MARGIN_BOTTOM_DP = "reader_default_margin_bottom_dp"
+        private const val KEY_READER_DEFAULT_MARGIN_START_DP = "reader_default_margin_start_dp"
+        private const val KEY_READER_DEFAULT_MARGIN_END_DP = "reader_default_margin_end_dp"
         private const val KEY_THUMBNAIL_CACHE_LIMIT = "thumbnail_cache_limit"
         const val DEFAULT_MAX_GRID_THUMBNAIL_BYTES: Long = 8L * 1024 * 1024
         const val DEFAULT_READER_FONT_SIZE_SP = 18
@@ -147,6 +163,7 @@ data class ReaderDefaultSettings(
     val fontChoice: String = ReaderFontChoice.DEFAULT.storageKey,
     val textColor: String = ReaderTextColor.DEFAULT_COLOR.storageKey,
     val backgroundStyle: String = ReaderBackgroundStyle.DEFAULT_STYLE.storageKey,
+    val pageMargins: ReaderPageMargins = ReaderPageMargins.DEFAULT,
 )
 
 /**

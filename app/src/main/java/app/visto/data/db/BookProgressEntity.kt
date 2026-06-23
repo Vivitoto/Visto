@@ -6,6 +6,12 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+internal object BookProgressDefaults {
+    const val DEFAULT_PAGE_MARGIN_TOP_DP = 28
+    const val DEFAULT_PAGE_MARGIN_BOTTOM_DP = 54
+    const val DEFAULT_PAGE_MARGIN_HORIZONTAL_DP = 22
+}
+
 /**
  * Saved reading position and per-book reader preferences for one WebDAV file.
  */
@@ -56,6 +62,14 @@ data class BookProgressEntity(
     val textColor: String = "default",
     @ColumnInfo(name = "backgroundStyle")
     val backgroundStyle: String = "default",
+    @ColumnInfo(name = "pageMarginTopDp")
+    val pageMarginTopDp: Int = BookProgressDefaults.DEFAULT_PAGE_MARGIN_TOP_DP,
+    @ColumnInfo(name = "pageMarginBottomDp")
+    val pageMarginBottomDp: Int = BookProgressDefaults.DEFAULT_PAGE_MARGIN_BOTTOM_DP,
+    @ColumnInfo(name = "pageMarginStartDp")
+    val pageMarginStartDp: Int = BookProgressDefaults.DEFAULT_PAGE_MARGIN_HORIZONTAL_DP,
+    @ColumnInfo(name = "pageMarginEndDp")
+    val pageMarginEndDp: Int = BookProgressDefaults.DEFAULT_PAGE_MARGIN_HORIZONTAL_DP,
     @ColumnInfo(name = "lastReadAt")
     val lastReadAt: Long,
     @ColumnInfo(name = "addedAt")

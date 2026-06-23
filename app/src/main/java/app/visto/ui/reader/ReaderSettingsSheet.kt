@@ -53,6 +53,10 @@ fun ReaderSettingsSheet(
     onTheme: (ReaderTheme) -> Unit,
     onTextColor: (ReaderTextColor) -> Unit,
     onBackgroundStyle: (ReaderBackgroundStyle) -> Unit,
+    onPageMarginTop: (Int) -> Unit,
+    onPageMarginBottom: (Int) -> Unit,
+    onPageMarginStart: (Int) -> Unit,
+    onPageMarginEnd: (Int) -> Unit,
     onSetDefaultSettings: () -> Unit,
     onDismiss: () -> Unit,
     fontImportError: String? = null,
@@ -132,6 +136,31 @@ fun ReaderSettingsSheet(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(ReaderSheetItemGap)) {
+                Text(text = Strings.READER_PAGE_MARGINS, style = MaterialTheme.typography.titleSmall)
+                ReaderMarginSlider(
+                    label = Strings.READER_MARGIN_TOP,
+                    value = current.pageMargins.topDp,
+                    onValueChange = onPageMarginTop,
+                )
+                ReaderMarginSlider(
+                    label = Strings.READER_MARGIN_BOTTOM,
+                    value = current.pageMargins.bottomDp,
+                    minDp = ReaderPageMargins.MIN_BOTTOM_DP,
+                    onValueChange = onPageMarginBottom,
+                )
+                ReaderMarginSlider(
+                    label = Strings.READER_MARGIN_START,
+                    value = current.pageMargins.startDp,
+                    onValueChange = onPageMarginStart,
+                )
+                ReaderMarginSlider(
+                    label = Strings.READER_MARGIN_END,
+                    value = current.pageMargins.endDp,
+                    onValueChange = onPageMarginEnd,
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(ReaderSheetItemGap)) {
                 Text(text = Strings.READER_THEME, style = MaterialTheme.typography.titleSmall)
                 ChipFlowRow {
                     ThemeChip(Strings.READER_THEME_LIGHT, ReaderTheme.LIGHT, current.theme, onTheme)
@@ -194,6 +223,43 @@ fun ReaderSettingsSheet(
                 Text(Strings.READER_SET_DEFAULT_SETTINGS)
             }
         }
+    }
+}
+
+@Composable
+private fun ReaderMarginSlider(
+    label: String,
+    value: Int,
+    minDp: Int = ReaderPageMargins.MIN_DP,
+    onValueChange: (Int) -> Unit,
+) {
+    val clamped = value.coerceIn(minDp, ReaderPageMargins.MAX_DP)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(ReaderSheetItemGap),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = Strings.readerMarginDp(clamped),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Slider(
+            value = clamped.toFloat(),
+            onValueChange = { onValueChange(it.roundToInt()) },
+            valueRange = minDp.toFloat()..ReaderPageMargins.MAX_DP.toFloat(),
+            steps = ReaderPageMargins.MAX_DP - minDp - 1,
+            colors = readerSliderColors(),
+        )
     }
 }
 
