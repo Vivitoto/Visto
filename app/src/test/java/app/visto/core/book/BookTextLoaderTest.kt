@@ -68,6 +68,7 @@ class BookTextLoaderTest {
     fun cachedFileWithMatchingExpectedEtagSkipsDownload() = runBlocking {
         val cacheDir = temporaryFolder.newFolder("cache")
         server.enqueue(MockResponse().setBody("旧内容").setHeader("ETag", "same"))
+        server.enqueue(MockResponse().setBody("不应下载"))
         BookTextLoader.load(client(), "/books/a.txt", cacheDir)
         assertEquals(1, server.requestCount)
 
@@ -77,6 +78,60 @@ class BookTextLoaderTest {
         assertEquals("UTF-8", result.encoding)
         assertEquals("same", result.etag)
         assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun cachedFileWithoutExpectedEtagSkipsDownload() = runBlocking {
+        val cacheDir = temporaryFolder.newFolder("cache")
+        server.enqueue(MockResponse().setBody("缓存内容").setHeader("ETag", "cached"))
+        server.enqueue(MockResponse().setBody("网络内容"))
+        BookTextLoader.load(client(), "/books/a.txt", cacheDir)
+
+        val result = BookTextLoader.load(client(), "/books/a.txt", cacheDir)
+
+        assertEquals("\u3000\u3000缓存内容", result.text)
+        assertEquals("cached", result.etag)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun oldCachedFileIsRefreshedFromRawDownloadWhenPossible() = runBlocking {
+        val cacheDir = temporaryFolder.newFolder("cache")
+        server.enqueue(MockResponse().setBody("原始内容").setHeader("ETag", "same"))
+        server.enqueue(MockResponse().setBody("硬换行第一句，\n第二句。").setHeader("ETag", "same"))
+        val first = BookTextLoader.load(client(), "/books/a.txt", cacheDir)
+        val metaFile = java.io.File(first.cachedFile.parentFile, "${first.cachedFile.name}.meta")
+        first.cachedFile.writeText("\u3000\u3000旧缓存第一句，\n\u3000\u3000第二句。", Charsets.UTF_8)
+        metaFile.writeText(
+            """
+            etag=same
+            encoding=UTF-8
+            sizeBytes=18
+            normalizerVersion=1
+            """.trimIndent(),
+            Charsets.UTF_8,
+        )
+
+        val result = BookTextLoader.load(client(), "/books/a.txt", cacheDir, expectedEtag = "same")
+
+        assertEquals("\u3000\u3000硬换行第一句，第二句。", result.text)
+        assertEquals(result.text, first.cachedFile.readText(Charsets.UTF_8))
+        assertTrue(metaFile.readText(Charsets.UTF_8).contains("normalizerVersion=2"))
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun staleCacheFallsBackWhenRefreshFails() = runBlocking {
+        val cacheDir = temporaryFolder.newFolder("cache")
+        server.enqueue(MockResponse().setBody("旧缓存").setHeader("ETag", "old"))
+        server.enqueue(MockResponse().setResponseCode(500))
+        BookTextLoader.load(client(), "/books/a.txt", cacheDir)
+
+        val result = BookTextLoader.load(client(), "/books/a.txt", cacheDir, expectedEtag = "new")
+
+        assertEquals("\u3000\u3000旧缓存", result.text)
+        assertEquals("old", result.etag)
+        assertEquals(2, server.requestCount)
     }
 
     @Test

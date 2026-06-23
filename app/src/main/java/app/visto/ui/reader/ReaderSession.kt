@@ -75,6 +75,24 @@ internal object ReaderPagePresenter {
         trim { it == ' ' || it == '\t' || it == '\u3000' }
 }
 
+internal object ReaderProgressEstimator {
+    fun percent(
+        currentChapterIndex: Int,
+        currentPage: Int,
+        currentChapterPageCount: Int,
+        totalChapters: Int,
+    ): Int {
+        if (totalChapters <= 0) return 0
+        val chapterIndex = currentChapterIndex.coerceIn(0, totalChapters - 1)
+        val pageCount = currentChapterPageCount.coerceAtLeast(1)
+        val page = currentPage.coerceIn(0, pageCount - 1)
+        val chapterProgress = (page + 1).toFloat() / pageCount.toFloat()
+        return (((chapterIndex + chapterProgress) / totalChapters.toFloat()) * 100f)
+            .toInt()
+            .coerceIn(0, 100)
+    }
+}
+
 sealed class ReaderSessionAction {
     data class LoadResult(
         val filePath: String,

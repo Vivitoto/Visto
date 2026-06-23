@@ -26,7 +26,7 @@ object TextPaginator {
             textSize = fontSizeSp * density
         }
         val spacingMultiplier = lineSpacing.coerceAtLeast(0.1f)
-        val lineHeight = (paint.fontSpacing * spacingMultiplier).coerceAtLeast(1f)
+        val lineHeight = (paint.textSize * spacingMultiplier).coerceAtLeast(1f)
         val linesPerPage = floor(maxHeightPx.coerceAtLeast(1f) / lineHeight)
             .toInt()
             .coerceAtLeast(1)

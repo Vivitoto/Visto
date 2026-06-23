@@ -192,6 +192,59 @@ class ReaderSessionTest {
         assertEquals(page.text, presentation.body)
     }
 
+    @Test
+    fun progressEstimatorCombinesChapterAndPagePosition() {
+        assertEquals(
+            25,
+            ReaderProgressEstimator.percent(
+                currentChapterIndex = 0,
+                currentPage = 1,
+                currentChapterPageCount = 4,
+                totalChapters = 2,
+            ),
+        )
+        assertEquals(
+            75,
+            ReaderProgressEstimator.percent(
+                currentChapterIndex = 1,
+                currentPage = 1,
+                currentChapterPageCount = 4,
+                totalChapters = 2,
+            ),
+        )
+        assertEquals(
+            100,
+            ReaderProgressEstimator.percent(
+                currentChapterIndex = 99,
+                currentPage = 99,
+                currentChapterPageCount = 4,
+                totalChapters = 2,
+            ),
+        )
+    }
+
+    @Test
+    fun progressEstimatorClampsEmptyInputs() {
+        assertEquals(
+            0,
+            ReaderProgressEstimator.percent(
+                currentChapterIndex = 0,
+                currentPage = 0,
+                currentChapterPageCount = 0,
+                totalChapters = 0,
+            ),
+        )
+        assertEquals(
+            50,
+            ReaderProgressEstimator.percent(
+                currentChapterIndex = -1,
+                currentPage = -1,
+                currentChapterPageCount = 0,
+                totalChapters = 2,
+            ),
+        )
+    }
+
     private fun loadedState(): ReaderSession = ReaderSessionReducer.reduce(
         ReaderSessionReducer.initial(loading = true),
         ReaderSessionAction.LoadResult(

@@ -46,6 +46,11 @@ data class BookshelfCoverPresentation(
     val fileType: BookshelfBookFileType,
 )
 
+data class BookshelfCoverTitlePresentation(
+    val title: String,
+    val subtitle: String? = null,
+)
+
 /** Pure state builder/reducer helpers for bookshelf data and display text. */
 object BookshelfStateBuilder {
 
@@ -74,6 +79,23 @@ object BookshelfStateBuilder {
             .takeIf { it.isNotBlank() }
             ?: book.path
         return stripDisplayExtension(fileName(rawTitle))
+    }
+
+    fun coverTitlePresentation(book: BookProgressEntity): BookshelfCoverTitlePresentation =
+        coverTitlePresentation(displayTitle(book))
+
+    fun coverTitlePresentation(displayTitle: String): BookshelfCoverTitlePresentation {
+        val title = displayTitle.trim()
+        val bracketed = Regex("《([^》]+)》").find(title)
+            ?: return BookshelfCoverTitlePresentation(title = title)
+        val mainTitle = bracketed.groupValues[1].trim()
+        if (mainTitle.isEmpty()) return BookshelfCoverTitlePresentation(title = title)
+        val subtitle = title
+            .removeRange(bracketed.range)
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .takeIf { it.isNotEmpty() }
+        return BookshelfCoverTitlePresentation(title = mainTitle, subtitle = subtitle)
     }
 
     fun progressSummary(book: BookProgressEntity): String {

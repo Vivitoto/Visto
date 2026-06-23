@@ -6,12 +6,12 @@ import org.junit.Test
 class ReaderTextNormalizerTest {
 
     @Test
-    fun blankLinesAreRemoved() {
-        val text = "第一段\r\n\r\n   \r\n第二段\r第三段   "
+    fun hardWrappedChineseProseLinesMergeIntoSingleIndentedParagraph() {
+        val text = "这是很长的一段文字，\n它在原始文件里被硬换行，\n但阅读器应该按宽度重新排版。"
 
         val normalized = ReaderTextNormalizer.normalize(text)
 
-        assertEquals("\u3000\u3000第一段\n\u3000\u3000第二段\n\u3000\u3000第三段", normalized)
+        assertEquals("\u3000\u3000这是很长的一段文字，它在原始文件里被硬换行，但阅读器应该按宽度重新排版。", normalized)
     }
 
     @Test
@@ -22,21 +22,36 @@ class ReaderTextNormalizerTest {
     }
 
     @Test
-    fun chapterHeadingLinesAreNotIndented() {
-        val text = "第一章 开端\n正文\nChapter 2 Next"
+    fun blankLinesPreserveParagraphSeparation() {
+        val text = "第一段的第一行，\n第二行仍是一段。\n\n   \n第二段的第一行，\r第二行仍是一段。"
 
         val normalized = ReaderTextNormalizer.normalize(text)
 
-        assertEquals("第一章 开端\n\u3000\u3000正文\nChapter 2 Next", normalized)
+        assertEquals(
+            "\u3000\u3000第一段的第一行，第二行仍是一段。\n\n\u3000\u3000第二段的第一行，第二行仍是一段。",
+            normalized,
+        )
     }
 
     @Test
-    fun alreadyIndentedLinesAreNotDoubleIndented() {
-        val text = "  空格缩进\n\t制表符缩进\n\u3000\u3000全角缩进"
+    fun chapterHeadingLinesAreNotIndented() {
+        val text = "第一章 开端\n正文第一行，\n正文第二行。\nChapter 2 Next\n第二段正文第一行，\n第二段正文第二行。"
 
         val normalized = ReaderTextNormalizer.normalize(text)
 
-        assertEquals("  空格缩进\n\t制表符缩进\n\u3000\u3000全角缩进", normalized)
+        assertEquals(
+            "第一章 开端\n\u3000\u3000正文第一行，正文第二行。\nChapter 2 Next\n\u3000\u3000第二段正文第一行，第二段正文第二行。",
+            normalized,
+        )
+    }
+
+    @Test
+    fun existingReaderIndentsStartNewSingleIndentedParagraphs() {
+        val text = "\u3000\u3000第一段已经缩进。\n\u3000\u3000第二段也已经缩进。"
+
+        val normalized = ReaderTextNormalizer.normalize(text)
+
+        assertEquals("\u3000\u3000第一段已经缩进。\n\u3000\u3000第二段也已经缩进。", normalized)
     }
 
     @Test

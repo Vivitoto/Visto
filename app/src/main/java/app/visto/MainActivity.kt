@@ -1091,6 +1091,7 @@ private fun BookshelfHost(
     var activeReaderSizeBytes by remember { mutableStateOf<Long?>(null) }
     var activeReaderEtag by remember { mutableStateOf<String?>(null) }
     var activeReaderJob by remember { mutableStateOf<Job?>(null) }
+    var activeReaderGeneration by remember(summary.id) { mutableStateOf(0) }
 
     fun persistProgress(session: ReaderSession) {
         scope.launch {
@@ -1108,6 +1109,8 @@ private fun BookshelfHost(
 
     fun openBook(book: BookProgressEntity) {
         activeReaderJob?.cancel()
+        val generation = activeReaderGeneration + 1
+        activeReaderGeneration = generation
         activeReaderSizeBytes = book.sizeBytes
         activeReaderEtag = book.etag
         readerSession = readerLoadingSession(
@@ -1125,6 +1128,7 @@ private fun BookshelfHost(
                     httpClient = app.okHttpClient,
                 )
                 val result = BookTextLoader.load(client, book.path, context.cacheDir, expectedEtag = book.etag)
+                if (generation != activeReaderGeneration || readerSession?.filePath != book.path) return@launch
                 val chapters = ChapterParser.parse(result.text)
                 activeReaderSizeBytes = result.sizeBytes
                 activeReaderEtag = result.etag
@@ -1143,6 +1147,7 @@ private fun BookshelfHost(
             } catch (ce: CancellationException) {
                 throw ce
             } catch (e: Throwable) {
+                if (generation != activeReaderGeneration || readerSession?.filePath != book.path) return@launch
                 readerSession = (readerSession ?: readerLoadingSession(book.path, book.name, book)).copy(
                     isLoading = false,
                     errorMessage = AccountErrorMessages.forWebDavError(e),
@@ -1159,6 +1164,7 @@ private fun BookshelfHost(
             onClose = {
                 activeReaderJob?.cancel()
                 activeReaderJob = null
+                activeReaderGeneration += 1
                 readerSession = null
             },
             onPersistProgress = ::persistProgress,
@@ -1493,6 +1499,7 @@ private fun BrowserHost(
     var activeBrowserLoadJob by remember { mutableStateOf<Job?>(null) }
     var activeReaderJob by remember { mutableStateOf<Job?>(null) }
     var activeBrowserLoadGeneration by remember { mutableStateOf(0) }
+    var activeReaderGeneration by remember(summary.id) { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
     val client = remember(summary.id) {
         app.authInterceptor.setAccount(
@@ -1564,6 +1571,8 @@ private fun BrowserHost(
 
     fun openBook(book: app.visto.core.model.RemoteEntry) {
         activeReaderJob?.cancel()
+        val generation = activeReaderGeneration + 1
+        activeReaderGeneration = generation
         activeReaderSizeBytes = book.sizeBytes
         activeReaderEtag = book.etag
         val defaultReaderSettings = app.preferences.defaultReaderSettings
@@ -1578,6 +1587,7 @@ private fun BrowserHost(
                 isLoading = false,
                 errorMessage = Strings.READER_EPUB_UNSUPPORTED,
             )
+            activeReaderJob = null
             return
         }
 
@@ -1585,6 +1595,7 @@ private fun BrowserHost(
             try {
                 val dao = app.database.bookProgressDao()
                 val progress = withContext(Dispatchers.IO) { dao.getByPath(summary.id, book.path) }
+                if (generation != activeReaderGeneration || readerSession?.filePath != book.path) return@launch
                 if (progress != null) {
                     readerSession = readerLoadingSession(
                         filePath = book.path,
@@ -1594,6 +1605,7 @@ private fun BrowserHost(
                     )
                 }
                 val result = BookTextLoader.load(client, book.path, context.cacheDir, expectedEtag = book.etag)
+                if (generation != activeReaderGeneration || readerSession?.filePath != book.path) return@launch
                 val chapters = ChapterParser.parse(result.text)
                 activeReaderSizeBytes = result.sizeBytes
                 activeReaderEtag = result.etag
@@ -1617,6 +1629,7 @@ private fun BrowserHost(
             } catch (ce: CancellationException) {
                 throw ce
             } catch (e: Throwable) {
+                if (generation != activeReaderGeneration || readerSession?.filePath != book.path) return@launch
                 readerSession = (readerSession ?: readerLoadingSession(
                     filePath = book.path,
                     fileName = book.name,
@@ -1637,6 +1650,7 @@ private fun BrowserHost(
             onClose = {
                 activeReaderJob?.cancel()
                 activeReaderJob = null
+                activeReaderGeneration += 1
                 readerSession = null
             },
             onPersistProgress = ::persistProgress,

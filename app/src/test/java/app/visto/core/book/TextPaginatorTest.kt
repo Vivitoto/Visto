@@ -54,6 +54,17 @@ class TextPaginatorTest {
     }
 
     @Test
+    fun lineCapacityMatchesConfiguredComposeLineHeight() {
+        val text = (1..4).joinToString(separator = "\n") { "Line $it" }
+
+        val pages = TextPaginator.paginate(text, 1000f, 54f, 18f, 1.5f, 1f)
+
+        assertEquals(2, pages.size)
+        assertEquals("Line 1\nLine 2\n", pages[0].text)
+        assertEquals("Line 3\nLine 4", pages[1].text)
+    }
+
+    @Test
     fun largerFontSizeCreatesMorePages() {
         val text = (1..80).joinToString(separator = "\n") { "Line $it" }
 

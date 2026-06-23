@@ -92,6 +92,33 @@ class BookshelfUiStateTest {
     }
 
     @Test
+    fun coverTitlePresentationSplitsChineseBookBrackets() {
+        val coverTitle = BookshelfStateBuilder.coverTitlePresentation(
+            book(name = "《三国演义》 罗贯中.txt"),
+        )
+
+        assertEquals("三国演义", coverTitle.title)
+        assertEquals("罗贯中", coverTitle.subtitle)
+        assertEquals("《三国演义》 罗贯中", BookshelfStateBuilder.displayTitle(book(name = "《三国演义》 罗贯中.txt")))
+    }
+
+    @Test
+    fun coverTitlePresentationUsesWholeTitleWithoutChineseBookBrackets() {
+        val coverTitle = BookshelfStateBuilder.coverTitlePresentation(book(name = "普通标题.txt"))
+
+        assertEquals("普通标题", coverTitle.title)
+        assertNull(coverTitle.subtitle)
+    }
+
+    @Test
+    fun coverTitlePresentationKeepsRemainingTextAsSubtitle() {
+        val coverTitle = BookshelfStateBuilder.coverTitlePresentation("前缀 《书名》 后缀")
+
+        assertEquals("书名", coverTitle.title)
+        assertEquals("前缀 后缀", coverTitle.subtitle)
+    }
+
+    @Test
     fun progressSummaryUsesChapterTitleAndPercent() {
         val summary = BookshelfStateBuilder.progressSummary(book(chapterIndex = 2, totalChapters = 10))
 

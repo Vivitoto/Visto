@@ -424,7 +424,7 @@ private fun GeneratedBookCover(
     modifier: Modifier = Modifier.fillMaxWidth(),
 ) {
     val palette = BookCoverPalettes[BookshelfStateBuilder.coverPaletteIndex(book, BookCoverPalettes.size)]
-    val displayTitle = BookshelfStateBuilder.displayTitle(book)
+    val coverTitle = BookshelfStateBuilder.coverTitlePresentation(book)
     val progressLabel = BookshelfStateBuilder.readingProgressPercentLabel(book)
     BoxWithConstraints(
         modifier = modifier
@@ -433,14 +433,18 @@ private fun GeneratedBookCover(
             .background(Brush.verticalGradient(colors = listOf(palette.top, palette.bottom))),
     ) {
         val compact = maxWidth < 96.dp
-        val spineWidth = if (compact) 10.dp else 18.dp
+        val spineWidth = if (compact) 5.dp else 8.dp
         val horizontalPadding = if (compact) 10.dp else 30.dp
         val trailingPadding = if (compact) 10.dp else 18.dp
         val topPadding = if (compact) 10.dp else 24.dp
         val bottomPadding = if (compact) 10.dp else 16.dp
         val titleTopPadding = if (compact) 28.dp else 48.dp
         val titleBottomPadding = if (compact) 30.dp else 48.dp
-        val titleMaxLines = if (compact) 3 else 6
+        val titleMaxLines = if (coverTitle.subtitle == null) {
+            if (compact) 3 else 5
+        } else {
+            if (compact) 2 else 4
+        }
 
         Box(
             modifier = Modifier
@@ -471,8 +475,7 @@ private fun GeneratedBookCover(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Text(
-            text = displayTitle,
+        Column(
             modifier = Modifier
                 .align(Alignment.Center)
                 .fillMaxWidth()
@@ -482,13 +485,32 @@ private fun GeneratedBookCover(
                     end = trailingPadding,
                     bottom = titleBottomPadding,
                 ),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = palette.ink,
-            textAlign = TextAlign.Center,
-            maxLines = titleMaxLines,
-            overflow = TextOverflow.Ellipsis,
-        )
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp),
+        ) {
+            Text(
+                text = coverTitle.title,
+                modifier = Modifier.fillMaxWidth(),
+                style = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = palette.ink,
+                textAlign = TextAlign.Center,
+                maxLines = titleMaxLines,
+                overflow = TextOverflow.Ellipsis,
+            )
+            coverTitle.subtitle?.let { subtitle ->
+                Text(
+                    text = subtitle,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = palette.ink.copy(alpha = 0.78f),
+                    textAlign = TextAlign.Center,
+                    maxLines = if (compact) 1 else 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)

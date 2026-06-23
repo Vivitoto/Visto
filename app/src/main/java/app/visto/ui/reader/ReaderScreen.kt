@@ -48,7 +48,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.visto.ui.Strings
 import kotlin.math.roundToInt
-import kotlinx.coroutines.delay
 
 @Composable
 fun ReaderScreen(
@@ -66,8 +65,6 @@ fun ReaderScreen(
         mutableStateOf(session.currentPage)
     }
     var showChapterList by remember { mutableStateOf(false) }
-    var turnFeedback by remember { mutableStateOf<PageTurnFeedback?>(null) }
-    var nextFeedbackId by remember { mutableStateOf(0) }
 
     val pages = session.pagesForCurrentChapter
     val safePage = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
@@ -77,26 +74,12 @@ fun ReaderScreen(
         currentPage = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
     }
 
-    LaunchedEffect(turnFeedback) {
-        val feedback = turnFeedback ?: return@LaunchedEffect
-        delay(520)
-        if (turnFeedback == feedback) {
-            turnFeedback = null
-        }
-    }
-
-    fun showTurnFeedback(direction: PageTurnDirection) {
-        nextFeedbackId += 1
-        turnFeedback = PageTurnFeedback(direction = direction, id = nextFeedbackId)
-    }
-
     fun saveProgress(page: Int = safePage) {
         if (session.isLoading || session.errorMessage != null || pages.isEmpty()) return
         onSaveProgress(session.copy(currentPage = page.coerceIn(0, pages.lastIndex.coerceAtLeast(0))))
     }
 
     fun goToPreviousPage() {
-        showTurnFeedback(PageTurnDirection.Previous)
         val page = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
         if (page > 0) {
             val target = page - 1
@@ -108,7 +91,6 @@ fun ReaderScreen(
     }
 
     fun goToNextPage() {
-        showTurnFeedback(PageTurnDirection.Next)
         val page = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
         if (page < pages.lastIndex) {
             val target = page + 1
@@ -177,6 +159,12 @@ fun ReaderScreen(
                     val pagePresentation = remember(page, currentChapter) {
                         ReaderPagePresenter.present(page, currentChapter)
                     }
+                    val progressPercent = ReaderProgressEstimator.percent(
+                        currentChapterIndex = session.currentChapterIndex,
+                        currentPage = safePage,
+                        currentChapterPageCount = pages.size,
+                        totalChapters = session.chapters.size,
+                    )
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -221,22 +209,18 @@ fun ReaderScreen(
                                     bottom = bottomContentPadding,
                                 ),
                         )
-
-                        turnFeedback?.let { feedback ->
-                            ReaderTurnFeedback(
-                                direction = feedback.direction,
-                                palette = palette,
-                                modifier = Modifier
-                                    .align(
-                                        if (feedback.direction == PageTurnDirection.Previous) {
-                                            Alignment.CenterStart
-                                        } else {
-                                            Alignment.CenterEnd
-                                        }
-                                    )
-                                    .padding(horizontal = 22.dp),
-                            )
-                        }
+                        ReaderPageFooter(
+                            chapterTitle = currentChapter?.title ?: Strings.READER_CURRENT_CHAPTER,
+                            progressPercent = progressPercent,
+                            palette = palette,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(
+                                    start = horizontalPadding,
+                                    end = horizontalPadding,
+                                    bottom = if (chromeVisible) 92.dp else 14.dp,
+                                ),
+                        )
                     }
                 }
             }
@@ -251,9 +235,6 @@ fun ReaderScreen(
                         .padding(start = 12.dp, top = 10.dp, end = 12.dp),
                 )
                 ReaderBottomBar(
-                    chapterTitle = currentChapter?.title ?: Strings.READER_CURRENT_CHAPTER,
-                    page = safePage + 1,
-                    totalPages = pages.size,
                     palette = palette,
                     onChapterList = { showChapterList = true },
                     onSettings = onSettingsToggle,
@@ -275,16 +256,6 @@ fun ReaderScreen(
         )
     }
 }
-
-private enum class PageTurnDirection {
-    Previous,
-    Next,
-}
-
-private data class PageTurnFeedback(
-    val direction: PageTurnDirection,
-    val id: Int,
-)
 
 @Composable
 private fun ReaderPageText(
@@ -329,30 +300,6 @@ private fun ReaderPageText(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-    }
-}
-
-@Composable
-private fun ReaderTurnFeedback(
-    direction: PageTurnDirection,
-    palette: ReaderPalette,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        color = palette.toolbarColor.copy(alpha = 0.86f),
-        contentColor = palette.textColor,
-        shape = RoundedCornerShape(20.dp),
-        modifier = modifier,
-    ) {
-        Text(
-            text = when (direction) {
-                PageTurnDirection.Previous -> Strings.READER_PREVIOUS_PAGE
-                PageTurnDirection.Next -> Strings.READER_NEXT_PAGE
-            },
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        )
     }
 }
 
@@ -434,10 +381,38 @@ private fun ReaderTopBar(
 }
 
 @Composable
-private fun ReaderBottomBar(
+private fun ReaderPageFooter(
     chapterTitle: String,
-    page: Int,
-    totalPages: Int,
+    progressPercent: Int,
+    palette: ReaderPalette,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = chapterTitle,
+            style = MaterialTheme.typography.labelSmall,
+            color = palette.textColor.copy(alpha = 0.46f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = "$progressPercent%",
+            style = MaterialTheme.typography.labelSmall,
+            color = palette.textColor.copy(alpha = 0.46f),
+            maxLines = 1,
+            textAlign = TextAlign.End,
+            modifier = Modifier.padding(start = 12.dp),
+        )
+    }
+}
+
+@Composable
+private fun ReaderBottomBar(
     palette: ReaderPalette,
     onChapterList: () -> Unit,
     onSettings: () -> Unit,
@@ -448,20 +423,6 @@ private fun ReaderBottomBar(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Surface(
-            color = palette.toolbarColor,
-            contentColor = palette.textColor,
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                text = Strings.readerPageStatus(chapterTitle, page, totalPages),
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-        }
         Surface(
             color = palette.toolbarColor,
             contentColor = palette.textColor,
