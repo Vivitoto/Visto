@@ -109,12 +109,18 @@ fun ReaderSettingsSheet(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(ReaderSheetItemGap)) {
-                Text(text = Strings.READER_LINE_SPACING, style = MaterialTheme.typography.titleSmall)
-                ChipFlowRow {
-                    LineSpacingChip(Strings.READER_LINE_SPACING_COMPACT, 1.2f, current.lineSpacing, onLineSpacing)
-                    LineSpacingChip(Strings.READER_LINE_SPACING_STANDARD, 1.5f, current.lineSpacing, onLineSpacing)
-                    LineSpacingChip(Strings.READER_LINE_SPACING_RELAXED, 2.0f, current.lineSpacing, onLineSpacing)
-                }
+                Text(
+                    text = Strings.readerLineSpacing(current.lineSpacing),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Slider(
+                    value = current.lineSpacing.coerceIn(1.0f, 2.4f),
+                    onValueChange = { value ->
+                        onLineSpacing((value * 10f).roundToInt() / 10f)
+                    },
+                    valueRange = 1.0f..2.4f,
+                    steps = 13,
+                )
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(ReaderSheetItemGap)) {
@@ -248,20 +254,6 @@ private fun BackgroundStyleChip(
         selected = current == value,
         onClick = { onBackgroundStyle(value) },
         label = { ChipLabel(value.displayLabel) },
-    )
-}
-
-@Composable
-private fun LineSpacingChip(
-    label: String,
-    value: Float,
-    current: Float,
-    onLineSpacing: (Float) -> Unit,
-) {
-    FilterChip(
-        selected = kotlin.math.abs(current - value) < 0.05f,
-        onClick = { onLineSpacing(value) },
-        label = { ChipLabel(label) },
     )
 }
 

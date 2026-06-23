@@ -138,9 +138,6 @@ object Strings {
     const val READER_FONT_IMPORT_UNSUPPORTED = "请选择 .ttf 或 .otf 字体文件"
     const val READER_FONT_SIZE = "字号"
     const val READER_LINE_SPACING = "行距"
-    const val READER_LINE_SPACING_COMPACT = "紧凑"
-    const val READER_LINE_SPACING_STANDARD = "标准"
-    const val READER_LINE_SPACING_RELAXED = "宽松"
     const val READER_THEME = "主题"
     const val READER_THEME_LIGHT = "白天"
     const val READER_THEME_DARK = "夜间"
@@ -172,6 +169,10 @@ object Strings {
     fun bookshelfScanFailed(message: String): String = "书籍目录扫描失败：$message"
     fun readerCustomFont(name: String): String = "自定义：$name"
     fun readerFontSize(sp: Int): String = "$READER_FONT_SIZE ${sp}sp"
+    fun readerLineSpacing(value: Float): String {
+        val rounded = kotlin.math.round(value * 10f) / 10f
+        return "$READER_LINE_SPACING ${rounded}x"
+    }
     fun readerPageStatus(chapterTitle: String, page: Int, totalPages: Int): String =
         "$chapterTitle $page/$totalPages 页"
     fun readerChapterNumber(index: Int): String = "第 ${index + 1} 章"
