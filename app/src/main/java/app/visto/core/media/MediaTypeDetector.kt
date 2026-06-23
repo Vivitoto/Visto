@@ -64,6 +64,8 @@ object MediaTypeDetector {
             normalized == "image/gif" -> MediaType.ANIMATED_IMAGE
             normalized == "image/webp" -> MediaType.ANIMATED_IMAGE
             normalized == "text/plain" -> MediaType.TEXT_BOOK
+            normalized == "text/markdown" -> MediaType.TEXT_BOOK
+            normalized == "text/x-markdown" -> MediaType.TEXT_BOOK
             normalized == "application/epub+zip" -> MediaType.EPUB_BOOK
             normalized.startsWith("image/") -> MediaType.IMAGE
             normalized.startsWith("video/") -> MediaType.VIDEO

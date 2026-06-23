@@ -28,11 +28,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -65,6 +67,7 @@ fun BookshelfScreen(
     state: BookshelfUiState,
     onOpenBook: (BookProgressEntity) -> Unit,
     onRemoveBook: (BookProgressEntity) -> Unit,
+    onAddDirectoryRequested: () -> Unit,
     onTabSelected: (HomeTab) -> Unit,
 ) {
     var selectedBook by remember { mutableStateOf<BookProgressEntity?>(null) }
@@ -74,43 +77,49 @@ fun BookshelfScreen(
     Scaffold(
         bottomBar = { VistoBottomBar(selected = HomeTab.BOOKSHELF, onSelect = onTabSelected) },
     ) { innerPadding: PaddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            when {
-                state.isLoading -> BookshelfSkeleton()
-                state.books.isEmpty() -> BookshelfEmptyState()
-                else -> Column(modifier = Modifier.fillMaxSize()) {
-                    BookshelfViewModeBar(
-                        current = layoutMode,
-                        onChange = { layoutMode = it },
-                    )
-                    when (layoutMode) {
-                        BookshelfLayoutMode.LIST -> BookshelfList(
-                            books = state.books,
-                            onOpenBook = onOpenBook,
-                            onSelectBook = { selectedBook = it },
+            BookshelfHeader(
+                isScanning = state.isScanning,
+                onAddDirectoryRequested = onAddDirectoryRequested,
+            )
+            if (state.isScanning) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                when {
+                    state.isLoading -> BookshelfSkeleton()
+                    state.books.isEmpty() -> BookshelfEmptyState()
+                    else -> Column(modifier = Modifier.fillMaxSize()) {
+                        BookshelfViewModeBar(
+                            current = layoutMode,
+                            onChange = { layoutMode = it },
                         )
-                        BookshelfLayoutMode.GRID_3,
-                        BookshelfLayoutMode.GRID_5 -> BookshelfGrid(
-                            books = state.books,
-                            columns = layoutMode.gridColumns ?: 3,
-                            onOpenBook = onOpenBook,
-                            onSelectBook = { selectedBook = it },
-                        )
+                        when (layoutMode) {
+                            BookshelfLayoutMode.LIST -> BookshelfList(
+                                books = state.books,
+                                onOpenBook = onOpenBook,
+                                onSelectBook = { selectedBook = it },
+                            )
+                            BookshelfLayoutMode.GRID_3,
+                            BookshelfLayoutMode.GRID_5 -> BookshelfGrid(
+                                books = state.books,
+                                columns = layoutMode.gridColumns ?: 3,
+                                onOpenBook = onOpenBook,
+                                onSelectBook = { selectedBook = it },
+                            )
+                        }
                     }
                 }
-            }
-            state.errorMessage?.let {
-                Text(
-                    text = it,
+                BookshelfStatusMessages(
+                    errorMessage = state.errorMessage,
+                    scanMessage = state.scanMessage,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(16.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
                 )
             }
         }
@@ -189,6 +198,67 @@ fun BookshelfScreen(
                 TextButton(onClick = { bookPendingRemove = null }) { Text(Strings.ALBUMS_CANCEL) }
             },
         )
+    }
+}
+
+@Composable
+private fun BookshelfHeader(
+    isScanning: Boolean,
+    onAddDirectoryRequested: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, top = 8.dp, end = 8.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = Strings.BOOKSHELF_TITLE,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(
+            onClick = onAddDirectoryRequested,
+            enabled = !isScanning,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Folder,
+                contentDescription = Strings.BOOKSHELF_ADD_DIRECTORY,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BookshelfStatusMessages(
+    errorMessage: String?,
+    scanMessage: String?,
+    modifier: Modifier = Modifier,
+) {
+    if (errorMessage == null && scanMessage == null) return
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        errorMessage?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+            )
+        }
+        scanMessage?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 

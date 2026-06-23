@@ -48,8 +48,10 @@ import app.visto.core.book.BookTextLoader
 import app.visto.core.book.ChapterParser
 import app.visto.core.media.MediaType
 import app.visto.core.model.DavPath
+import app.visto.core.model.RemoteEntry
 import app.visto.data.album.AlbumPreviewFinder
 import app.visto.data.album.AlbumCoverFinder
+import app.visto.data.book.BookDirectoryLoader
 import app.visto.data.cache.AlbumIndexCache
 import app.visto.data.db.AlbumSourceEntity
 import app.visto.data.db.BookProgressEntity
@@ -82,6 +84,7 @@ import app.visto.ui.albums.AlbumListUiState
 import app.visto.ui.albums.FolderPickerNavigator
 import app.visto.ui.albums.FolderPickerScreen
 import app.visto.ui.albums.FolderPickerState
+import app.visto.ui.bookshelf.BookshelfBookFileType
 import app.visto.ui.bookshelf.BookshelfScreen
 import app.visto.ui.bookshelf.BookshelfStateBuilder
 import app.visto.ui.bookshelf.BookshelfUiState
@@ -439,6 +442,32 @@ private suspend fun saveBookProgress(
         )
     )
 }
+
+private fun scannedBookProgress(
+    accountId: Long,
+    entry: RemoteEntry,
+    now: Long,
+    defaultSettings: ReaderDefaultSettings,
+): BookProgressEntity = BookProgressEntity(
+    accountId = accountId,
+    path = entry.path,
+    name = entry.name,
+    sizeBytes = entry.sizeBytes,
+    etag = entry.etag,
+    encoding = Charsets.UTF_8.name(),
+    chapterIndex = 0,
+    chapterTitle = null,
+    pageOffset = 0,
+    totalChapters = 0,
+    fontSizeSp = defaultSettings.fontSizeSp,
+    lineSpacing = defaultSettings.lineSpacing,
+    theme = defaultSettings.theme,
+    fontChoice = defaultSettings.fontChoice,
+    textColor = defaultSettings.textColor,
+    backgroundStyle = defaultSettings.backgroundStyle,
+    lastReadAt = now,
+    addedAt = now,
+)
 
 private val READER_FONT_PICKER_MIME_TYPES = arrayOf(
     "font/ttf",
@@ -1092,6 +1121,23 @@ private fun BookshelfHost(
     var activeReaderEtag by remember { mutableStateOf<String?>(null) }
     var activeReaderJob by remember { mutableStateOf<Job?>(null) }
     var activeReaderGeneration by remember(summary.id) { mutableStateOf(0) }
+    var folderPicker by remember(summary.id) { mutableStateOf<FolderPickerState?>(null) }
+    var activeFolderPickerJob by remember { mutableStateOf<Job?>(null) }
+    var activeFolderPickerGeneration by remember(summary.id) { mutableStateOf(0) }
+    var activeBookScanJob by remember { mutableStateOf<Job?>(null) }
+    var activeBookScanGeneration by remember(summary.id) { mutableStateOf(0) }
+    var isBookScanRunning by remember(summary.id) { mutableStateOf(false) }
+    var bookScanMessage by remember(summary.id) { mutableStateOf<String?>(null) }
+
+    suspend fun newWebDavClient(): WebDavClient {
+        val creds = app.accountService.credentialsFor(summary)
+            ?: error(Strings.ACCOUNT_CREDENTIALS_UNAVAILABLE)
+        return WebDavClient(
+            credentials = creds,
+            accountId = summary.id,
+            httpClient = app.okHttpClient,
+        )
+    }
 
     fun persistProgress(session: ReaderSession) {
         scope.launch {
@@ -1118,15 +1164,19 @@ private fun BookshelfHost(
             fileName = book.name,
             progress = book,
         )
+
+        if (BookshelfStateBuilder.bookFileType(book) == BookshelfBookFileType.EPUB) {
+            readerSession = readerSession?.copy(
+                isLoading = false,
+                errorMessage = Strings.READER_EPUB_UNSUPPORTED,
+            )
+            activeReaderJob = null
+            return
+        }
+
         activeReaderJob = scope.launch {
             try {
-                val creds = app.accountService.credentialsFor(summary)
-                    ?: error(Strings.ACCOUNT_CREDENTIALS_UNAVAILABLE)
-                val client = WebDavClient(
-                    credentials = creds,
-                    accountId = summary.id,
-                    httpClient = app.okHttpClient,
-                )
+                val client = newWebDavClient()
                 val result = BookTextLoader.load(client, book.path, context.cacheDir, expectedEtag = book.etag)
                 if (generation != activeReaderGeneration || readerSession?.filePath != book.path) return@launch
                 val chapters = ChapterParser.parse(result.text)
@@ -1156,6 +1206,94 @@ private fun BookshelfHost(
         }
     }
 
+    fun loadPickerPath(path: String) {
+        val pickerRoot = DavPath.normalize(summary.rootPath)
+        val normalized = FolderPickerNavigator.clampToRoot(path, pickerRoot)
+        activeFolderPickerJob?.cancel()
+        val generation = activeFolderPickerGeneration + 1
+        activeFolderPickerGeneration = generation
+        folderPicker = FolderPickerState(currentPath = normalized, rootPath = pickerRoot, isLoading = true)
+        activeFolderPickerJob = scope.launch {
+            try {
+                val client = newWebDavClient()
+                val folders = client.listDirectory(normalized)
+                    .filter { it.isDirectory }
+                    .sortedBy { it.name.lowercase() }
+                if (generation != activeFolderPickerGeneration || folderPicker?.currentPath != normalized) return@launch
+                folderPicker = FolderPickerState(
+                    currentPath = normalized,
+                    rootPath = pickerRoot,
+                    folders = folders,
+                    isLoading = false,
+                )
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Throwable) {
+                if (generation != activeFolderPickerGeneration || folderPicker?.currentPath != normalized) return@launch
+                folderPicker = FolderPickerState(
+                    currentPath = normalized,
+                    rootPath = pickerRoot,
+                    folders = emptyList(),
+                    isLoading = false,
+                    errorMessage = AccountErrorMessages.forWebDavError(e),
+                )
+            }
+        }
+    }
+
+    fun scanBookDirectory(path: String) {
+        activeBookScanJob?.cancel()
+        val generation = activeBookScanGeneration + 1
+        activeBookScanGeneration = generation
+        val normalized = DavPath.normalize(path)
+        isBookScanRunning = true
+        bookScanMessage = Strings.BOOKSHELF_SCAN_RUNNING
+        activeBookScanJob = scope.launch {
+            try {
+                val client = newWebDavClient()
+                val result = BookDirectoryLoader(client).loadCollected(normalized)
+                val defaultSettings = app.preferences.defaultReaderSettings
+                val now = System.currentTimeMillis()
+                var imported = 0
+                var updated = 0
+                withContext(Dispatchers.IO) {
+                    for (book in result.books) {
+                        val existing = dao.getByPath(summary.id, book.path)
+                        if (existing == null) {
+                            dao.upsert(scannedBookProgress(summary.id, book, now, defaultSettings))
+                            imported += 1
+                        } else {
+                            dao.upsert(
+                                existing.copy(
+                                    name = book.name,
+                                    sizeBytes = book.sizeBytes,
+                                    etag = book.etag,
+                                )
+                            )
+                            updated += 1
+                        }
+                    }
+                }
+                if (generation != activeBookScanGeneration) return@launch
+                bookScanMessage = Strings.bookshelfScanComplete(
+                    imported = imported,
+                    updated = updated,
+                    foldersVisited = result.foldersVisited,
+                    foldersFailed = result.foldersFailed,
+                )
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Throwable) {
+                if (generation != activeBookScanGeneration) return@launch
+                bookScanMessage = Strings.bookshelfScanFailed(AccountErrorMessages.forWebDavError(e))
+            } finally {
+                if (generation == activeBookScanGeneration) {
+                    isBookScanRunning = false
+                }
+            }
+        }
+    }
+
     val activeReader = readerSession
     if (activeReader != null) {
         ActiveReaderScreen(
@@ -1173,8 +1311,31 @@ private fun BookshelfHost(
         return
     }
 
+    val picker = folderPicker
+    if (picker != null) {
+        FolderPickerScreen(
+            state = picker,
+            onBack = {
+                activeFolderPickerJob?.cancel()
+                folderPicker = null
+            },
+            onGoUp = { loadPickerPath(FolderPickerNavigator.parentOf(picker.currentPath, picker.rootPath)) },
+            onOpenFolder = { folder -> loadPickerPath(folder.path) },
+            onSelectCurrent = {
+                activeFolderPickerJob?.cancel()
+                folderPicker = null
+                scanBookDirectory(picker.currentPath)
+            },
+            onRetry = { loadPickerPath(picker.currentPath) },
+        )
+        return
+    }
+
     BookshelfScreen(
-        state = state,
+        state = state.copy(
+            isScanning = isBookScanRunning,
+            scanMessage = bookScanMessage,
+        ),
         onOpenBook = ::openBook,
         onRemoveBook = { book ->
             scope.launch {
@@ -1183,6 +1344,11 @@ private fun BookshelfHost(
                     clearBookCache(context.cacheDir, summary.id, book.path)
                 }
             }
+        },
+        onAddDirectoryRequested = {
+            val start = summary.rootPath
+            bookScanMessage = null
+            loadPickerPath(start)
         },
         onTabSelected = onTabSelected,
     )

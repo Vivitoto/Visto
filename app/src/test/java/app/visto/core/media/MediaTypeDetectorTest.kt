@@ -47,6 +47,7 @@ class MediaTypeDetectorTest {
     @Test
     fun bookMimeTypesAreDetected() {
         assertEquals(MediaType.TEXT_BOOK, MediaTypeDetector.detect("download", mimeType = "text/plain"))
+        assertEquals(MediaType.TEXT_BOOK, MediaTypeDetector.detect("download", mimeType = "text/markdown"))
         assertEquals(MediaType.EPUB_BOOK, MediaTypeDetector.detect("download", mimeType = "application/epub+zip"))
     }
 

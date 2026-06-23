@@ -12,6 +12,8 @@ data class BookshelfUiState(
     val books: List<BookProgressEntity> = emptyList(),
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
+    val isScanning: Boolean = false,
+    val scanMessage: String? = null,
 )
 
 enum class BookshelfLayoutMode(val gridColumns: Int?) {

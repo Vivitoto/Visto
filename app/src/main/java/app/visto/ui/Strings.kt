@@ -113,6 +113,8 @@ object Strings {
     const val BOOKSHELF_REMOVE_CONFIRM_MESSAGE = "从书架移除不会删除 WebDAV 上的文件"
     const val BOOKSHELF_REMOVE_CONFIRM = "移除"
     const val BOOKSHELF_EMPTY = "浏览中打开 TXT 文件后自动加入书架"
+    const val BOOKSHELF_ADD_DIRECTORY = "添加书籍目录"
+    const val BOOKSHELF_SCAN_RUNNING = "正在扫描书籍目录…"
     const val BOOKSHELF_VIEW_MODE = "视图"
     const val BOOKSHELF_SWITCH_TO_LIST = "切换到列表"
     const val BOOKSHELF_JUST_NOW = "刚刚"
@@ -157,6 +159,17 @@ object Strings {
     fun bookshelfMinutesAgo(minutes: Long): String = "${minutes}分钟前"
     fun bookshelfHoursAgo(hours: Long): String = "${hours}小时前"
     fun bookshelfDaysAgo(days: Long): String = "${days}天前"
+    fun bookshelfScanComplete(imported: Int, updated: Int, foldersVisited: Int, foldersFailed: Int): String {
+        val total = imported + updated
+        val base = if (total == 0) {
+            "未找到可导入书籍"
+        } else {
+            "已导入 $imported 本，更新 $updated 本"
+        }
+        val progress = "扫描 $foldersVisited 个目录"
+        return if (foldersFailed == 0) "$base，$progress" else "$base，$progress，$foldersFailed 个失败"
+    }
+    fun bookshelfScanFailed(message: String): String = "书籍目录扫描失败：$message"
     fun readerCustomFont(name: String): String = "自定义：$name"
     fun readerFontSize(sp: Int): String = "$READER_FONT_SIZE ${sp}sp"
     fun readerPageStatus(chapterTitle: String, page: Int, totalPages: Int): String =
