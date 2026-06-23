@@ -59,6 +59,8 @@ fun ReaderScreen(
     session: ReaderSession,
     onBack: () -> Unit,
     onChapterSelect: (Int, Int) -> Unit,
+    onPreviousPage: () -> Unit,
+    onNextPage: () -> Unit,
     onSettingsToggle: () -> Unit,
     onSaveProgress: (ReaderSession) -> Unit,
     onViewportChange: (ReaderViewport) -> Unit = {},
@@ -85,25 +87,21 @@ fun ReaderScreen(
     }
 
     fun goToPreviousPage() {
+        if (pages.isEmpty()) return
         val page = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
         if (page > 0) {
-            val target = page - 1
-            currentPage = target
-            saveProgress(target)
-        } else if (session.currentChapterIndex > 0) {
-            onChapterSelect(session.currentChapterIndex - 1, Int.MAX_VALUE)
+            currentPage = page - 1
         }
+        onPreviousPage()
     }
 
     fun goToNextPage() {
+        if (pages.isEmpty()) return
         val page = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
         if (page < pages.lastIndex) {
-            val target = page + 1
-            currentPage = target
-            saveProgress(target)
-        } else if (session.currentChapterIndex < session.chapters.lastIndex) {
-            onChapterSelect(session.currentChapterIndex + 1, 0)
+            currentPage = page + 1
         }
+        onNextPage()
     }
 
     fun closeReader() {

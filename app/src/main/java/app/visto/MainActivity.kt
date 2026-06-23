@@ -33,7 +33,6 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -307,14 +306,19 @@ private fun ActiveReaderScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val latestSession by rememberUpdatedState(session)
+    var latestSession by remember(session.filePath) { mutableStateOf(session) }
     var showSettings by remember(session.filePath) { mutableStateOf(false) }
     var fontImportError by remember(session.filePath) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(session) {
+        latestSession = session
+    }
 
     fun updateSession(action: ReaderAction, persist: Boolean = true) {
         val base = latestSession
         val updated = ReaderReducer.reduce(base, action)
         if (updated == base) return
+        latestSession = updated
         onSessionChange(updated)
         if (persist) {
             onPersistProgress(updated)
@@ -342,6 +346,8 @@ private fun ActiveReaderScreen(
         session = session,
         onBack = onClose,
         onChapterSelect = { index, landingPage -> updateSession(ReaderAction.GoToChapter(index, landingPage)) },
+        onPreviousPage = { updateSession(ReaderAction.PrevPage) },
+        onNextPage = { updateSession(ReaderAction.NextPage) },
         onSettingsToggle = { showSettings = true },
         onSaveProgress = { saved ->
             onSessionChange(saved)

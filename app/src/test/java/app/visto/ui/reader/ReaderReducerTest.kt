@@ -46,6 +46,46 @@ class ReaderReducerTest {
     }
 
     @Test
+    fun goToChapterCanLandOnLastPage() {
+        val session = loadedSession()
+
+        val next = ReaderReducer.reduce(session, ReaderAction.GoToChapter(1, Int.MAX_VALUE))
+
+        assertEquals(1, next.currentChapterIndex)
+        assertEquals(next.pagesForCurrentChapter.lastIndex.coerceAtLeast(0), next.currentPage)
+    }
+
+    @Test
+    fun previousPageFromFirstPageMovesToImmediatePreviousChapterLastPage() {
+        val session = loadedSession(chapterIndex = 1, page = 0)
+
+        val previous = ReaderReducer.reduce(session, ReaderAction.PrevPage)
+
+        assertEquals(0, previous.currentChapterIndex)
+        assertEquals(previous.pagesForCurrentChapter.lastIndex.coerceAtLeast(0), previous.currentPage)
+    }
+
+    @Test
+    fun previousPageFromMiddleChapterFirstPageMovesToImmediatePreviousChapterLastPage() {
+        val session = loadedSession(chapterIndex = 2, page = 0)
+
+        val previous = ReaderReducer.reduce(session, ReaderAction.PrevPage)
+
+        assertEquals(1, previous.currentChapterIndex)
+        assertEquals(previous.pagesForCurrentChapter.lastIndex.coerceAtLeast(0), previous.currentPage)
+    }
+
+    @Test
+    fun nextPageFromLastPageMovesToImmediateNextChapterFirstPage() {
+        val session = loadedSession(chapterIndex = 0, page = Int.MAX_VALUE)
+
+        val next = ReaderReducer.reduce(session, ReaderAction.NextPage)
+
+        assertEquals(1, next.currentChapterIndex)
+        assertEquals(0, next.currentPage)
+    }
+
+    @Test
     fun fontSizeAndLineSpacingRecalculateCurrentChapterPages() {
         val session = loadedSession()
 
@@ -138,21 +178,33 @@ class ReaderReducerTest {
         chapters = emptyList(),
     )
 
-    private fun loadedSession(): ReaderSession = ReaderReducer.reduce(
+    private fun loadedSession(
+        chapterIndex: Int = 0,
+        page: Int = 0,
+    ): ReaderSession = ReaderReducer.reduce(
         emptySession(),
         ReaderAction.Loaded(
             encoding = "UTF-8",
             fullText = TEXT,
             chapters = chapters(),
+            currentChapterIndex = chapterIndex,
+            currentPage = page,
         ),
     )
 
-    private fun chapters() = listOf(
-        Chapter(index = 0, title = "第一章 开始", startOffset = 0, endOffset = TEXT.indexOf("第二章")),
-        Chapter(index = 1, title = "第二章 继续", startOffset = TEXT.indexOf("第二章"), endOffset = TEXT.length),
-    )
+    private fun chapters(): List<Chapter> {
+        val secondStart = TEXT.indexOf("第二章")
+        val thirdStart = TEXT.indexOf("第三章")
+        return listOf(
+            Chapter(index = 0, title = "第一章 开始", startOffset = 0, endOffset = secondStart),
+            Chapter(index = 1, title = "第二章 继续", startOffset = secondStart, endOffset = thirdStart),
+            Chapter(index = 2, title = "第三章 收束", startOffset = thirdStart, endOffset = TEXT.length),
+        )
+    }
 
     private companion object {
-        private val TEXT = "第一章 开始\n" + "这是第一章的正文。".repeat(80) + "\n第二章 继续\n" + "这是第二章的正文。".repeat(60)
+        private val TEXT = "第一章 开始\n" + "这是第一章的正文。".repeat(80) +
+            "\n第二章 继续\n" + "这是第二章的正文。".repeat(60) +
+            "\n第三章 收束\n" + "这是第三章的正文。".repeat(50)
     }
 }
