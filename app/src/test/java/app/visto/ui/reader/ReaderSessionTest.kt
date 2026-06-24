@@ -2,6 +2,7 @@ package app.visto.ui.reader
 
 import android.graphics.Typeface
 import app.visto.core.book.Chapter
+import app.visto.ui.book.bookDisplayTitle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -85,6 +86,50 @@ class ReaderSessionTest {
     }
 
     @Test
+    fun loadResultRestoresByAbsolutePageStartCharThroughViewportChange() {
+        val savedViewport = ReaderViewport(widthPx = 180, heightPx = 180, density = 1f)
+        val saved = ReaderSessionReducer.reduce(
+            ReaderSessionReducer.initial(loading = true).copy(viewport = savedViewport),
+            ReaderSessionAction.LoadResult(
+                filePath = "/books/a.txt",
+                fileName = "a.txt",
+                encoding = "UTF-8",
+                fullText = text,
+                chapters = chapters,
+                initialChapterIndex = 1,
+            ),
+        )
+        assertTrue(saved.pagesForCurrentChapter.size > 2)
+        val savedPageIndex = (saved.pagesForCurrentChapter.lastIndex / 2).coerceAtLeast(1)
+        val savedLocalStart = saved.pagesForCurrentChapter[savedPageIndex].startChar
+        val savedAbsoluteStart = chapters[1].startOffset + savedLocalStart
+
+        val restored = ReaderSessionReducer.reduce(
+            ReaderSessionReducer.initial(loading = true),
+            ReaderSessionAction.LoadResult(
+                filePath = "/books/a.txt",
+                fileName = "a.txt",
+                encoding = "UTF-8",
+                fullText = text,
+                chapters = chapters,
+                initialChapterIndex = 1,
+                initialPage = 0,
+                initialPageStartChar = savedAbsoluteStart,
+            ),
+        )
+        val resized = ReaderSessionReducer.reduce(
+            restored,
+            ReaderSessionAction.SetViewport(ReaderViewport(widthPx = 260, heightPx = 240, density = 1f)),
+        )
+        val restoredPage = resized.pagesForCurrentChapter[resized.currentPage]
+
+        assertEquals(1, resized.currentChapterIndex)
+        assertTrue(savedLocalStart >= restoredPage.startChar)
+        assertTrue(savedLocalStart <= restoredPage.endChar)
+        assertEquals(savedAbsoluteStart, resized.currentAbsolutePageStartChar())
+    }
+
+    @Test
     fun setFontChoicePersistsChoiceAndKeepsCurrentReadingPosition() {
         val loaded = ReaderSessionReducer.reduce(loadedState(), ReaderSessionAction.NextPage)
         val originalPageStart = loaded.pagesForCurrentChapter[loaded.currentPage].startChar
@@ -126,6 +171,16 @@ class ReaderSessionTest {
         assertSame(Typeface.SANS_SERIF, ReaderFontChoice.Sans.paginationTypeface())
         assertSame(Typeface.SERIF, ReaderFontChoice.Serif.paginationTypeface())
         assertNull(ReaderFontChoice.Custom("mine.ttf").paginationTypeface())
+    }
+
+    @Test
+    fun readerChromeDisplayTitleMatchesBookshelfBookNameLogic() {
+        assertEquals("demo", bookDisplayTitle("demo.txt"))
+        assertEquals("README", bookDisplayTitle("README.MD"))
+        assertEquals("三国演义", bookDisplayTitle("《三国演义》 罗贯中.txt"))
+        assertEquals("archive.pdf", bookDisplayTitle("archive.pdf"))
+        assertEquals("", bookDisplayTitle(""))
+        assertEquals(".hidden", bookDisplayTitle(".hidden"))
     }
 
     @Test

@@ -93,14 +93,13 @@ class BookshelfUiStateTest {
     }
 
     @Test
-    fun coverTitlePresentationSplitsChineseBookBrackets() {
-        val coverTitle = BookshelfStateBuilder.coverTitlePresentation(
-            book(name = "《三国演义》 罗贯中.txt"),
-        )
+    fun displayTitleKeepsOnlyMainTitleFromChineseBookBrackets() {
+        val book = book(name = "《三国演义》 罗贯中.txt")
+        val coverTitle = BookshelfStateBuilder.coverTitlePresentation(book)
 
+        assertEquals("三国演义", BookshelfStateBuilder.displayTitle(book))
         assertEquals("三国演义", coverTitle.title)
-        assertEquals("罗贯中", coverTitle.subtitle)
-        assertEquals("《三国演义》 罗贯中", BookshelfStateBuilder.displayTitle(book(name = "《三国演义》 罗贯中.txt")))
+        assertNull(coverTitle.subtitle)
     }
 
     @Test
@@ -112,11 +111,11 @@ class BookshelfUiStateTest {
     }
 
     @Test
-    fun coverTitlePresentationKeepsRemainingTextAsSubtitle() {
+    fun coverTitlePresentationIgnoresRemainingTextAfterMainTitleSplit() {
         val coverTitle = BookshelfStateBuilder.coverTitlePresentation("前缀 《书名》 后缀")
 
         assertEquals("书名", coverTitle.title)
-        assertEquals("前缀 后缀", coverTitle.subtitle)
+        assertNull(coverTitle.subtitle)
     }
 
     @Test

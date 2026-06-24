@@ -4,6 +4,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.visto.data.db.BookProgressEntity
 import app.visto.ui.Strings
+import app.visto.ui.book.bookDisplayTitle
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -61,8 +62,6 @@ data class BookshelfCoverTitlePresentation(
 /** Pure state builder/reducer helpers for bookshelf data and display text. */
 object BookshelfStateBuilder {
 
-    private val displayTitleExtensions = setOf("txt", "md", "epub")
-
     fun fromBooks(books: List<BookProgressEntity>): BookshelfUiState = BookshelfUiState(
         books = books,
         isLoading = false,
@@ -85,25 +84,14 @@ object BookshelfStateBuilder {
         val rawTitle = book.name
             .takeIf { it.isNotBlank() }
             ?: book.path
-        return stripDisplayExtension(fileName(rawTitle))
+        return bookDisplayTitle(rawTitle)
     }
 
     fun coverTitlePresentation(book: BookProgressEntity): BookshelfCoverTitlePresentation =
         coverTitlePresentation(displayTitle(book))
 
-    fun coverTitlePresentation(displayTitle: String): BookshelfCoverTitlePresentation {
-        val title = displayTitle.trim()
-        val bracketed = Regex("《([^》]+)》").find(title)
-            ?: return BookshelfCoverTitlePresentation(title = title)
-        val mainTitle = bracketed.groupValues[1].trim()
-        if (mainTitle.isEmpty()) return BookshelfCoverTitlePresentation(title = title)
-        val subtitle = title
-            .removeRange(bracketed.range)
-            .replace(Regex("\\s+"), " ")
-            .trim()
-            .takeIf { it.isNotEmpty() }
-        return BookshelfCoverTitlePresentation(title = mainTitle, subtitle = subtitle)
-    }
+    fun coverTitlePresentation(displayTitle: String): BookshelfCoverTitlePresentation =
+        BookshelfCoverTitlePresentation(title = bookDisplayTitle(displayTitle))
 
     fun progressSummary(book: BookProgressEntity): String {
         val chapter = book.chapterTitle
@@ -184,24 +172,11 @@ object BookshelfStateBuilder {
             .coerceIn(0, 100)
     }
 
-    private fun stripDisplayExtension(title: String): String {
-        val trimmed = title.trim()
-        val extension = supportedExtension(trimmed) ?: return trimmed
-        val lastDot = fileName(trimmed).lastIndexOf('.')
-        if (lastDot <= 0) return trimmed
-        return trimmed.dropLast(extension.length + 1)
-            .trimEnd()
-            .ifBlank { trimmed }
-    }
-
     private fun supportedExtension(value: String): String? {
-        val name = fileName(value.trim())
+        val name = value.trim().substringAfterLast('/').substringAfterLast('\\')
         val lastDot = name.lastIndexOf('.')
         if (lastDot <= 0 || lastDot == name.lastIndex) return null
         val extension = name.substring(lastDot + 1).lowercase()
-        return extension.takeIf { it in displayTitleExtensions }
+        return extension.takeIf { it in setOf("txt", "md", "epub") }
     }
-
-    private fun fileName(value: String): String =
-        value.substringAfterLast('/').substringAfterLast('\\')
 }

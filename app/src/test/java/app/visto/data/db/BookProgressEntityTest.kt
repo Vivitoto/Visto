@@ -29,6 +29,7 @@ class BookProgressEntityTest {
         assertEquals(0, entity.chapterIndex)
         assertEquals(null, entity.chapterTitle)
         assertEquals(0, entity.pageOffset)
+        assertEquals(null, entity.pageStartChar)
         assertEquals(0, entity.totalChapters)
         assertEquals(18, entity.fontSizeSp)
         assertEquals(1.5f, entity.lineSpacing, 0.0001f)
@@ -56,6 +57,7 @@ class BookProgressEntityTest {
             chapterTitle = "第一章",
             chapterIndex = 3,
             pageOffset = 8,
+            pageStartChar = 4096,
             totalChapters = 20,
             fontSizeSp = 22,
             lineSpacing = 2.0f,
@@ -74,6 +76,7 @@ class BookProgressEntityTest {
         assertEquals(3, entity.chapterIndex)
         assertEquals("第一章", entity.chapterTitle)
         assertEquals(8, entity.pageOffset)
+        assertEquals(4096, entity.pageStartChar)
         assertEquals(20, entity.totalChapters)
         assertEquals(22, entity.fontSizeSp)
         assertEquals(2.0f, entity.lineSpacing, 0.0001f)

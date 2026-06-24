@@ -28,7 +28,7 @@ class VistoMigrationTest {
             val sqlite = db.openHelper.writableDatabase
             sqlite.query("PRAGMA user_version").use { cursor ->
                 assertTrue(cursor.moveToFirst())
-                assertEquals(6, cursor.getInt(0))
+                assertEquals(7, cursor.getInt(0))
             }
 
             sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'book_progress'").use { cursor ->
@@ -59,11 +59,12 @@ class VistoMigrationTest {
             sqlite.query("PRAGMA table_info(`book_progress`)").use { cursor ->
                 val foundColumns = mutableSetOf<String>()
                 val textColumns = setOf("fontChoice", "textColor", "backgroundStyle")
-                val marginColumns = setOf(
+                val integerColumns = setOf(
                     "pageMarginTopDp",
                     "pageMarginBottomDp",
                     "pageMarginStartDp",
                     "pageMarginEndDp",
+                    "pageStartChar",
                 )
                 while (cursor.moveToNext()) {
                     val name = cursor.getString(cursor.getColumnIndexOrThrow("name"))
@@ -71,12 +72,15 @@ class VistoMigrationTest {
                         foundColumns += name
                         assertEquals("TEXT", cursor.getString(cursor.getColumnIndexOrThrow("type")))
                     }
-                    if (name in marginColumns) {
+                    if (name in integerColumns) {
                         foundColumns += name
                         assertEquals("INTEGER", cursor.getString(cursor.getColumnIndexOrThrow("type")))
+                        if (name == "pageStartChar") {
+                            assertEquals(0, cursor.getInt(cursor.getColumnIndexOrThrow("notnull")))
+                        }
                     }
                 }
-                assertEquals(textColumns + marginColumns, foundColumns)
+                assertEquals(textColumns + integerColumns, foundColumns)
             }
         } finally {
             db.close()
@@ -308,6 +312,89 @@ class VistoMigrationTest {
                 assertEquals(ReaderPageMargins.DEFAULT_BOTTOM_DP, cursor.getInt(1))
                 assertEquals(ReaderPageMargins.DEFAULT_HORIZONTAL_DP, cursor.getInt(2))
                 assertEquals(ReaderPageMargins.DEFAULT_HORIZONTAL_DP, cursor.getInt(3))
+            }
+        } finally {
+            helper.close()
+            context.deleteDatabase(dbName)
+        }
+    }
+
+    @Test
+    fun migration6To7AddsNullablePageStartChar() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val dbName = "migration-6-7-${System.nanoTime()}.db"
+        context.deleteDatabase(dbName)
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(dbName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(6) {
+                        override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) = Unit
+                        override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+                    }
+                )
+                .build()
+        )
+
+        try {
+            val sqlite = helper.writableDatabase
+            sqlite.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `book_progress` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `accountId` INTEGER NOT NULL,
+                    `path` TEXT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `sizeBytes` INTEGER,
+                    `etag` TEXT,
+                    `encoding` TEXT NOT NULL,
+                    `chapterIndex` INTEGER NOT NULL,
+                    `chapterTitle` TEXT,
+                    `pageOffset` INTEGER NOT NULL,
+                    `totalChapters` INTEGER NOT NULL,
+                    `fontSizeSp` INTEGER NOT NULL,
+                    `lineSpacing` REAL NOT NULL,
+                    `theme` TEXT NOT NULL,
+                    `fontChoice` TEXT NOT NULL DEFAULT 'system',
+                    `textColor` TEXT NOT NULL DEFAULT 'default',
+                    `backgroundStyle` TEXT NOT NULL DEFAULT 'default',
+                    `pageMarginTopDp` INTEGER NOT NULL DEFAULT ${ReaderPageMargins.DEFAULT_TOP_DP},
+                    `pageMarginBottomDp` INTEGER NOT NULL DEFAULT ${ReaderPageMargins.DEFAULT_BOTTOM_DP},
+                    `pageMarginStartDp` INTEGER NOT NULL DEFAULT ${ReaderPageMargins.DEFAULT_HORIZONTAL_DP},
+                    `pageMarginEndDp` INTEGER NOT NULL DEFAULT ${ReaderPageMargins.DEFAULT_HORIZONTAL_DP},
+                    `lastReadAt` INTEGER NOT NULL,
+                    `addedAt` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            sqlite.execSQL(
+                """
+                INSERT INTO `book_progress` (
+                    `accountId`, `path`, `name`, `encoding`, `chapterIndex`, `pageOffset`,
+                    `totalChapters`, `fontSizeSp`, `lineSpacing`, `theme`, `fontChoice`,
+                    `textColor`, `backgroundStyle`, `pageMarginTopDp`, `pageMarginBottomDp`,
+                    `pageMarginStartDp`, `pageMarginEndDp`, `lastReadAt`, `addedAt`
+                ) VALUES (1, '/Books/a.txt', 'a.txt', 'UTF-8', 0, 4, 1, 18, 1.5, 'light', 'serif',
+                    'ink', 'paper', 12, 52, 8, 8, 100, 50)
+                """.trimIndent()
+            )
+
+            VistoMigrations.MIGRATION_6_7.migrate(sqlite)
+
+            sqlite.query("PRAGMA table_info(`book_progress`)").use { cursor ->
+                var found = false
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(cursor.getColumnIndexOrThrow("name")) == "pageStartChar") {
+                        found = true
+                        assertEquals("INTEGER", cursor.getString(cursor.getColumnIndexOrThrow("type")))
+                        assertEquals(0, cursor.getInt(cursor.getColumnIndexOrThrow("notnull")))
+                    }
+                }
+                assertTrue("migration should add nullable pageStartChar", found)
+            }
+            sqlite.query("SELECT pageStartChar FROM book_progress WHERE path = '/Books/a.txt'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertTrue(cursor.isNull(0))
             }
         } finally {
             helper.close()

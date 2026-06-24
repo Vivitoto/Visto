@@ -88,4 +88,10 @@ object VistoMigrations {
             )
         }
     }
+
+    val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `book_progress` ADD COLUMN `pageStartChar` INTEGER")
+        }
+    }
 }

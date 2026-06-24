@@ -69,6 +69,7 @@ data class ReaderSession(
     val chapters: List<Chapter>,
     val currentChapterIndex: Int = 0,
     val currentPage: Int = 0,
+    val pendingRestoreStartChar: Int? = null,
     val pagesForCurrentChapter: List<Page> = emptyList(),
     val fontSizeSp: Int = 18,
     val lineSpacing: Float = 1.5f,
@@ -114,6 +115,7 @@ sealed class ReaderSessionAction {
         val chapters: List<Chapter> = ChapterParser.parse(fullText),
         val initialChapterIndex: Int = 0,
         val initialPage: Int = 0,
+        val initialPageStartChar: Int? = null,
     ) : ReaderSessionAction()
 
     data class LoadError(val message: String) : ReaderSessionAction()
@@ -140,6 +142,7 @@ sealed class ReaderAction {
         val chapters: List<Chapter>,
         val currentChapterIndex: Int = 0,
         val currentPage: Int = 0,
+        val currentPageStartChar: Int? = null,
     ) : ReaderAction()
 
     data object ToggleToolbar : ReaderAction()
@@ -174,11 +177,13 @@ object ReaderReducer {
                 chapters = action.chapters,
                 initialChapterIndex = action.currentChapterIndex,
                 initialPage = action.currentPage,
+                initialPageStartChar = action.currentPageStartChar,
             ),
         )
         ReaderAction.ToggleToolbar -> session.copy(showToolbar = !session.showToolbar)
         is ReaderAction.GoToPage -> session.copy(
             currentPage = action.page.coerceInPageRange(session.pagesForCurrentChapter),
+            pendingRestoreStartChar = null,
         )
         is ReaderAction.GoToChapter -> ReaderSessionReducer.reduce(
             session,
@@ -252,6 +257,7 @@ object ReaderSessionReducer {
         chapters = emptyList(),
         currentChapterIndex = 0,
         currentPage = 0,
+        pendingRestoreStartChar = null,
         pagesForCurrentChapter = emptyList(),
         fontSizeSp = DEFAULT_FONT_SIZE_SP,
         lineSpacing = DEFAULT_LINE_SPACING,
@@ -268,6 +274,11 @@ object ReaderSessionReducer {
     fun reduce(state: ReaderSession, action: ReaderSessionAction): ReaderSession = when (action) {
         is ReaderSessionAction.LoadResult -> {
             val chapters = action.chapters.ifEmpty { ChapterParser.parse(action.fullText) }
+            val chapterIndex = action.initialChapterIndex.coerceInChapterBounds(chapters)
+            val targetStartChar = action.initialPageStartChar.toChapterLocalStartChar(
+                chapter = chapters.getOrNull(chapterIndex),
+                fullTextLength = action.fullText.length,
+            )
             repaginate(
                 state.copy(
                     filePath = action.filePath,
@@ -275,19 +286,25 @@ object ReaderSessionReducer {
                     encoding = action.encoding,
                     fullText = action.fullText,
                     chapters = chapters,
-                    currentChapterIndex = action.initialChapterIndex.coerceInChapterBounds(chapters),
+                    currentChapterIndex = chapterIndex,
                     currentPage = action.initialPage.coerceAtLeast(0),
+                    pendingRestoreStartChar = targetStartChar,
                     isLoading = false,
                     errorMessage = null,
                 ),
                 resetPage = false,
+                targetStartChar = targetStartChar,
             )
         }
         is ReaderSessionAction.LoadError -> state.copy(isLoading = false, errorMessage = action.message)
         is ReaderSessionAction.SelectChapter -> {
             val index = action.index.coerceInChapterBounds(state.chapters)
             repaginate(
-                state.copy(currentChapterIndex = index, currentPage = action.landingPage.coerceAtLeast(0)),
+                state.copy(
+                    currentChapterIndex = index,
+                    currentPage = action.landingPage.coerceAtLeast(0),
+                    pendingRestoreStartChar = null,
+                ),
                 resetPage = false,
             )
         }
@@ -301,7 +318,7 @@ object ReaderSessionReducer {
                 repaginate(
                     state.copy(fontSizeSp = fontSize),
                     resetPage = false,
-                    targetStartChar = state.currentPageStartChar(),
+                    targetStartChar = state.currentPageAnchorStartChar(),
                 )
             }
         }
@@ -313,7 +330,7 @@ object ReaderSessionReducer {
                 repaginate(
                     state.copy(lineSpacing = lineSpacing),
                     resetPage = false,
-                    targetStartChar = state.currentPageStartChar(),
+                    targetStartChar = state.currentPageAnchorStartChar(),
                 )
             }
         }
@@ -324,7 +341,7 @@ object ReaderSessionReducer {
                 repaginate(
                     state.copy(fontChoice = action.choice),
                     resetPage = false,
-                    targetStartChar = state.currentPageStartChar(),
+                    targetStartChar = state.currentPageAnchorStartChar(),
                 )
             }
         }
@@ -336,7 +353,7 @@ object ReaderSessionReducer {
                 repaginate(
                     state.copy(viewport = viewport),
                     resetPage = false,
-                    targetStartChar = state.currentPageStartChar(),
+                    targetStartChar = state.currentPageAnchorStartChar(),
                 )
             }
         }
@@ -362,25 +379,42 @@ object ReaderSessionReducer {
     }
 
     private fun previousPage(state: ReaderSession): ReaderSession {
-        if (state.currentPage > 0) return state.copy(currentPage = state.currentPage - 1)
-        if (state.currentChapterIndex <= 0) return state.copy(currentPage = 0)
+        if (state.currentPage > 0) {
+            return state.copy(currentPage = state.currentPage - 1, pendingRestoreStartChar = null)
+        }
+        if (state.currentChapterIndex <= 0) {
+            return state.copy(currentPage = 0, pendingRestoreStartChar = null)
+        }
 
         val previousChapterState = repaginate(
-            state.copy(currentChapterIndex = state.currentChapterIndex - 1, currentPage = 0),
+            state.copy(
+                currentChapterIndex = state.currentChapterIndex - 1,
+                currentPage = 0,
+                pendingRestoreStartChar = null,
+            ),
             resetPage = true,
         )
         return previousChapterState.copy(
             currentPage = previousChapterState.pagesForCurrentChapter.lastIndex.coerceAtLeast(0),
+            pendingRestoreStartChar = null,
         )
     }
 
     private fun nextPage(state: ReaderSession): ReaderSession {
         val lastPage = state.pagesForCurrentChapter.lastIndex
-        if (state.currentPage < lastPage) return state.copy(currentPage = state.currentPage + 1)
-        if (state.currentChapterIndex >= state.chapters.lastIndex) return state.copy(currentPage = lastPage.coerceAtLeast(0))
+        if (state.currentPage < lastPage) {
+            return state.copy(currentPage = state.currentPage + 1, pendingRestoreStartChar = null)
+        }
+        if (state.currentChapterIndex >= state.chapters.lastIndex) {
+            return state.copy(currentPage = lastPage.coerceAtLeast(0), pendingRestoreStartChar = null)
+        }
 
         return repaginate(
-            state.copy(currentChapterIndex = state.currentChapterIndex + 1, currentPage = 0),
+            state.copy(
+                currentChapterIndex = state.currentChapterIndex + 1,
+                currentPage = 0,
+                pendingRestoreStartChar = null,
+            ),
             resetPage = true,
         )
     }
@@ -393,7 +427,7 @@ object ReaderSessionReducer {
         return repaginate(
             state.copy(pageMargins = clamped),
             resetPage = false,
-            targetStartChar = state.currentPageStartChar(),
+            targetStartChar = state.currentPageAnchorStartChar(),
         )
     }
 
@@ -443,8 +477,19 @@ object ReaderSessionReducer {
             .getOrNull(currentPage.coerceIn(0, pagesForCurrentChapter.lastIndex.coerceAtLeast(0)))
             ?.startChar
 
+    private fun ReaderSession.currentPageAnchorStartChar(): Int? =
+        pendingRestoreStartChar ?: currentPageStartChar()
+
     private fun List<Page>.indexAtStartOffset(offset: Int): Int =
         indexOfLast { it.startChar <= offset }.takeIf { it >= 0 } ?: 0
+
+    private fun Int?.toChapterLocalStartChar(chapter: Chapter?, fullTextLength: Int): Int? {
+        if (this == null || chapter == null) return null
+        val start = chapter.startOffset.coerceIn(0, fullTextLength)
+        val end = chapter.endOffset.coerceIn(start, fullTextLength)
+        if (this < start || this > end) return null
+        return (this - start).coerceIn(0, end - start)
+    }
 
     private fun ReaderViewport.sanitized(): ReaderViewport = ReaderViewport(
         widthPx = widthPx.coerceAtLeast(1),
@@ -452,6 +497,18 @@ object ReaderSessionReducer {
         density = density.takeIf { it > 0f } ?: ReaderViewport.DEFAULT.density,
     )
 
+}
+
+internal fun ReaderSession.currentAbsolutePageStartChar(): Int? {
+    val chapter = chapters.getOrNull(currentChapterIndex) ?: return null
+    val start = chapter.startOffset.coerceIn(0, fullText.length)
+    val end = chapter.endOffset.coerceIn(start, fullText.length)
+    val localStart = pendingRestoreStartChar
+        ?: pagesForCurrentChapter
+            .getOrNull(currentPage.coerceIn(0, pagesForCurrentChapter.lastIndex.coerceAtLeast(0)))
+            ?.startChar
+        ?: return null
+    return start + localStart.coerceIn(0, end - start)
 }
 
 internal fun ReaderFontChoice.paginationTypeface(): Typeface? = when (this) {

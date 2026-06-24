@@ -105,6 +105,7 @@ import app.visto.ui.reader.ReaderSession
 import app.visto.ui.reader.ReaderSettingsSheet
 import app.visto.ui.reader.ReaderTextColor
 import app.visto.ui.reader.ReaderTheme
+import app.visto.ui.reader.currentAbsolutePageStartChar
 import app.visto.ui.reader.readerFontDirectory
 import app.visto.ui.settings.SettingsScreen
 import app.visto.ui.settings.SettingsUiState
@@ -428,6 +429,7 @@ private suspend fun buildLoadedReaderSession(
     result: BookTextResult,
     currentChapterIndex: Int,
     currentPage: Int,
+    currentPageStartChar: Int? = null,
 ): ReaderSession {
     val executor = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "VistoReaderSessionBuilder").apply { isDaemon = true }
@@ -446,6 +448,7 @@ private suspend fun buildLoadedReaderSession(
                                 chapters = chapters,
                                 currentChapterIndex = currentChapterIndex,
                                 currentPage = currentPage,
+                                currentPageStartChar = currentPageStartChar,
                             ),
                         )
                         if (continuation.isActive) continuation.resume(loaded)
@@ -515,6 +518,7 @@ private suspend fun saveBookProgress(
             chapterIndex = session.currentChapterIndex,
             chapterTitle = chapter?.title,
             pageOffset = session.currentPage,
+            pageStartChar = session.currentAbsolutePageStartChar(),
             totalChapters = session.chapters.size,
             fontSizeSp = session.fontSizeSp,
             lineSpacing = session.lineSpacing,
@@ -549,6 +553,7 @@ private fun scannedBookProgress(
         chapterIndex = 0,
         chapterTitle = null,
         pageOffset = 0,
+        pageStartChar = null,
         totalChapters = 0,
         fontSizeSp = defaultSettings.fontSizeSp,
         lineSpacing = defaultSettings.lineSpacing,
@@ -1285,6 +1290,7 @@ private fun BookshelfHost(
                     result = result,
                     currentChapterIndex = book.chapterIndex,
                     currentPage = book.pageOffset,
+                    currentPageStartChar = book.pageStartChar,
                 )
                 if (generation != activeReaderGeneration || readerSession?.filePath != book.path) return@launch
                 activeReaderSizeBytes = result.sizeBytes
@@ -1879,6 +1885,7 @@ private fun BrowserHost(
                     result = result,
                     currentChapterIndex = progress?.chapterIndex ?: 0,
                     currentPage = progress?.pageOffset ?: 0,
+                    currentPageStartChar = progress?.pageStartChar,
                 )
                 if (generation != activeReaderGeneration || readerSession?.filePath != book.path) return@launch
                 activeReaderSizeBytes = result.sizeBytes

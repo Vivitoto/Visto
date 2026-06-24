@@ -49,6 +49,8 @@ data class BookProgressEntity(
     val chapterTitle: String?,
     @ColumnInfo(name = "pageOffset")
     val pageOffset: Int = 0,
+    @ColumnInfo(name = "pageStartChar")
+    val pageStartChar: Int? = null,
     @ColumnInfo(name = "totalChapters")
     val totalChapters: Int = 0,
     @ColumnInfo(name = "fontSizeSp")

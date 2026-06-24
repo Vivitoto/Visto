@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.visto.ui.Strings
+import app.visto.ui.book.bookDisplayTitle
 import kotlin.math.roundToInt
 
 @Composable
@@ -228,7 +229,7 @@ fun ReaderScreen(
 
             if (chromeVisible && !session.isLoading && session.errorMessage == null && pages.isNotEmpty()) {
                 ReaderTopBar(
-                    title = currentChapter?.title ?: session.fileName,
+                    title = bookDisplayTitle(session.fileName),
                     palette = palette,
                     onToggle = { chromeVisible = false },
                     modifier = Modifier

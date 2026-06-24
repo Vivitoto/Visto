@@ -86,11 +86,12 @@ class BookProgressDaoTest {
         dao.upsert(book(accountId, "/Books/a.txt", lastReadAt = 10))
         val existing = dao.getByPath(accountId, "/Books/a.txt")!!
 
-        dao.upsert(existing.copy(chapterIndex = 2, pageOffset = 7, lastReadAt = 20))
+        dao.upsert(existing.copy(chapterIndex = 2, pageOffset = 7, pageStartChar = 1234, lastReadAt = 20))
 
         val updated = dao.getByPath(accountId, "/Books/a.txt")
         assertEquals(2, updated?.chapterIndex)
         assertEquals(7, updated?.pageOffset)
+        assertEquals(1234, updated?.pageStartChar)
         assertEquals(20L, updated?.lastReadAt)
     }
 

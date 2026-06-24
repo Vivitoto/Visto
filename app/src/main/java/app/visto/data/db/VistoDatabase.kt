@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         AlbumSourceEntity::class,
         BookProgressEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 abstract class VistoDatabase : RoomDatabase() {
@@ -36,6 +36,7 @@ abstract class VistoDatabase : RoomDatabase() {
             VistoMigrations.MIGRATION_3_4,
             VistoMigrations.MIGRATION_4_5,
             VistoMigrations.MIGRATION_5_6,
+            VistoMigrations.MIGRATION_6_7,
         ).build()
     }
 }
