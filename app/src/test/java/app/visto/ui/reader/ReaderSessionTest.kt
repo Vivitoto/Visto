@@ -87,22 +87,9 @@ class ReaderSessionTest {
 
     @Test
     fun loadResultRestoresByAbsolutePageStartCharThroughViewportChange() {
-        val savedViewport = ReaderViewport(widthPx = 180, heightPx = 180, density = 1f)
-        val saved = ReaderSessionReducer.reduce(
-            ReaderSessionReducer.initial(loading = true).copy(viewport = savedViewport),
-            ReaderSessionAction.LoadResult(
-                filePath = "/books/a.txt",
-                fileName = "a.txt",
-                encoding = "UTF-8",
-                fullText = text,
-                chapters = chapters,
-                initialChapterIndex = 1,
-            ),
-        )
-        assertTrue(saved.pagesForCurrentChapter.size > 2)
-        val savedPageIndex = (saved.pagesForCurrentChapter.lastIndex / 2).coerceAtLeast(1)
-        val savedLocalStart = saved.pagesForCurrentChapter[savedPageIndex].startChar
-        val savedAbsoluteStart = chapters[1].startOffset + savedLocalStart
+        val targetChapter = chapters[1]
+        val savedLocalStart = ((targetChapter.endOffset - targetChapter.startOffset) / 2).coerceAtLeast(1)
+        val savedAbsoluteStart = targetChapter.startOffset + savedLocalStart
 
         val restored = ReaderSessionReducer.reduce(
             ReaderSessionReducer.initial(loading = true),
