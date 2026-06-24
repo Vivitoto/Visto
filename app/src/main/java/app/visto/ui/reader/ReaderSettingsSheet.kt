@@ -139,24 +139,31 @@ fun ReaderSettingsSheet(
                 Text(text = Strings.READER_PAGE_MARGINS, style = MaterialTheme.typography.titleSmall)
                 ReaderMarginSlider(
                     label = Strings.READER_MARGIN_TOP,
-                    value = current.pageMargins.topDp,
-                    onValueChange = onPageMarginTop,
+                    value = ReaderPageMargins.topExtraDp(current.pageMargins.topDp),
+                    minDp = 0,
+                    maxDp = ReaderPageMargins.EXTRA_MAX_DP,
+                    onValueChange = { extra -> onPageMarginTop(ReaderPageMargins.TOP_BASELINE_DP + extra) },
                 )
                 ReaderMarginSlider(
                     label = Strings.READER_MARGIN_BOTTOM,
-                    value = current.pageMargins.bottomDp,
-                    minDp = ReaderPageMargins.MIN_BOTTOM_DP,
-                    onValueChange = onPageMarginBottom,
+                    value = ReaderPageMargins.bottomExtraDp(current.pageMargins.bottomDp),
+                    minDp = 0,
+                    maxDp = ReaderPageMargins.EXTRA_MAX_DP,
+                    onValueChange = { extra -> onPageMarginBottom(ReaderPageMargins.BOTTOM_BASELINE_DP + extra) },
                 )
                 ReaderMarginSlider(
                     label = Strings.READER_MARGIN_START,
-                    value = current.pageMargins.startDp,
-                    onValueChange = onPageMarginStart,
+                    value = ReaderPageMargins.horizontalExtraDp(current.pageMargins.startDp),
+                    minDp = 0,
+                    maxDp = ReaderPageMargins.EXTRA_MAX_DP,
+                    onValueChange = { extra -> onPageMarginStart(ReaderPageMargins.HORIZONTAL_BASELINE_DP + extra) },
                 )
                 ReaderMarginSlider(
                     label = Strings.READER_MARGIN_END,
-                    value = current.pageMargins.endDp,
-                    onValueChange = onPageMarginEnd,
+                    value = ReaderPageMargins.horizontalExtraDp(current.pageMargins.endDp),
+                    minDp = 0,
+                    maxDp = ReaderPageMargins.EXTRA_MAX_DP,
+                    onValueChange = { extra -> onPageMarginEnd(ReaderPageMargins.HORIZONTAL_BASELINE_DP + extra) },
                 )
             }
 
@@ -230,10 +237,11 @@ fun ReaderSettingsSheet(
 private fun ReaderMarginSlider(
     label: String,
     value: Int,
-    minDp: Int = ReaderPageMargins.MIN_DP,
+    minDp: Int = 0,
+    maxDp: Int = ReaderPageMargins.EXTRA_MAX_DP,
     onValueChange: (Int) -> Unit,
 ) {
-    val clamped = value.coerceIn(minDp, ReaderPageMargins.MAX_DP)
+    val clamped = value.coerceIn(minDp, maxDp)
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -256,8 +264,8 @@ private fun ReaderMarginSlider(
         Slider(
             value = clamped.toFloat(),
             onValueChange = { onValueChange(it.roundToInt()) },
-            valueRange = minDp.toFloat()..ReaderPageMargins.MAX_DP.toFloat(),
-            steps = ReaderPageMargins.MAX_DP - minDp - 1,
+            valueRange = minDp.toFloat()..maxDp.toFloat(),
+            steps = maxDp - minDp - 1,
             colors = readerSliderColors(),
         )
     }

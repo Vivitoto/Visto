@@ -12,22 +12,22 @@ class ReaderLayoutMetricsTest {
     fun contentPaddingReservesStableFooterClearance() {
         val padding = ReaderLayoutMetrics.contentPadding(maxWidth = 390.dp, maxHeight = 800.dp)
 
-        assertEquals(22.dp, padding.startContentPadding)
-        assertEquals(22.dp, padding.endContentPadding)
-        assertEquals(28.dp, padding.topContentPadding)
-        assertEquals(66.dp, padding.bottomContentPadding)
-        assertEquals(14.dp, padding.footerBottomPadding(chromeVisible = true))
-        assertEquals(14.dp, padding.footerBottomPadding(chromeVisible = false))
+        assertEquals(8.dp, padding.startContentPadding)
+        assertEquals(8.dp, padding.endContentPadding)
+        assertEquals(12.dp, padding.topContentPadding)
+        assertEquals(52.dp, padding.bottomContentPadding)
+        assertEquals(12.dp, padding.footerBottomPadding(chromeVisible = true))
+        assertEquals(12.dp, padding.footerBottomPadding(chromeVisible = false))
         assertTrue(
             padding.bottomContentPadding >=
                 padding.footerBottomPadding(chromeVisible = true) +
                 ReaderLayoutMetrics.FooterHeightReserve +
-                ReaderLayoutMetrics.FooterTextClearance,
+                ReaderLayoutMetrics.FooterTextGap,
         )
     }
 
     @Test
-    fun viewportHeightMatchesContentPaddingRegardlessOfFontSettings() {
+    fun viewportHeightMatchesContentPaddingWithDefaultMargins() {
         val padding = ReaderLayoutMetrics.contentPadding(maxWidth = 390.dp, maxHeight = 800.dp)
 
         val viewport = ReaderLayoutMetrics.viewport(
@@ -37,30 +37,31 @@ class ReaderLayoutMetricsTest {
             density = Density(density = 2f, fontScale = 1.25f),
         )
 
-        assertEquals(692, viewport.widthPx)
-        // height: 800 - 28(top) - 66(footer reserve) = 706dp -> 1412px at density 2x
-        assertEquals(1412, viewport.heightPx)
+        // width: 390 - 8 - 8 = 374dp -> 748px at 2x
+        assertEquals(748, viewport.widthPx)
+        // height: 800 - 12 - 52 = 736dp -> 1472px at 2x
+        assertEquals(1472, viewport.heightPx)
         assertEquals(2.5f, viewport.density, 0.0f)
     }
 
     @Test
-    fun compactScreensKeepDefaultMarginsAndFooterReserve() {
+    fun compactScreensKeepBaselineMarginsAndFooterReserve() {
         val padding = ReaderLayoutMetrics.contentPadding(maxWidth = 320.dp, maxHeight = 560.dp)
 
-        assertEquals(22.dp, padding.startContentPadding)
-        assertEquals(22.dp, padding.endContentPadding)
-        assertEquals(28.dp, padding.topContentPadding)
-        assertEquals(66.dp, padding.bottomContentPadding)
+        assertEquals(8.dp, padding.startContentPadding)
+        assertEquals(8.dp, padding.endContentPadding)
+        assertEquals(12.dp, padding.topContentPadding)
+        assertEquals(52.dp, padding.bottomContentPadding)
     }
 
     @Test
-    fun viewportSubtractsExactStartAndEndMargins() {
+    fun totalStartAndEndMarginsArePassedThrough() {
         val padding = ReaderLayoutMetrics.contentPadding(
             maxWidth = 390.dp,
             maxHeight = 800.dp,
             pageMargins = ReaderPageMargins(
-                topDp = 28,
-                bottomDp = 66,
+                topDp = ReaderPageMargins.TOP_BASELINE_DP,
+                bottomDp = ReaderPageMargins.BOTTOM_BASELINE_DP,
                 startDp = 30,
                 endDp = 42,
             ),
@@ -75,19 +76,20 @@ class ReaderLayoutMetricsTest {
 
         assertEquals(30.dp, padding.startContentPadding)
         assertEquals(42.dp, padding.endContentPadding)
+        // width: 390 - 30 - 42 = 318dp -> 636px
         assertEquals(636, viewport.widthPx)
     }
 
     @Test
-    fun viewportSubtractsExactTopAndBottomMargins() {
+    fun totalTopAndBottomMarginsArePassedThrough() {
         val padding = ReaderLayoutMetrics.contentPadding(
             maxWidth = 390.dp,
             maxHeight = 800.dp,
             pageMargins = ReaderPageMargins(
                 topDp = 40,
                 bottomDp = 70,
-                startDp = 22,
-                endDp = 22,
+                startDp = ReaderPageMargins.HORIZONTAL_BASELINE_DP,
+                endDp = ReaderPageMargins.HORIZONTAL_BASELINE_DP,
             ),
         )
 
@@ -100,7 +102,7 @@ class ReaderLayoutMetricsTest {
 
         assertEquals(40.dp, padding.topContentPadding)
         assertEquals(70.dp, padding.bottomContentPadding)
-        // height: 800 - 40(top) - 70(bottom) = 690dp -> 1380px
+        // height: 800 - 40 - 70 = 690dp -> 1380px
         assertEquals(1380, viewport.heightPx)
     }
 
@@ -112,19 +114,21 @@ class ReaderLayoutMetricsTest {
             measuredFooterHeight = 40.dp,
         )
 
-        assertEquals(78.dp, padding.bottomContentPadding)
-        assertEquals(14.dp, padding.footerBottomPadding(chromeVisible = true))
-        assertEquals(64.dp, padding.bottomBarBottomPadding)
+        // bottomReserve = 12 + 40 + 12 = 64; default bottom margin is 52, so max = 64
+        assertEquals(64.dp, padding.bottomContentPadding)
+        assertEquals(12.dp, padding.footerBottomPadding(chromeVisible = true))
+        // bottomBar: 12 + 40 + 10 = 62
+        assertEquals(62.dp, padding.bottomBarBottomPadding)
         assertTrue(
             padding.bottomContentPadding >=
                 padding.footerBottomPadding(chromeVisible = true) +
                 40.dp +
-                ReaderLayoutMetrics.FooterTextClearance,
+                ReaderLayoutMetrics.FooterTextGap,
         )
     }
 
     @Test
-    fun footerReserveDoesNotChangeWhenChromeToggles() {
+    fun footerBottomPaddingDoesNotChangeWhenChromeToggles() {
         val padding = ReaderLayoutMetrics.contentPadding(maxWidth = 390.dp, maxHeight = 800.dp)
 
         val viewport = ReaderLayoutMetrics.viewport(
@@ -134,9 +138,11 @@ class ReaderLayoutMetricsTest {
             density = Density(density = 2f, fontScale = 1f),
         )
 
-        assertEquals(14.dp, padding.footerBottomPadding(chromeVisible = true))
-        assertEquals(14.dp, padding.footerBottomPadding(chromeVisible = false))
-        assertEquals(52.dp, padding.bottomBarBottomPadding)
-        assertEquals(1412, viewport.heightPx)
+        assertEquals(12.dp, padding.footerBottomPadding(chromeVisible = true))
+        assertEquals(12.dp, padding.footerBottomPadding(chromeVisible = false))
+        // bottomBar: 12 + 28 + 10 = 50
+        assertEquals(50.dp, padding.bottomBarBottomPadding)
+        // 800 - 12 - 52 = 736dp -> 1472px
+        assertEquals(1472, viewport.heightPx)
     }
 }

@@ -5,11 +5,12 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import app.visto.ui.reader.ReaderPageMargins
 
 internal object BookProgressDefaults {
-    const val DEFAULT_PAGE_MARGIN_TOP_DP = 28
-    const val DEFAULT_PAGE_MARGIN_BOTTOM_DP = 54
-    const val DEFAULT_PAGE_MARGIN_HORIZONTAL_DP = 22
+    const val DEFAULT_PAGE_MARGIN_TOP_DP = ReaderPageMargins.DEFAULT_TOP_DP
+    const val DEFAULT_PAGE_MARGIN_BOTTOM_DP = ReaderPageMargins.DEFAULT_BOTTOM_DP
+    const val DEFAULT_PAGE_MARGIN_HORIZONTAL_DP = ReaderPageMargins.DEFAULT_HORIZONTAL_DP
 }
 
 /**

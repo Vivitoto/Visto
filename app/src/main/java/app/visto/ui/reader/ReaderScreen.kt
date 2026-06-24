@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.visto.ui.Strings
 import kotlin.math.roundToInt
+import kotlin.math.maxOf
 
 @Composable
 fun ReaderScreen(
@@ -280,10 +281,13 @@ internal object ReaderLayoutMetrics {
     internal val ChromeIconButtonWidth = 56.dp
     internal val ChromeIconButtonHeight = 40.dp
     internal val TopBarTopPadding = 10.dp
-    private val FooterBottomPadding = 14.dp
+    private val FooterBottomGap = 12.dp
     private val BottomBarFooterGap = 10.dp
     internal val FooterHeightReserve = 28.dp
-    internal val FooterTextClearance = 24.dp
+    internal val FooterTextGap = 12.dp
+
+    /** Minimum bottom reserve: footer capsule plus breathable gaps above and below. */
+    internal val BottomContentReserve: Dp get() = FooterBottomGap + FooterHeightReserve + FooterTextGap
 
     @Suppress("UNUSED_PARAMETER")
     fun contentPadding(
@@ -294,16 +298,14 @@ internal object ReaderLayoutMetrics {
     ): ReaderContentPadding {
         val margins = pageMargins.clamped()
         val safeFooterHeight = maxOf(FooterHeightReserve, measuredFooterHeight)
-        val stableFooterReserve =
-            FooterBottomPadding + safeFooterHeight + FooterTextClearance
-        val bottomBarBottomPadding = FooterBottomPadding + safeFooterHeight + BottomBarFooterGap
-        val bottomContentPadding = maxOf(margins.bottomDp.dp, stableFooterReserve)
+        val bottomReserve = FooterBottomGap + safeFooterHeight + FooterTextGap
+        val bottomBarBottomPadding = FooterBottomGap + safeFooterHeight + BottomBarFooterGap
         return ReaderContentPadding(
             startContentPadding = margins.startDp.dp,
             endContentPadding = margins.endDp.dp,
             topContentPadding = margins.topDp.dp,
-            bottomContentPadding = bottomContentPadding,
-            footerBottomPadding = FooterBottomPadding,
+            bottomContentPadding = maxOf(margins.bottomDp.dp, bottomReserve),
+            footerBottomPadding = FooterBottomGap,
             bottomBarBottomPadding = bottomBarBottomPadding,
         )
     }

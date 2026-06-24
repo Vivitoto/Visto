@@ -105,8 +105,8 @@ class ReaderSessionTest {
         val widerStart = ReaderSessionReducer.reduce(loaded, ReaderSessionAction.SetPageMarginStart(500))
         val tighterEnd = ReaderSessionReducer.reduce(widerStart, ReaderSessionAction.SetPageMarginEnd(-2))
 
-        assertEquals(ReaderPageMargins.MAX_DP, widerStart.pageMargins.startDp)
-        assertEquals(ReaderPageMargins.MIN_DP, tighterEnd.pageMargins.endDp)
+        assertEquals(ReaderPageMargins.HORIZONTAL_BASELINE_DP + ReaderPageMargins.EXTRA_MAX_DP, widerStart.pageMargins.startDp)
+        assertEquals(ReaderPageMargins.HORIZONTAL_BASELINE_DP, tighterEnd.pageMargins.endDp)
         assertEquals(loaded.currentChapterIndex, tighterEnd.currentChapterIndex)
         assertTrue(originalPageStart >= tighterEnd.pagesForCurrentChapter[tighterEnd.currentPage].startChar)
         assertTrue(originalPageStart <= tighterEnd.pagesForCurrentChapter[tighterEnd.currentPage].endChar)

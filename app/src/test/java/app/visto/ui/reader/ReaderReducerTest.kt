@@ -119,9 +119,9 @@ class ReaderReducerTest {
         val end = ReaderReducer.reduce(start, ReaderAction.SetPageMarginEnd(0))
 
         assertEquals(40, end.pageMargins.topDp)
-        assertEquals(ReaderPageMargins.MAX_DP, end.pageMargins.bottomDp)
+        assertEquals(ReaderPageMargins.BOTTOM_BASELINE_DP + ReaderPageMargins.EXTRA_MAX_DP, end.pageMargins.bottomDp)
         assertEquals(36, end.pageMargins.startDp)
-        assertEquals(ReaderPageMargins.MIN_DP, end.pageMargins.endDp)
+        assertEquals(ReaderPageMargins.HORIZONTAL_BASELINE_DP, end.pageMargins.endDp)
         assertEquals(session.currentChapterIndex, end.currentChapterIndex)
         assertTrue(end.pagesForCurrentChapter.isNotEmpty())
     }

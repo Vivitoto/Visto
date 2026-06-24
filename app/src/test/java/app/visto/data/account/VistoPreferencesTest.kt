@@ -71,8 +71,8 @@ class VistoPreferencesTest {
         assertEquals("night", reloaded.backgroundStyle)
         assertEquals(
             ReaderPageMargins(
-                topDp = ReaderPageMargins.MIN_DP,
-                bottomDp = ReaderPageMargins.MAX_DP,
+                topDp = ReaderPageMargins.TOP_BASELINE_DP,
+                bottomDp = ReaderPageMargins.BOTTOM_BASELINE_DP + ReaderPageMargins.EXTRA_MAX_DP,
                 startDp = 36,
                 endDp = 42,
             ),

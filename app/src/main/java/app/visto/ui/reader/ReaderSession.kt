@@ -18,7 +18,13 @@ data class ReaderViewport(
     }
 }
 
-/** Reader page margins stored as density-independent integer dp values. */
+/**
+ * Reader page margins stored as actual total dp values.
+ *
+ * The settings sheet presents these as extra margin above a baseline, so the
+ * user-facing slider starts at 0 while persisted values remain compatible with
+ * older releases.
+ */
 data class ReaderPageMargins(
     val topDp: Int = DEFAULT_TOP_DP,
     val bottomDp: Int = DEFAULT_BOTTOM_DP,
@@ -26,20 +32,29 @@ data class ReaderPageMargins(
     val endDp: Int = DEFAULT_HORIZONTAL_DP,
 ) {
     fun clamped(): ReaderPageMargins = ReaderPageMargins(
-        topDp = topDp.coerceIn(MIN_DP, MAX_DP),
-        bottomDp = bottomDp.coerceIn(MIN_BOTTOM_DP, MAX_DP),
-        startDp = startDp.coerceIn(MIN_DP, MAX_DP),
-        endDp = endDp.coerceIn(MIN_DP, MAX_DP),
+        topDp = topDp.coerceIn(TOP_BASELINE_DP, TOP_BASELINE_DP + EXTRA_MAX_DP),
+        bottomDp = bottomDp.coerceIn(BOTTOM_BASELINE_DP, BOTTOM_BASELINE_DP + EXTRA_MAX_DP),
+        startDp = startDp.coerceIn(HORIZONTAL_BASELINE_DP, HORIZONTAL_BASELINE_DP + EXTRA_MAX_DP),
+        endDp = endDp.coerceIn(HORIZONTAL_BASELINE_DP, HORIZONTAL_BASELINE_DP + EXTRA_MAX_DP),
     )
 
     companion object {
-        const val MIN_DP = 8
-        const val MAX_DP = 96
-        const val DEFAULT_HORIZONTAL_DP = 22
-        const val DEFAULT_TOP_DP = 28
-        const val DEFAULT_BOTTOM_DP = 54
-        /** Minimum bottom margin matches the fixed page-end clearance so the footer bubble never pushes into text. */
-        const val MIN_BOTTOM_DP = 28
+        const val EXTRA_MIN_DP = 0
+        const val EXTRA_MAX_DP = 96
+
+        /** Baseline total padding used when the user-facing slider is 0. */
+        const val TOP_BASELINE_DP = 12
+        const val HORIZONTAL_BASELINE_DP = 8
+        const val BOTTOM_BASELINE_DP = 52
+
+        const val DEFAULT_TOP_DP = TOP_BASELINE_DP
+        const val DEFAULT_BOTTOM_DP = BOTTOM_BASELINE_DP
+        const val DEFAULT_HORIZONTAL_DP = HORIZONTAL_BASELINE_DP
+
+        fun topExtraDp(totalDp: Int): Int = (totalDp - TOP_BASELINE_DP).coerceIn(EXTRA_MIN_DP, EXTRA_MAX_DP)
+        fun bottomExtraDp(totalDp: Int): Int = (totalDp - BOTTOM_BASELINE_DP).coerceIn(EXTRA_MIN_DP, EXTRA_MAX_DP)
+        fun horizontalExtraDp(totalDp: Int): Int =
+            (totalDp - HORIZONTAL_BASELINE_DP).coerceIn(EXTRA_MIN_DP, EXTRA_MAX_DP)
 
         val DEFAULT = ReaderPageMargins()
     }

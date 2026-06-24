@@ -69,6 +69,28 @@ class TextPaginatorTest {
     }
 
     @Test
+    fun composeLineHeightCapacityIsNotOverReservedByFontMetrics() {
+        val text = (1..12).joinToString(separator = "\n") { "Line $it" }
+        val fontSize = 18f
+        val lineSpacing = 1.5f
+        val density = 1f
+        val threeComposeLinesHeight = fontSize * lineSpacing * 3
+
+        val pages = TextPaginator.paginate(
+            text = text,
+            maxWidthPx = 1000f,
+            maxHeightPx = threeComposeLinesHeight,
+            fontSizeSp = fontSize,
+            lineSpacing = lineSpacing,
+            density = density,
+        )
+
+        assertTrue(pages.size > 1)
+        assertEquals("Line 1\nLine 2\nLine 3\n", pages.first().text)
+        assertEquals(text, pages.joinToString(separator = "") { it.text })
+    }
+
+    @Test
     fun largerFontSizeCreatesMorePages() {
         val text = (1..80).joinToString(separator = "\n") { "Line $it" }
 

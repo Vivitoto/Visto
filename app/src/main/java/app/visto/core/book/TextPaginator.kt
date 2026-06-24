@@ -31,12 +31,14 @@ object TextPaginator {
             this.typeface = typeface
         }
         val spacingMultiplier = lineSpacing.coerceAtLeast(0.1f)
-        val lineHeight = (paint.textSize * spacingMultiplier).coerceAtLeast(1f)
+        val desiredLineHeight = (paint.textSize * spacingMultiplier).coerceAtLeast(1f)
+        val fontMetrics = paint.fontMetrics
+        val naturalLineHeight = (fontMetrics.descent - fontMetrics.ascent).coerceAtLeast(1f)
         val layout = buildLayout(
             text = text,
             paint = paint,
             widthPx = maxWidthPx.coerceAtLeast(1f).toInt().coerceAtLeast(1),
-            lineSpacingExtraPx = (lineHeight - paint.textSize).coerceAtLeast(0f),
+            lineSpacingExtraPx = (desiredLineHeight - naturalLineHeight).coerceAtLeast(0f),
         )
 
         val pages = mutableListOf<Page>()
