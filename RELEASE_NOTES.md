@@ -1,3 +1,13 @@
+Visto 1.1.10
+
+- 修复 CI 编译：将 `kotlin.math.maxOf` 替换为 Dp 原生 `coerceAtLeast`，避免 CI 编译器无法解析 `maxOf` 对 Dp 类型的重载。
+
+## 版本
+
+- 应用版本：1.1.10，Android versionCode 为 31。
+
+---
+
 Visto 1.1.9
 
 - 重新设计阅读器页边距：滑块从 0 开始，0 表示基准间距（上 12dp / 下 52dp / 左右 8dp），滑块值在基准之上追加。底部基准由胶囊底间隙(12dp) + 胶囊高度(≈28dp) + 正文与胶囊间隙(12dp) 构成。

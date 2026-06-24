@@ -54,7 +54,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.visto.ui.Strings
 import kotlin.math.roundToInt
-import kotlin.math.maxOf
 
 @Composable
 fun ReaderScreen(
@@ -297,14 +296,14 @@ internal object ReaderLayoutMetrics {
         pageMargins: ReaderPageMargins = ReaderPageMargins.DEFAULT,
     ): ReaderContentPadding {
         val margins = pageMargins.clamped()
-        val safeFooterHeight = maxOf(FooterHeightReserve, measuredFooterHeight)
+        val safeFooterHeight = FooterHeightReserve.coerceAtLeast(measuredFooterHeight)
         val bottomReserve = FooterBottomGap + safeFooterHeight + FooterTextGap
         val bottomBarBottomPadding = FooterBottomGap + safeFooterHeight + BottomBarFooterGap
         return ReaderContentPadding(
             startContentPadding = margins.startDp.dp,
             endContentPadding = margins.endDp.dp,
             topContentPadding = margins.topDp.dp,
-            bottomContentPadding = maxOf(margins.bottomDp.dp, bottomReserve),
+            bottomContentPadding = margins.bottomDp.dp.coerceAtLeast(bottomReserve),
             footerBottomPadding = FooterBottomGap,
             bottomBarBottomPadding = bottomBarBottomPadding,
         )
