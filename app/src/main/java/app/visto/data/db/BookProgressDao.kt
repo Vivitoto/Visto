@@ -17,6 +17,23 @@ interface BookProgressDao {
     @Query("SELECT * FROM book_progress WHERE accountId = :accountId ORDER BY lastReadAt DESC")
     fun getAllByAccount(accountId: Long): Flow<List<BookProgressEntity>>
 
+    @Query(
+        """
+        UPDATE book_progress
+        SET name = :name,
+            sizeBytes = :sizeBytes,
+            etag = :etag
+        WHERE accountId = :accountId AND path = :path
+        """
+    )
+    fun updateBookMetadata(
+        accountId: Long,
+        path: String,
+        name: String,
+        sizeBytes: Long?,
+        etag: String?,
+    )
+
     @Query("DELETE FROM book_progress WHERE accountId = :accountId AND path = :path")
     fun delete(accountId: Long, path: String)
 

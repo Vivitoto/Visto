@@ -94,4 +94,29 @@ object VistoMigrations {
             db.execSQL("ALTER TABLE `book_progress` ADD COLUMN `pageStartChar` INTEGER")
         }
     }
+
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `book_source` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `accountId` INTEGER NOT NULL,
+                    `displayName` TEXT NOT NULL,
+                    `rootPath` TEXT NOT NULL,
+                    `createdAt` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    `lastScannedAt` INTEGER,
+                    `lastImportedCount` INTEGER NOT NULL DEFAULT 0,
+                    `lastUpdatedCount` INTEGER NOT NULL DEFAULT 0,
+                    `lastFoldersVisited` INTEGER NOT NULL DEFAULT 0,
+                    `lastFoldersFailed` INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY(`accountId`) REFERENCES `dav_account`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_book_source_accountId` ON `book_source` (`accountId`)")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_book_source_accountId_rootPath` ON `book_source` (`accountId`, `rootPath`)")
+        }
+    }
 }

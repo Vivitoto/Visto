@@ -12,8 +12,9 @@ import androidx.room.RoomDatabase
         ThumbnailCacheEntity::class,
         AlbumSourceEntity::class,
         BookProgressEntity::class,
+        BookSourceEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 abstract class VistoDatabase : RoomDatabase() {
@@ -22,6 +23,7 @@ abstract class VistoDatabase : RoomDatabase() {
     abstract fun thumbnailCacheDao(): ThumbnailCacheDao
     abstract fun albumSourceDao(): AlbumSourceDao
     abstract fun bookProgressDao(): BookProgressDao
+    abstract fun bookSourceDao(): BookSourceDao
 
     companion object {
         private const val DB_NAME = "visto.db"
@@ -37,6 +39,7 @@ abstract class VistoDatabase : RoomDatabase() {
             VistoMigrations.MIGRATION_4_5,
             VistoMigrations.MIGRATION_5_6,
             VistoMigrations.MIGRATION_6_7,
+            VistoMigrations.MIGRATION_7_8,
         ).build()
     }
 }

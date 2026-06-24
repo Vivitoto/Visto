@@ -27,6 +27,12 @@ class ReaderLayoutMetricsTest {
     }
 
     @Test
+    fun bottomChromeButtonsUseWiderTouchTargets() {
+        assertEquals(64.dp, ReaderLayoutMetrics.ChromeIconButtonWidth)
+        assertEquals(40.dp, ReaderLayoutMetrics.ChromeIconButtonHeight)
+    }
+
+    @Test
     fun viewportHeightMatchesContentPaddingWithDefaultMargins() {
         val padding = ReaderLayoutMetrics.contentPadding(maxWidth = 390.dp, maxHeight = 800.dp)
 

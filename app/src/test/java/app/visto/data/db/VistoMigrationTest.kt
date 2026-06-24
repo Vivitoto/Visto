@@ -28,7 +28,7 @@ class VistoMigrationTest {
             val sqlite = db.openHelper.writableDatabase
             sqlite.query("PRAGMA user_version").use { cursor ->
                 assertTrue(cursor.moveToFirst())
-                assertEquals(7, cursor.getInt(0))
+                assertEquals(8, cursor.getInt(0))
             }
 
             sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'book_progress'").use { cursor ->
@@ -81,6 +81,63 @@ class VistoMigrationTest {
                     }
                 }
                 assertEquals(textColumns + integerColumns, foundColumns)
+            }
+
+            sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'book_source'").use { cursor ->
+                assertTrue("book_source table should exist", cursor.moveToFirst())
+                assertEquals("book_source", cursor.getString(0))
+            }
+
+            sqlite.query("PRAGMA index_list(`book_source`)").use { cursor ->
+                var foundAccountIndex = false
+                var foundUniqueAccountRootIndex = false
+                while (cursor.moveToNext()) {
+                    val indexName = cursor.getString(cursor.getColumnIndexOrThrow("name"))
+                    val isUnique = cursor.getInt(cursor.getColumnIndexOrThrow("unique")) == 1
+                    if (indexName == "index_book_source_accountId") {
+                        foundAccountIndex = true
+                    }
+                    if (indexName == "index_book_source_accountId_rootPath") {
+                        foundUniqueAccountRootIndex = isUnique
+                    }
+                }
+                assertTrue("book_source should have an account index", foundAccountIndex)
+                assertTrue("book_source should have a unique (accountId, rootPath) index", foundUniqueAccountRootIndex)
+            }
+
+            sqlite.query("PRAGMA foreign_key_list(`book_source`)").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("dav_account", cursor.getString(cursor.getColumnIndexOrThrow("table")))
+                assertEquals("accountId", cursor.getString(cursor.getColumnIndexOrThrow("from")))
+                assertEquals("id", cursor.getString(cursor.getColumnIndexOrThrow("to")))
+                assertEquals("CASCADE", cursor.getString(cursor.getColumnIndexOrThrow("on_delete")))
+            }
+
+            sqlite.query("PRAGMA table_info(`book_source`)").use { cursor ->
+                val foundColumns = mutableSetOf<String>()
+                val expectedColumns = setOf(
+                    "id",
+                    "accountId",
+                    "displayName",
+                    "rootPath",
+                    "createdAt",
+                    "updatedAt",
+                    "lastScannedAt",
+                    "lastImportedCount",
+                    "lastUpdatedCount",
+                    "lastFoldersVisited",
+                    "lastFoldersFailed",
+                )
+                while (cursor.moveToNext()) {
+                    val name = cursor.getString(cursor.getColumnIndexOrThrow("name"))
+                    if (name in expectedColumns) {
+                        foundColumns += name
+                    }
+                    if (name == "lastScannedAt") {
+                        assertEquals(0, cursor.getInt(cursor.getColumnIndexOrThrow("notnull")))
+                    }
+                }
+                assertEquals(expectedColumns, foundColumns)
             }
         } finally {
             db.close()
@@ -396,6 +453,93 @@ class VistoMigrationTest {
                 assertTrue(cursor.moveToFirst())
                 assertTrue(cursor.isNull(0))
             }
+        } finally {
+            helper.close()
+            context.deleteDatabase(dbName)
+        }
+    }
+
+    @Test
+    fun migration7To8CreatesBookSourceTableAndConstraints() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val dbName = "migration-7-8-${System.nanoTime()}.db"
+        context.deleteDatabase(dbName)
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(dbName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(7) {
+                        override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) = Unit
+                        override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+                    }
+                )
+                .build()
+        )
+
+        try {
+            val sqlite = helper.writableDatabase
+            sqlite.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `dav_account` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `displayName` TEXT NOT NULL,
+                    `baseUrl` TEXT NOT NULL,
+                    `rootPath` TEXT NOT NULL,
+                    `username` TEXT NOT NULL,
+                    `credentialRef` TEXT NOT NULL,
+                    `isActive` INTEGER NOT NULL,
+                    `createdAt` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            sqlite.execSQL(
+                """
+                INSERT INTO `dav_account` (
+                    `id`, `displayName`, `baseUrl`, `rootPath`, `username`, `credentialRef`,
+                    `isActive`, `createdAt`, `updatedAt`
+                ) VALUES (1, 'Home', 'https://dav.example.com', '/', 'u', 'ref', 1, 1, 1)
+                """.trimIndent()
+            )
+
+            VistoMigrations.MIGRATION_7_8.migrate(sqlite)
+
+            sqlite.execSQL(
+                """
+                INSERT INTO `book_source` (
+                    `accountId`, `displayName`, `rootPath`, `createdAt`, `updatedAt`
+                ) VALUES (1, '小说', '/Books', 10, 10)
+                """.trimIndent()
+            )
+
+            var duplicateRejected = false
+            try {
+                sqlite.execSQL(
+                    """
+                    INSERT INTO `book_source` (
+                        `accountId`, `displayName`, `rootPath`, `createdAt`, `updatedAt`
+                    ) VALUES (1, '小说 2', '/Books', 11, 11)
+                    """.trimIndent()
+                )
+            } catch (e: android.database.sqlite.SQLiteConstraintException) {
+                duplicateRejected = true
+            }
+
+            sqlite.query(
+                """
+                SELECT lastScannedAt, lastImportedCount, lastUpdatedCount, lastFoldersVisited, lastFoldersFailed
+                FROM book_source
+                WHERE accountId = 1 AND rootPath = '/Books'
+                """.trimIndent()
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertTrue(cursor.isNull(0))
+                assertEquals(0, cursor.getInt(1))
+                assertEquals(0, cursor.getInt(2))
+                assertEquals(0, cursor.getInt(3))
+                assertEquals(0, cursor.getInt(4))
+            }
+            assertTrue("migration should enforce duplicate roots per account", duplicateRejected)
         } finally {
             helper.close()
             context.deleteDatabase(dbName)

@@ -1,6 +1,7 @@
 package app.visto
 
 import android.content.Intent
+import android.database.sqlite.SQLiteConstraintException
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -51,13 +52,14 @@ import app.visto.core.book.BookTextResult
 import app.visto.core.book.ChapterParser
 import app.visto.core.media.MediaType
 import app.visto.core.model.DavPath
-import app.visto.core.model.RemoteEntry
 import app.visto.data.album.AlbumPreviewFinder
 import app.visto.data.album.AlbumCoverFinder
 import app.visto.data.book.BookDirectoryLoader
+import app.visto.data.book.BookScanImporter
 import app.visto.data.cache.AlbumIndexCache
 import app.visto.data.db.AlbumSourceEntity
 import app.visto.data.db.BookProgressEntity
+import app.visto.data.db.BookSourceEntity
 import app.visto.data.db.RemoteEntryRepository
 import app.visto.data.thumbnail.AnimatedThumbnailCache
 import app.visto.data.thumbnail.GeneratedThumbnailCache
@@ -91,6 +93,8 @@ import app.visto.ui.bookshelf.BookshelfBookFileType
 import app.visto.ui.bookshelf.BookshelfScreen
 import app.visto.ui.bookshelf.BookshelfStateBuilder
 import app.visto.ui.bookshelf.BookshelfUiState
+import app.visto.ui.bookshelf.BookDirectoryManagementScreen
+import app.visto.ui.bookshelf.BookDirectoryManagementUiState
 import app.visto.ui.browser.BrowserNavigator
 import app.visto.ui.browser.BrowserScreen
 import app.visto.ui.browser.BrowserStateBuilder
@@ -533,40 +537,6 @@ private suspend fun saveBookProgress(
             lastReadAt = now,
             addedAt = entity?.addedAt ?: now,
         )
-    )
-}
-
-private fun scannedBookProgress(
-    accountId: Long,
-    entry: RemoteEntry,
-    now: Long,
-    defaultSettings: ReaderDefaultSettings,
-): BookProgressEntity {
-    val margins = defaultSettings.pageMargins.clamped()
-    return BookProgressEntity(
-        accountId = accountId,
-        path = entry.path,
-        name = entry.name,
-        sizeBytes = entry.sizeBytes,
-        etag = entry.etag,
-        encoding = Charsets.UTF_8.name(),
-        chapterIndex = 0,
-        chapterTitle = null,
-        pageOffset = 0,
-        pageStartChar = null,
-        totalChapters = 0,
-        fontSizeSp = defaultSettings.fontSizeSp,
-        lineSpacing = defaultSettings.lineSpacing,
-        theme = defaultSettings.theme,
-        fontChoice = defaultSettings.fontChoice,
-        textColor = defaultSettings.textColor,
-        backgroundStyle = defaultSettings.backgroundStyle,
-        pageMarginTopDp = margins.topDp,
-        pageMarginBottomDp = margins.bottomDp,
-        pageMarginStartDp = margins.startDp,
-        pageMarginEndDp = margins.endDp,
-        lastReadAt = now,
-        addedAt = now,
     )
 }
 
@@ -1219,6 +1189,7 @@ private fun BookshelfHost(
     val app = remember(context) { context.applicationContext as VistoApplication }
     val scope = rememberCoroutineScope()
     val dao = remember(app) { app.database.bookProgressDao() }
+    val sourceDao = remember(app) { app.database.bookSourceDao() }
     val state by remember(summary.id) {
         BookshelfStateBuilder.fromFlow(dao.getAllByAccount(summary.id))
     }.collectAsState(initial = BookshelfUiState())
@@ -1234,6 +1205,8 @@ private fun BookshelfHost(
     var activeBookScanGeneration by remember(summary.id) { mutableStateOf(0) }
     var isBookScanRunning by remember(summary.id) { mutableStateOf(false) }
     var bookScanMessage by remember(summary.id) { mutableStateOf<String?>(null) }
+    var showBookSourceManagement by remember(summary.id) { mutableStateOf(false) }
+    var bookSourceState by remember(summary.id) { mutableStateOf(BookDirectoryManagementUiState()) }
 
     suspend fun newWebDavClient(): WebDavClient {
         val creds = app.accountService.credentialsFor(summary)
@@ -1243,6 +1216,36 @@ private fun BookshelfHost(
             accountId = summary.id,
             httpClient = app.okHttpClient,
         )
+    }
+
+    suspend fun refreshBookSources(
+        showLoading: Boolean = false,
+        message: String? = bookSourceState.message,
+        errorMessage: String? = bookSourceState.errorMessage,
+    ) {
+        if (showLoading) {
+            bookSourceState = bookSourceState.copy(isLoading = true, errorMessage = null)
+        }
+        try {
+            val sources = withContext(Dispatchers.IO) { sourceDao.listForAccount(summary.id) }
+            bookSourceState = bookSourceState.copy(
+                sources = sources,
+                isLoading = false,
+                message = message,
+                errorMessage = errorMessage,
+            )
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Throwable) {
+            bookSourceState = bookSourceState.copy(
+                isLoading = false,
+                errorMessage = e.message ?: Strings.ERR_UNEXPECTED,
+            )
+        }
+    }
+
+    LaunchedEffect(summary.id) {
+        refreshBookSources(showLoading = true, message = null, errorMessage = null)
     }
 
     fun persistProgress(session: ReaderSession) {
@@ -1344,55 +1347,157 @@ private fun BookshelfHost(
         }
     }
 
-    fun scanBookDirectory(path: String) {
+    fun scanBookSource(source: BookSourceEntity) {
         activeBookScanJob?.cancel()
         val generation = activeBookScanGeneration + 1
         activeBookScanGeneration = generation
-        val normalized = DavPath.normalize(path)
+        val normalized = DavPath.normalize(source.rootPath)
         isBookScanRunning = true
         bookScanMessage = Strings.BOOKSHELF_SCAN_RUNNING
+        bookSourceState = bookSourceState.copy(
+            isScanning = true,
+            scanningSourceId = source.id,
+            message = Strings.BOOKSHELF_SCAN_RUNNING,
+            errorMessage = null,
+        )
         activeBookScanJob = scope.launch {
             try {
                 val client = newWebDavClient()
                 val result = BookDirectoryLoader(client).loadCollected(normalized)
                 val defaultSettings = app.preferences.defaultReaderSettings
                 val now = System.currentTimeMillis()
-                var imported = 0
-                var updated = 0
+                val importResult = withContext(Dispatchers.IO) {
+                    BookScanImporter.importBooks(
+                        accountId = summary.id,
+                        books = result.books,
+                        now = now,
+                        defaultSettings = defaultSettings,
+                        dao = dao,
+                    )
+                }
                 withContext(Dispatchers.IO) {
-                    for (book in result.books) {
-                        val existing = dao.getByPath(summary.id, book.path)
-                        if (existing == null) {
-                            dao.upsert(scannedBookProgress(summary.id, book, now, defaultSettings))
-                            imported += 1
-                        } else {
-                            dao.upsert(
-                                existing.copy(
-                                    name = book.name,
-                                    sizeBytes = book.sizeBytes,
-                                    etag = book.etag,
-                                )
-                            )
-                            updated += 1
-                        }
-                    }
+                    sourceDao.updateScanResult(
+                        id = source.id,
+                        accountId = summary.id,
+                        updatedAt = now,
+                        lastScannedAt = now,
+                        imported = importResult.imported,
+                        updated = importResult.updated,
+                        foldersVisited = result.foldersVisited,
+                        foldersFailed = result.foldersFailed,
+                    )
                 }
                 if (generation != activeBookScanGeneration) return@launch
-                bookScanMessage = Strings.bookshelfScanComplete(
-                    imported = imported,
-                    updated = updated,
+                val message = Strings.bookshelfScanComplete(
+                    imported = importResult.imported,
+                    updated = importResult.updated,
                     foldersVisited = result.foldersVisited,
                     foldersFailed = result.foldersFailed,
+                )
+                bookScanMessage = message
+                val sources = withContext(Dispatchers.IO) { sourceDao.listForAccount(summary.id) }
+                if (generation != activeBookScanGeneration) return@launch
+                bookSourceState = bookSourceState.copy(
+                    sources = sources,
+                    isLoading = false,
+                    isScanning = false,
+                    scanningSourceId = null,
+                    message = message,
+                    errorMessage = null,
                 )
             } catch (ce: CancellationException) {
                 throw ce
             } catch (e: Throwable) {
                 if (generation != activeBookScanGeneration) return@launch
-                bookScanMessage = Strings.bookshelfScanFailed(AccountErrorMessages.forWebDavError(e))
+                val message = Strings.bookshelfScanFailed(AccountErrorMessages.forWebDavError(e))
+                bookScanMessage = message
+                bookSourceState = bookSourceState.copy(
+                    isLoading = false,
+                    isScanning = false,
+                    scanningSourceId = null,
+                    message = null,
+                    errorMessage = message,
+                )
             } finally {
                 if (generation == activeBookScanGeneration) {
                     isBookScanRunning = false
+                    bookSourceState = bookSourceState.copy(
+                        isScanning = false,
+                        scanningSourceId = null,
+                    )
                 }
+            }
+        }
+    }
+
+    fun addBookSource(path: String) {
+        val normalized = DavPath.normalize(path)
+        val now = System.currentTimeMillis()
+        scope.launch {
+            try {
+                val existing = withContext(Dispatchers.IO) {
+                    sourceDao.findByAccountAndRootPath(summary.id, normalized)
+                }
+                if (existing != null) {
+                    bookSourceState = bookSourceState.copy(
+                        isLoading = false,
+                        message = null,
+                        errorMessage = Strings.bookSourceDuplicate(normalized),
+                    )
+                    return@launch
+                }
+                val source = BookSourceEntity(
+                    accountId = summary.id,
+                    displayName = bookSourceDisplayName(normalized),
+                    rootPath = normalized,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+                val id = withContext(Dispatchers.IO) { sourceDao.insert(source) }
+                val inserted = source.copy(id = id)
+                val sources = withContext(Dispatchers.IO) { sourceDao.listForAccount(summary.id) }
+                bookSourceState = bookSourceState.copy(
+                    sources = sources,
+                    isLoading = false,
+                    message = null,
+                    errorMessage = null,
+                )
+                scanBookSource(inserted)
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: SQLiteConstraintException) {
+                bookSourceState = bookSourceState.copy(
+                    isLoading = false,
+                    message = null,
+                    errorMessage = Strings.bookSourceDuplicate(normalized),
+                )
+            } catch (e: Throwable) {
+                bookSourceState = bookSourceState.copy(
+                    isLoading = false,
+                    message = null,
+                    errorMessage = e.message ?: Strings.ERR_UNEXPECTED,
+                )
+            }
+        }
+    }
+
+    fun deleteBookSource(source: BookSourceEntity) {
+        scope.launch {
+            try {
+                withContext(Dispatchers.IO) { sourceDao.deleteById(source.id, summary.id) }
+                refreshBookSources(
+                    showLoading = false,
+                    message = Strings.BOOK_SOURCE_DELETED,
+                    errorMessage = null,
+                )
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Throwable) {
+                bookSourceState = bookSourceState.copy(
+                    isLoading = false,
+                    message = null,
+                    errorMessage = e.message ?: Strings.ERR_UNEXPECTED,
+                )
             }
         }
     }
@@ -1427,9 +1532,24 @@ private fun BookshelfHost(
             onSelectCurrent = {
                 activeFolderPickerJob?.cancel()
                 folderPicker = null
-                scanBookDirectory(picker.currentPath)
+                addBookSource(picker.currentPath)
             },
             onRetry = { loadPickerPath(picker.currentPath) },
+        )
+        return
+    }
+
+    if (showBookSourceManagement) {
+        BookDirectoryManagementScreen(
+            state = bookSourceState,
+            onBack = { showBookSourceManagement = false },
+            onAddSource = {
+                val start = summary.rootPath
+                bookSourceState = bookSourceState.copy(message = null, errorMessage = null)
+                loadPickerPath(start)
+            },
+            onRescanSource = ::scanBookSource,
+            onDeleteSource = ::deleteBookSource,
         )
         return
     }
@@ -1449,9 +1569,11 @@ private fun BookshelfHost(
             }
         },
         onAddDirectoryRequested = {
-            val start = summary.rootPath
+            showBookSourceManagement = true
             bookScanMessage = null
-            loadPickerPath(start)
+            scope.launch {
+                refreshBookSources(showLoading = bookSourceState.sources.isEmpty(), message = null, errorMessage = null)
+            }
         },
         onTabSelected = onTabSelected,
     )
@@ -1735,6 +1857,11 @@ private fun isAtOrBelowPath(path: String, root: String): Boolean {
     val normalizedRoot = DavPath.normalize(root)
     if (normalizedRoot == DavPath.ROOT) return normalizedPath.startsWith(DavPath.ROOT)
     return normalizedPath == normalizedRoot || normalizedPath.startsWith("$normalizedRoot/")
+}
+
+private fun bookSourceDisplayName(path: String): String {
+    val displayName = DavPath.displayName(path)
+    return if (displayName == DavPath.ROOT) Strings.BOOK_SOURCE_ROOT_NAME else displayName
 }
 
 private fun mediaCacheKeyScope(summary: AccountSummary): String =

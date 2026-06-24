@@ -145,6 +145,11 @@ class VistoDatabaseTest {
     }
 
     @Test
+    fun exposesBookSourceDao() {
+        assertNotNull(db.bookSourceDao())
+    }
+
+    @Test
     fun thumbnailLruQueryReturnsOldestFirst() = runBlocking {
         val accountId = accountDao.insert(
             DavAccountEntity(

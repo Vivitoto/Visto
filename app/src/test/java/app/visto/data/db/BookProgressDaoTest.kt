@@ -108,6 +108,63 @@ class BookProgressDaoTest {
     }
 
     @Test
+    fun updateBookMetadataPreservesReadingProgressAndSettings() = runBlocking {
+        val accountId = seedAccount("metadata")
+        dao.upsert(
+            book(accountId, "/Books/a.txt", name = "old.txt", lastReadAt = 10).copy(
+                encoding = "GBK",
+                chapterIndex = 5,
+                chapterTitle = "第六章",
+                pageOffset = 9,
+                pageStartChar = 3000,
+                totalChapters = 20,
+                fontSizeSp = 23,
+                lineSpacing = 2.1f,
+                theme = "dark",
+                fontChoice = "serif",
+                textColor = "ink",
+                backgroundStyle = "paper",
+                pageMarginTopDp = 24,
+                pageMarginBottomDp = 70,
+                pageMarginStartDp = 28,
+                pageMarginEndDp = 32,
+                addedAt = 3,
+            )
+        )
+
+        dao.updateBookMetadata(
+            accountId = accountId,
+            path = "/Books/a.txt",
+            name = "new.txt",
+            sizeBytes = 4096,
+            etag = "etag-new",
+        )
+
+        val updated = dao.getByPath(accountId, "/Books/a.txt")
+        assertEquals("new.txt", updated?.name)
+        assertEquals(4096L, updated?.sizeBytes)
+        assertEquals("etag-new", updated?.etag)
+        assertEquals("GBK", updated?.encoding)
+        assertEquals(5, updated?.chapterIndex)
+        assertEquals("第六章", updated?.chapterTitle)
+        assertEquals(9, updated?.pageOffset)
+        assertEquals(3000, updated?.pageStartChar)
+        assertEquals(20, updated?.totalChapters)
+        assertEquals(23, updated?.fontSizeSp)
+        assertEquals(2.1f, updated?.lineSpacing ?: 0f, 0.0001f)
+        assertEquals("dark", updated?.theme)
+        assertEquals("serif", updated?.fontChoice)
+        assertEquals("ink", updated?.textColor)
+        assertEquals("paper", updated?.backgroundStyle)
+        assertEquals(24, updated?.pageMarginTopDp)
+        assertEquals(70, updated?.pageMarginBottomDp)
+        assertEquals(28, updated?.pageMarginStartDp)
+        assertEquals(32, updated?.pageMarginEndDp)
+        assertEquals(10L, updated?.lastReadAt)
+        assertEquals(3L, updated?.addedAt)
+    }
+
+    @Test
     fun deleteRemovesOnePathForAccount() = runBlocking {
         val accountId = seedAccount("delete")
         dao.upsert(book(accountId, "/Books/a.txt"))

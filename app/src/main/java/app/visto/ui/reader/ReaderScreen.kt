@@ -278,7 +278,7 @@ internal data class ReaderContentPadding(
 internal object ReaderLayoutMetrics {
     internal val BottomBarHorizontalPadding = 5.dp
     internal val BottomBarVerticalPadding = 5.dp
-    internal val ChromeIconButtonWidth = 56.dp
+    internal val ChromeIconButtonWidth = 64.dp
     internal val ChromeIconButtonHeight = 40.dp
     internal val TopBarTopPadding = 10.dp
     private val FooterBottomGap = 12.dp

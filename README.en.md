@@ -2,7 +2,7 @@
 
 Visto is a **read-only Android WebDAV media and reading browser**. It helps browse albums, photos, videos, folders, and book files stored on a WebDAV server, with local reading progress and reader appearance settings.
 
-> Current version: `v1.1.8`
+> Current version: `v1.1.12`
 >
 > Package: `app.visto`
 

@@ -248,7 +248,7 @@ private fun BookshelfHeader(
         ) {
             Icon(
                 imageVector = Icons.Filled.Folder,
-                contentDescription = Strings.BOOKSHELF_ADD_DIRECTORY,
+                contentDescription = Strings.BOOKSHELF_MANAGE_DIRECTORIES,
             )
         }
     }

@@ -112,13 +112,28 @@ object Strings {
     const val BOOKSHELF_REMOVE = "从书架移除"
     const val BOOKSHELF_REMOVE_CONFIRM_MESSAGE = "从书架移除不会删除 WebDAV 上的文件"
     const val BOOKSHELF_REMOVE_CONFIRM = "移除"
-    const val BOOKSHELF_EMPTY = "浏览中打开 TXT 文件后自动加入书架"
+    const val BOOKSHELF_EMPTY = "管理书籍目录后，扫描到的书会出现在这里"
     const val BOOKSHELF_ADD_DIRECTORY = "添加书籍目录"
+    const val BOOKSHELF_MANAGE_DIRECTORIES = "管理书籍目录"
     const val BOOKSHELF_SCAN_RUNNING = "正在扫描书籍目录…"
     const val BOOKSHELF_VIEW_MODE = "视图"
     const val BOOKSHELF_SWITCH_TO_LIST = "切换到列表"
     const val BOOKSHELF_JUST_NOW = "刚刚"
     const val BOOKSHELF_LONG_AGO = "很久以前"
+    const val BOOK_SOURCE_TITLE = "书籍目录"
+    const val BOOK_SOURCE_ADD = "添加目录"
+    const val BOOK_SOURCE_RESCAN = "重新扫描"
+    const val BOOK_SOURCE_DELETE = "移除"
+    const val BOOK_SOURCE_DELETE_TITLE = "移除书籍目录"
+    const val BOOK_SOURCE_DELETE_MESSAGE = "只会移除本地目录配置，不会删除 WebDAV 上的文件，也不会删除书架里的阅读记录。"
+    const val BOOK_SOURCE_DELETE_CONFIRM = "移除目录"
+    const val BOOK_SOURCE_EMPTY_TITLE = "还没有书籍目录"
+    const val BOOK_SOURCE_EMPTY_SUBTITLE = "添加 WebDAV 目录后，Visto 会扫描 TXT、Markdown 和 EPUB 到书架。"
+    const val BOOK_SOURCE_LAST_SCAN_NEVER = "尚未扫描"
+    const val BOOK_SOURCE_SCANNING = "正在扫描这个目录…"
+    const val BOOK_SOURCE_DUPLICATE = "这个目录已经添加过了"
+    const val BOOK_SOURCE_ROOT_NAME = "根目录"
+    const val BOOK_SOURCE_DELETED = "已移除目录配置，书架阅读记录已保留"
 
     const val READER_CHAPTERS = "目录"
     const val READER_CHAPTER_SEARCH = "搜索章节"
@@ -172,6 +187,24 @@ object Strings {
         return if (foldersFailed == 0) "$base，$progress" else "$base，$progress，$foldersFailed 个失败"
     }
     fun bookshelfScanFailed(message: String): String = "书籍目录扫描失败：$message"
+    fun bookSourceLastScan(
+        formattedTime: String,
+        imported: Int,
+        updated: Int,
+        foldersVisited: Int,
+        foldersFailed: Int,
+    ): String {
+        val total = imported + updated
+        val result = if (total == 0) {
+            "未找到新书"
+        } else {
+            "导入 $imported 本，更新 $updated 本"
+        }
+        val progress = "扫描 $foldersVisited 个目录"
+        val failed = if (foldersFailed == 0) "" else "，$foldersFailed 个失败"
+        return "上次扫描 $formattedTime · $result，$progress$failed"
+    }
+    fun bookSourceDuplicate(path: String): String = "$BOOK_SOURCE_DUPLICATE：$path"
     fun readerCustomFont(name: String): String = "自定义：$name"
     fun readerFontSize(sp: Int): String = "$READER_FONT_SIZE ${sp}sp"
     fun readerLineSpacing(value: Float): String {
