@@ -1,6 +1,8 @@
 package app.visto.core.book
 
+import android.graphics.Typeface
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -88,5 +90,61 @@ class TextPaginatorTest {
         assertTrue(spaciousPages.isNotEmpty())
         assertEquals(text, compactPages.joinToString(separator = "") { it.text })
         assertEquals(text, spaciousPages.joinToString(separator = "") { it.text })
+    }
+
+    @Test
+    fun chineseParagraphAvoidsWeakCommaPageEndAndTinyTail() {
+        val paragraph = "\u3000\u3000他要去寻找家人，因为他清楚的记得，他当初用一根绳子，将自己，老妈，老姐，还有小妹都绑在了一个救生圈上面。"
+
+        val pages = TextPaginator.paginate(paragraph, 360f, 54f, 18f, 1.5f, 1f)
+
+        assertTrue(pages.size > 1)
+        assertEquals(paragraph, pages.joinToString(separator = "") { it.text })
+        assertFalse(pages.any { it.text.trimEnd().endsWith("老姐，") })
+        assertFalse(pages.any { it.text == "还有小妹都绑在了一个救生圈上面。" })
+        assertTrue(pages.any { it.text.contains("老姐，还有小妹") })
+    }
+
+    @Test
+    fun weakCommaPageEndBacktracksWithoutCreatingOneLinePage() {
+        val paragraph = "\u3000\u3000他要去寻找家人，因为他清楚的记得，他当初用一根绳子，将自己，老妈，老姐，还有小妹都绑在了一个救生圈上面。"
+        val weakBreak = paragraph.indexOf("还有小妹")
+        val lineStarts = intArrayOf(
+            0,
+            paragraph.indexOf("因为"),
+            paragraph.indexOf("老妈"),
+            weakBreak,
+            paragraph.length,
+        )
+        val lineEnds = intArrayOf(
+            lineStarts[1],
+            lineStarts[2],
+            weakBreak,
+            paragraph.length,
+            paragraph.length,
+        )
+
+        val adjusted = TextPaginator.adjustedPageEndLineForTest(
+            text = paragraph,
+            lineStarts = lineStarts,
+            lineEnds = lineEnds,
+            startLine = 0,
+            naturalEndLine = 3,
+        )
+
+        assertEquals(2, adjusted)
+    }
+
+    @Test
+    fun typefaceAwarePaginationKeepsPagesContiguous() {
+        val text = "\u3000\u3000" + "WiMi字形宽度不同会影响分页。".repeat(20)
+
+        val pages = TextPaginator.paginate(text, 220f, 120f, 18f, 1.5f, 1f, typeface = Typeface.SERIF)
+
+        assertTrue(pages.isNotEmpty())
+        pages.zipWithNext().forEach { (current, next) ->
+            assertEquals(current.endChar, next.startChar)
+        }
+        assertEquals(text, pages.joinToString(separator = "") { it.text })
     }
 }

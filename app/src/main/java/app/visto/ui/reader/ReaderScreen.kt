@@ -41,6 +41,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -337,6 +339,7 @@ internal object ReaderLayoutMetrics {
     }
 }
 
+@Suppress("DEPRECATION")
 @Composable
 private fun ReaderPageText(
     presentation: ReaderPagePresentation,
@@ -349,9 +352,12 @@ private fun ReaderPageText(
     Text(
         text = presentation.body,
         color = palette.textColor,
-        fontSize = fontSizeSp.sp,
-        lineHeight = (fontSizeSp * lineSpacing).sp,
-        fontFamily = fontFamily,
+        style = TextStyle(
+            fontSize = fontSizeSp.sp,
+            lineHeight = (fontSizeSp * lineSpacing).sp,
+            fontFamily = fontFamily,
+            platformStyle = PlatformTextStyle(includeFontPadding = false),
+        ),
         modifier = modifier,
     )
 }

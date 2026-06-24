@@ -1,5 +1,6 @@
 package app.visto.ui.reader
 
+import android.graphics.Typeface
 import app.visto.core.book.Chapter
 import app.visto.core.book.ChapterParser
 import app.visto.core.book.Page
@@ -405,6 +406,7 @@ object ReaderSessionReducer {
             fontSizeSp = state.fontSizeSp.toFloat(),
             lineSpacing = state.lineSpacing,
             density = state.viewport.density,
+            typeface = state.fontChoice.paginationTypeface(),
         )
         val requestedPage = when {
             resetPage -> 0
@@ -434,4 +436,12 @@ object ReaderSessionReducer {
         heightPx = heightPx.coerceAtLeast(1),
         density = density.takeIf { it > 0f } ?: ReaderViewport.DEFAULT.density,
     )
+
+}
+
+internal fun ReaderFontChoice.paginationTypeface(): Typeface? = when (this) {
+    ReaderFontChoice.SystemDefault -> null
+    ReaderFontChoice.Sans -> Typeface.SANS_SERIF
+    ReaderFontChoice.Serif -> Typeface.SERIF
+    is ReaderFontChoice.Custom -> null
 }

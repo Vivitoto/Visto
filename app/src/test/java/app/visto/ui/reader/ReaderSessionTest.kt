@@ -1,8 +1,11 @@
 package app.visto.ui.reader
 
+import android.graphics.Typeface
 import app.visto.core.book.Chapter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -115,6 +118,14 @@ class ReaderSessionTest {
         assertEquals(ReaderFontChoice.Custom("mine.ttf"), ReaderFontChoice.fromStorage("custom:mine.ttf"))
         assertEquals(ReaderFontChoice.SystemDefault, ReaderFontChoice.fromStorage("custom:../bad.ttf"))
         assertEquals(ReaderFontChoice.SystemDefault, ReaderFontChoice.fromStorage("custom:bad.txt"))
+    }
+
+    @Test
+    fun paginationTypefaceMatchesBuiltInFontChoice() {
+        assertNull(ReaderFontChoice.SystemDefault.paginationTypeface())
+        assertSame(Typeface.SANS_SERIF, ReaderFontChoice.Sans.paginationTypeface())
+        assertSame(Typeface.SERIF, ReaderFontChoice.Serif.paginationTypeface())
+        assertNull(ReaderFontChoice.Custom("mine.ttf").paginationTypeface())
     }
 
     @Test
