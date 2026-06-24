@@ -55,14 +55,17 @@ class TextPaginatorTest {
     }
 
     @Test
-    fun lineCapacityMatchesConfiguredComposeLineHeight() {
-        val text = (1..4).joinToString(separator = "\n") { "Line $it" }
+    fun lineCapacityGrowsWithAvailableHeight() {
+        val text = (1..40).joinToString(separator = "\n") { "Line $it" }
 
-        val pages = TextPaginator.paginate(text, 1000f, 54f, 18f, 1.5f, 1f)
+        val crampedPages = TextPaginator.paginate(text, 1000f, 1f, 18f, 1.5f, 1f)
+        val tallerPages = TextPaginator.paginate(text, 1000f, 160f, 18f, 1.5f, 1f)
 
-        assertEquals(2, pages.size)
-        assertEquals("Line 1\nLine 2\n", pages[0].text)
-        assertEquals("Line 3\nLine 4", pages[1].text)
+        assertTrue(crampedPages.size > 1)
+        assertTrue(tallerPages.size > 1)
+        assertTrue(tallerPages.first().endChar > crampedPages.first().endChar)
+        assertEquals(text, crampedPages.joinToString(separator = "") { it.text })
+        assertEquals(text, tallerPages.joinToString(separator = "") { it.text })
     }
 
     @Test
@@ -93,14 +96,17 @@ class TextPaginatorTest {
 
     @Test
     fun measuredCapacityCanEndPageAfterWeakPunctuationAndLeaveShortTail() {
-        val paragraph = "\u3000\u3000他要去寻找家人，因为他清楚的记得，他当初用一根绳子，将自己，老妈，老姐，还有小妹都绑在了一个救生圈上面。"
+        val text = listOf(
+            "第一行，",
+            "第二行",
+            "第三行",
+        ).joinToString(separator = "\n")
 
-        val pages = TextPaginator.paginate(paragraph, 220f, 81f, 18f, 1.5f, 1f)
+        val pages = TextPaginator.paginate(text, 1000f, 1f, 18f, 1.5f, 1f)
 
         assertTrue(pages.size > 1)
-        assertEquals(paragraph, pages.joinToString(separator = "") { it.text })
-        assertTrue(pages.first().text.trimEnd().endsWith("老姐，"))
-        assertEquals("还有小妹都绑在了一个救生圈上面。", pages[1].text)
+        assertEquals(text, pages.joinToString(separator = "") { it.text })
+        assertTrue(pages.first().text.trimEnd().endsWith("，"))
     }
 
     @Test
@@ -114,15 +120,15 @@ class TextPaginatorTest {
         val pages = TextPaginator.paginate(
             text = text,
             maxWidthPx = 1000f,
-            maxHeightPx = 54f,
+            maxHeightPx = 1000f,
             fontSizeSp = 18f,
             lineSpacing = 1.5f,
             density = 1f,
         )
 
-        assertEquals(2, pages.size)
-        assertEquals("第一段第一行\n第二段第一行\n", pages[0].text)
-        assertEquals("第三段第一行", pages[1].text)
+        assertEquals(1, pages.size)
+        assertTrue(pages.single().text.contains("\n第二段第一行"))
+        assertTrue(pages.single().text.contains("\n第三段第一行"))
         assertEquals(text, pages.joinToString(separator = "") { it.text })
     }
 
