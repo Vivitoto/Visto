@@ -267,7 +267,6 @@ internal data class ReaderContentPadding(
     val endContentPadding: Dp,
     val topContentPadding: Dp,
     val bottomContentPadding: Dp,
-    val pageEndClearance: Dp,
     val footerBottomPadding: Dp,
     val bottomBarBottomPadding: Dp,
 ) {
@@ -285,8 +284,6 @@ internal object ReaderLayoutMetrics {
     private val BottomBarFooterGap = 10.dp
     internal val FooterHeightReserve = 28.dp
     internal val FooterTextClearance = 24.dp
-    /** Fixed extra space kept below the paginated text so the last line never sits on top of the footer bubble. */
-    internal val PageEndClearance = 28.dp
 
     @Suppress("UNUSED_PARAMETER")
     fun contentPadding(
@@ -306,7 +303,6 @@ internal object ReaderLayoutMetrics {
             endContentPadding = margins.endDp.dp,
             topContentPadding = margins.topDp.dp,
             bottomContentPadding = bottomContentPadding,
-            pageEndClearance = PageEndClearance,
             footerBottomPadding = FooterBottomPadding,
             bottomBarBottomPadding = bottomBarBottomPadding,
         )
@@ -322,8 +318,7 @@ internal object ReaderLayoutMetrics {
         return with(density) {
             val height = maxHeight -
                 padding.topContentPadding -
-                padding.bottomContentPadding -
-                padding.pageEndClearance
+                padding.bottomContentPadding
             ReaderViewport(
                 widthPx = (maxWidth - padding.startContentPadding - padding.endContentPadding)
                     .coerceAtLeast(1.dp)

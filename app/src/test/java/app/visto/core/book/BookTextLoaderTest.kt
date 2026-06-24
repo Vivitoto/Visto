@@ -116,8 +116,38 @@ class BookTextLoaderTest {
 
         assertEquals("\u3000\u3000硬换行第一句，第二句。", result.text)
         assertEquals(result.text, first.cachedFile.readText(Charsets.UTF_8))
-        assertTrue(metaFile.readText(Charsets.UTF_8).contains("normalizerVersion=2"))
+        assertTrue(metaFile.readText(Charsets.UTF_8).contains("normalizerVersion=3"))
         assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun malformedUtf8CacheIsInvalidatedAndDownloadedAgain() = runBlocking {
+        val cacheDir = temporaryFolder.newFolder("cache")
+        server.enqueue(MockResponse().setBody("旧内容").setHeader("ETag", "same"))
+        server.enqueue(MockResponse().setBody("新内容").setHeader("ETag", "same"))
+        val first = BookTextLoader.load(client(), "/books/a.txt", cacheDir)
+        first.cachedFile.writeBytes(byteArrayOf(0x48, 0x65, 0x6c, 0xc3.toByte(), 0x28))
+
+        val result = BookTextLoader.load(client(), "/books/a.txt", cacheDir, expectedEtag = "same")
+
+        assertEquals("\u3000\u3000新内容", result.text)
+        assertEquals(2, server.requestCount)
+        assertEquals("\u3000\u3000新内容", first.cachedFile.readText(Charsets.UTF_8))
+    }
+
+    @Test
+    fun emptyCacheIsInvalidatedAndDownloadedAgain() = runBlocking {
+        val cacheDir = temporaryFolder.newFolder("cache")
+        server.enqueue(MockResponse().setBody("旧内容").setHeader("ETag", "same"))
+        server.enqueue(MockResponse().setBody("新内容").setHeader("ETag", "same"))
+        val first = BookTextLoader.load(client(), "/books/a.txt", cacheDir)
+        first.cachedFile.writeBytes(byteArrayOf())
+
+        val result = BookTextLoader.load(client(), "/books/a.txt", cacheDir, expectedEtag = "same")
+
+        assertEquals("\u3000\u3000新内容", result.text)
+        assertEquals(2, server.requestCount)
+        assertEquals("\u3000\u3000新内容", first.cachedFile.readText(Charsets.UTF_8))
     }
 
     @Test

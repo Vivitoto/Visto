@@ -12,7 +12,9 @@ import okhttp3.Request
 import okhttp3.Response
 import java.io.File
 import java.io.IOException
+import java.nio.ByteBuffer
 import java.nio.charset.Charset
+import java.nio.charset.CodingErrorAction
 import java.security.MessageDigest
 import java.util.Properties
 import kotlin.coroutines.resume
@@ -31,7 +33,10 @@ data class BookTextResult(
 object BookTextLoader {
     private const val CACHE_SUBDIR = "books"
     private const val META_SUFFIX = ".meta"
-    private const val NORMALIZER_VERSION = "2"
+    private const val NORMALIZER_VERSION = "3"
+    private const val MAX_CONTROL_CHAR_PERCENT = 1
+    private const val MAX_REPLACEMENT_CHAR_PERCENT = 1
+    private const val MIN_REPLACEMENT_CHARS_FOR_REJECTION = 8
     private val httpClient = OkHttpClient()
 
     suspend fun load(
@@ -69,6 +74,7 @@ object BookTextLoader {
         val encoding = TextEncodingDetector.detect(downloaded.bytes)
         val decodedText = String(downloaded.bytes, Charset.forName(encoding)).removePrefix("\uFEFF")
         val text = ReaderTextNormalizer.normalize(decodedText)
+        ensureUsableText(text, "Downloaded book text")
         writeTextAtomically(cacheFile, text)
         writeMetadata(
             metaFile = metaFile,
@@ -94,14 +100,18 @@ object BookTextLoader {
         allowLegacyCache: Boolean,
     ): BookTextResult? {
         if (!cacheFile.isFile) return null
+        if (cacheFile.length() <= 0L) {
+            invalidateCache(cacheFile, metaFile)
+            return null
+        }
         val metadata = readMetadata(metaFile)
         val needsNormalization = metadata.normalizerVersion != NORMALIZER_VERSION
         if (needsNormalization && !allowLegacyCache) return null
         val etagCompatible = expectedEtag == null || metadata.etag == null || metadata.etag == expectedEtag
         if (!etagCompatible && !allowStale) return null
 
-        return runCatching {
-            val cachedText = cacheFile.readText(Charsets.UTF_8)
+        return try {
+            val cachedText = readUtf8CacheText(cacheFile)
             val text = if (needsNormalization) {
                 ReaderTextNormalizer.normalize(cachedText).also { normalized ->
                     if (normalized != cachedText) {
@@ -111,6 +121,7 @@ object BookTextLoader {
             } else {
                 cachedText
             }
+            ensureUsableText(text, "Cached book text")
             val etag = metadata.etag ?: expectedEtag
             val encoding = metadata.encoding ?: "UTF-8"
             val sizeBytes = metadata.sizeBytes ?: cacheFile.length()
@@ -135,7 +146,10 @@ object BookTextLoader {
                 etag = etag,
                 cachedFile = cacheFile,
             )
-        }.getOrNull()
+        } catch (_: Throwable) {
+            invalidateCache(cacheFile, metaFile)
+            null
+        }
     }
 
     private suspend fun download(request: Request, path: String): DownloadedBook =
@@ -181,6 +195,41 @@ object BookTextLoader {
             temp.copyTo(file, overwrite = true)
             temp.delete()
         }
+    }
+
+    private fun readUtf8CacheText(file: File): String {
+        val bytes = file.readBytes()
+        if (bytes.isEmpty()) throw IOException("Cached book text is empty")
+        return Charsets.UTF_8.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+            .decode(ByteBuffer.wrap(bytes))
+            .toString()
+    }
+
+    private fun ensureUsableText(text: String, source: String) {
+        if (text.isBlank()) throw IOException("$source is empty")
+
+        val length = text.length.coerceAtLeast(1)
+        val controlChars = text.count { char ->
+            Character.isISOControl(char) && char != '\n' && char != '\r' && char != '\t' && char != '\u000C'
+        }
+        if (controlChars * 100 > length * MAX_CONTROL_CHAR_PERCENT) {
+            throw IOException("$source contains unreadable control characters")
+        }
+
+        val replacementChars = text.count { it == '\uFFFD' }
+        if (
+            replacementChars >= MIN_REPLACEMENT_CHARS_FOR_REJECTION &&
+            replacementChars * 100 > length * MAX_REPLACEMENT_CHAR_PERCENT
+        ) {
+            throw IOException("$source contains unreadable replacement characters")
+        }
+    }
+
+    private fun invalidateCache(cacheFile: File, metaFile: File) {
+        runCatching { cacheFile.delete() }
+        runCatching { metaFile.delete() }
     }
 
     private fun cacheFile(cacheDir: File, accountId: Long, path: String): File =

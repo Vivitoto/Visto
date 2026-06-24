@@ -47,6 +47,7 @@ import app.visto.data.account.AccountSummary
 import app.visto.data.account.GridDensity
 import app.visto.data.account.ReaderDefaultSettings
 import app.visto.core.book.BookTextLoader
+import app.visto.core.book.BookTextResult
 import app.visto.core.book.ChapterParser
 import app.visto.core.media.MediaType
 import app.visto.core.model.DavPath
@@ -113,11 +114,17 @@ import app.visto.ui.viewer.ViewerScreen
 import app.visto.ui.viewer.ViewerSession
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.Executors
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -296,6 +303,12 @@ private sealed interface Screen {
     data object Home : Screen
 }
 
+private const val READER_SESSION_BUILD_TIMEOUT_MS = 30_000L
+
+private class ReaderSessionBuildTimeoutException(
+    cause: Throwable,
+) : IOException("阅读内容解析超时，请重试；如果反复出现再清理书籍缓存", cause)
+
 @Composable
 private fun ActiveReaderScreen(
     session: ReaderSession,
@@ -409,6 +422,54 @@ private fun readerLoadingSession(
     isLoading = true,
     errorMessage = null,
 )
+
+private suspend fun buildLoadedReaderSession(
+    baseSession: ReaderSession,
+    result: BookTextResult,
+    currentChapterIndex: Int,
+    currentPage: Int,
+): ReaderSession {
+    val executor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "VistoReaderSessionBuilder").apply { isDaemon = true }
+    }
+    return try {
+        withTimeout(READER_SESSION_BUILD_TIMEOUT_MS) {
+            suspendCancellableCoroutine { continuation ->
+                val future = executor.submit {
+                    try {
+                        val chapters = ChapterParser.parse(result.text)
+                        val loaded = ReaderReducer.reduce(
+                            baseSession,
+                            ReaderAction.Loaded(
+                                encoding = result.encoding,
+                                fullText = result.text,
+                                chapters = chapters,
+                                currentChapterIndex = currentChapterIndex,
+                                currentPage = currentPage,
+                            ),
+                        )
+                        if (continuation.isActive) continuation.resume(loaded)
+                    } catch (e: Throwable) {
+                        if (continuation.isActive) continuation.resumeWithException(e)
+                    }
+                }
+                continuation.invokeOnCancellation {
+                    future.cancel(true)
+                    executor.shutdownNow()
+                }
+            }
+        }
+    } catch (e: TimeoutCancellationException) {
+        throw ReaderSessionBuildTimeoutException(e)
+    } finally {
+        executor.shutdownNow()
+    }
+}
+
+private fun readerLoadErrorMessage(error: Throwable): String = when (error) {
+    is ReaderSessionBuildTimeoutException -> error.message ?: Strings.ERR_UNEXPECTED
+    else -> AccountErrorMessages.forWebDavError(error)
+}
 
 private fun String?.toReaderTheme(): ReaderTheme = ReaderTheme.fromStorage(this)
 
@@ -1219,19 +1280,15 @@ private fun BookshelfHost(
                 val client = newWebDavClient()
                 val result = BookTextLoader.load(client, book.path, context.cacheDir, expectedEtag = book.etag)
                 if (generation != activeReaderGeneration || readerSession?.filePath != book.path) return@launch
-                val chapters = ChapterParser.parse(result.text)
+                val loaded = buildLoadedReaderSession(
+                    baseSession = readerSession ?: readerLoadingSession(book.path, book.name, book),
+                    result = result,
+                    currentChapterIndex = book.chapterIndex,
+                    currentPage = book.pageOffset,
+                )
+                if (generation != activeReaderGeneration || readerSession?.filePath != book.path) return@launch
                 activeReaderSizeBytes = result.sizeBytes
                 activeReaderEtag = result.etag
-                val loaded = ReaderReducer.reduce(
-                    readerSession ?: readerLoadingSession(book.path, book.name, book),
-                    ReaderAction.Loaded(
-                        encoding = result.encoding,
-                        fullText = result.text,
-                        chapters = chapters,
-                        currentChapterIndex = book.chapterIndex,
-                        currentPage = book.pageOffset,
-                    ),
-                )
                 readerSession = loaded
                 persistProgress(loaded)
             } catch (ce: CancellationException) {
@@ -1240,7 +1297,7 @@ private fun BookshelfHost(
                 if (generation != activeReaderGeneration || readerSession?.filePath != book.path) return@launch
                 readerSession = (readerSession ?: readerLoadingSession(book.path, book.name, book)).copy(
                     isLoading = false,
-                    errorMessage = AccountErrorMessages.forWebDavError(e),
+                    errorMessage = readerLoadErrorMessage(e),
                 )
             }
         }
@@ -1812,24 +1869,20 @@ private fun BrowserHost(
                 }
                 val result = BookTextLoader.load(client, book.path, context.cacheDir, expectedEtag = book.etag)
                 if (generation != activeReaderGeneration || readerSession?.filePath != book.path) return@launch
-                val chapters = ChapterParser.parse(result.text)
-                activeReaderSizeBytes = result.sizeBytes
-                activeReaderEtag = result.etag
-                val loaded = ReaderReducer.reduce(
-                    readerSession ?: readerLoadingSession(
+                val loaded = buildLoadedReaderSession(
+                    baseSession = readerSession ?: readerLoadingSession(
                         filePath = book.path,
                         fileName = book.name,
                         progress = progress,
                         defaultSettings = defaultReaderSettings,
                     ),
-                    ReaderAction.Loaded(
-                        encoding = result.encoding,
-                        fullText = result.text,
-                        chapters = chapters,
-                        currentChapterIndex = progress?.chapterIndex ?: 0,
-                        currentPage = progress?.pageOffset ?: 0,
-                    ),
+                    result = result,
+                    currentChapterIndex = progress?.chapterIndex ?: 0,
+                    currentPage = progress?.pageOffset ?: 0,
                 )
+                if (generation != activeReaderGeneration || readerSession?.filePath != book.path) return@launch
+                activeReaderSizeBytes = result.sizeBytes
+                activeReaderEtag = result.etag
                 readerSession = loaded
                 persistProgress(loaded)
             } catch (ce: CancellationException) {
@@ -1842,7 +1895,7 @@ private fun BrowserHost(
                     defaultSettings = defaultReaderSettings,
                 )).copy(
                     isLoading = false,
-                    errorMessage = AccountErrorMessages.forWebDavError(e),
+                    errorMessage = readerLoadErrorMessage(e),
                 )
             }
         }

@@ -2,7 +2,6 @@ package app.visto.core.book
 
 import android.graphics.Typeface
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -93,46 +92,38 @@ class TextPaginatorTest {
     }
 
     @Test
-    fun chineseParagraphAvoidsWeakCommaPageEndAndTinyTail() {
+    fun measuredCapacityCanEndPageAfterWeakPunctuationAndLeaveShortTail() {
         val paragraph = "\u3000\u3000他要去寻找家人，因为他清楚的记得，他当初用一根绳子，将自己，老妈，老姐，还有小妹都绑在了一个救生圈上面。"
-        val text = List(4) { paragraph }.joinToString(separator = "\n")
 
-        val pages = TextPaginator.paginate(text, 220f, 81f, 18f, 1.5f, 1f)
+        val pages = TextPaginator.paginate(paragraph, 220f, 81f, 18f, 1.5f, 1f)
 
         assertTrue(pages.size > 1)
-        assertEquals(text, pages.joinToString(separator = "") { it.text })
-        assertFalse(pages.any { it.text.trimEnd().endsWith("老姐，") })
-        assertFalse(pages.any { it.text == "还有小妹都绑在了一个救生圈上面。" })
+        assertEquals(paragraph, pages.joinToString(separator = "") { it.text })
+        assertTrue(pages.first().text.trimEnd().endsWith("老姐，"))
+        assertEquals("还有小妹都绑在了一个救生圈上面。", pages[1].text)
     }
 
     @Test
-    fun weakCommaPageEndBacktracksWithoutCreatingOneLinePage() {
-        val paragraph = "\u3000\u3000他要去寻找家人，因为他清楚的记得，他当初用一根绳子，将自己，老妈，老姐，还有小妹都绑在了一个救生圈上面。"
-        val weakBreak = paragraph.indexOf("还有小妹")
-        val lineStarts = intArrayOf(
-            0,
-            paragraph.indexOf("因为"),
-            paragraph.indexOf("老妈"),
-            weakBreak,
-            paragraph.length,
-        )
-        val lineEnds = intArrayOf(
-            lineStarts[1],
-            lineStarts[2],
-            weakBreak,
-            paragraph.length,
-            paragraph.length,
+    fun measuredCapacityKeepsNewParagraphOnCurrentPageWhenItFits() {
+        val text = listOf(
+            "第一段第一行",
+            "第二段第一行",
+            "第三段第一行",
+        ).joinToString(separator = "\n")
+
+        val pages = TextPaginator.paginate(
+            text = text,
+            maxWidthPx = 1000f,
+            maxHeightPx = 54f,
+            fontSizeSp = 18f,
+            lineSpacing = 1.5f,
+            density = 1f,
         )
 
-        val adjusted = TextPaginator.adjustedPageEndLineForTest(
-            text = paragraph,
-            lineStarts = lineStarts,
-            lineEnds = lineEnds,
-            startLine = 0,
-            naturalEndLine = 3,
-        )
-
-        assertEquals(2, adjusted)
+        assertEquals(2, pages.size)
+        assertEquals("第一段第一行\n第二段第一行\n", pages[0].text)
+        assertEquals("第三段第一行", pages[1].text)
+        assertEquals(text, pages.joinToString(separator = "") { it.text })
     }
 
     @Test
