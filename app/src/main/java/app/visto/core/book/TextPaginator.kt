@@ -32,8 +32,7 @@ object TextPaginator {
         }
         val spacingMultiplier = lineSpacing.coerceAtLeast(0.1f)
         val desiredLineHeight = (paint.textSize * spacingMultiplier).coerceAtLeast(1f)
-        val fontMetrics = paint.fontMetrics
-        val naturalLineHeight = (fontMetrics.descent - fontMetrics.ascent).coerceAtLeast(1f)
+        val naturalLineHeight = paint.fontSpacing.coerceAtLeast(1f)
         val layout = buildLayout(
             text = text,
             paint = paint,

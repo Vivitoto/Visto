@@ -1,6 +1,8 @@
 Visto 1.1.10
 
 - 修复 CI 编译：将 `kotlin.math.maxOf` 替换为 Dp 原生 `coerceAtLeast`，避免 CI 编译器无法解析 `maxOf` 对 Dp 类型的重载。
+- 修复分页器行高计算：使用 `paint.fontSpacing` 替代 `fontMetrics.descent - fontMetrics.ascent`，消除 leading 导致的额外行高误差。
+- 更新测试用例以匹配新版默认边距值。
 
 ## 版本
 
