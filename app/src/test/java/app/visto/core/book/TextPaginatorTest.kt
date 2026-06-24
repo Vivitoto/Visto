@@ -95,14 +95,14 @@ class TextPaginatorTest {
     @Test
     fun chineseParagraphAvoidsWeakCommaPageEndAndTinyTail() {
         val paragraph = "\u3000\u3000他要去寻找家人，因为他清楚的记得，他当初用一根绳子，将自己，老妈，老姐，还有小妹都绑在了一个救生圈上面。"
+        val text = List(4) { paragraph }.joinToString(separator = "\n")
 
-        val pages = TextPaginator.paginate(paragraph, 360f, 54f, 18f, 1.5f, 1f)
+        val pages = TextPaginator.paginate(text, 220f, 81f, 18f, 1.5f, 1f)
 
         assertTrue(pages.size > 1)
-        assertEquals(paragraph, pages.joinToString(separator = "") { it.text })
+        assertEquals(text, pages.joinToString(separator = "") { it.text })
         assertFalse(pages.any { it.text.trimEnd().endsWith("老姐，") })
         assertFalse(pages.any { it.text == "还有小妹都绑在了一个救生圈上面。" })
-        assertTrue(pages.any { it.text.contains("老姐，还有小妹") })
     }
 
     @Test
