@@ -13,6 +13,8 @@ import com.aureusapps.android.webpandroid.encoder.WebPConfig
 import com.aureusapps.android.webpandroid.encoder.WebPMuxAnimParams
 import com.aureusapps.android.webpandroid.encoder.WebPPreset
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -35,12 +37,15 @@ object AnimatedThumbnailCache {
         val frameStepMs: Int,
         val maxFrames: Int,
     ) {
-        GRID(targetPx = 320, quality = 68f, frameStepMs = 100, maxFrames = 120),
-        PREVIEW(targetPx = 768, quality = 78f, frameStepMs = 83, maxFrames = 180),
+        GRID(targetPx = 320, quality = 68f, frameStepMs = 100, maxFrames = 15),
+        PREVIEW(targetPx = 1024, quality = 85f, frameStepMs = 83, maxFrames = 60),
     }
 
     private const val DIR_NAME = "visto_generated_animated_thumbs"
     private const val SOURCE_SUFFIX = ".source"
+
+    /** At most 4 concurrent transcode jobs — safe on devices with ≥8 GB RAM. */
+    private val transcodeSemaphore = Semaphore(4)
 
     private enum class SourceKind { GIF, WEBP }
 
@@ -76,28 +81,30 @@ object AnimatedThumbnailCache {
             return@withContext file
         }
 
-        val source = File(dir, "${file.name}$SOURCE_SUFFIX")
-        val tmp = File(dir, "${file.name}.tmp")
-        var frames: List<ThumbFrame> = emptyList()
-        try {
-            downloadSource(okHttpClient, url, source)
-            frames = when (source.detectKind()) {
-                SourceKind.WEBP -> decodeAnimatedWebpFrames(context, source, kind)
-                SourceKind.GIF -> sampleGifFrames(source, kind)
-            }
-            encodeAnimatedWebp(context, frames, kind, tmp)
-            if (!tmp.isFile || tmp.length() <= 0L) error("Animated thumbnail output is empty")
-            if (!tmp.renameTo(file)) {
-                tmp.copyTo(file, overwrite = true)
+        transcodeSemaphore.withPermit {
+            val source = File(dir, "${file.name}$SOURCE_SUFFIX")
+            val tmp = File(dir, "${file.name}.tmp")
+            var frames: List<ThumbFrame> = emptyList()
+            try {
+                downloadSource(okHttpClient, url, source)
+                frames = when (source.detectKind()) {
+                    SourceKind.WEBP -> decodeAnimatedWebpFrames(context, source, kind)
+                    SourceKind.GIF -> sampleGifFrames(source, kind)
+                }
+                encodeAnimatedWebp(context, frames, kind, tmp)
+                if (!tmp.isFile || tmp.length() <= 0L) error("Animated thumbnail output is empty")
+                if (!tmp.renameTo(file)) {
+                    tmp.copyTo(file, overwrite = true)
+                    tmp.delete()
+                }
+                file.setLastModified(System.currentTimeMillis())
+                evictOldestIfNeeded(dir, maxBytes)
+                file
+            } finally {
+                frames.forEach { it.bitmap.recycle() }
+                source.delete()
                 tmp.delete()
             }
-            file.setLastModified(System.currentTimeMillis())
-            evictOldestIfNeeded(dir, maxBytes)
-            file
-        } finally {
-            frames.forEach { it.bitmap.recycle() }
-            source.delete()
-            tmp.delete()
         }
     }
 

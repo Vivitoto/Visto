@@ -15,16 +15,17 @@ import java.security.MessageDigest
 import kotlin.math.roundToInt
 
 /**
- * Small, re-encoded on-disk thumbnails for static images.
+ * Small, re-encoded on-disk thumbnails for images.
  *
  * Coil's normal disk cache stores the network source response, which can be a
  * multi-megabyte original photo even when the UI only asks to display a 320px
- * thumbnail. This cache stores only downsampled WebP thumbnails and disables
- * Coil disk caching while generating them, so static image browsing does not
+ * thumbnail. This cache stores only downsampled static WebP thumbnails and
+ * disables Coil disk caching while generating them, so image browsing does not
  * fill disk with originals.
  *
- * Animated images use AnimatedThumbnailCache instead so GIF / animated WebP
- * thumbnails can stay animated without caching the original source response.
+ * Animated GIF / WebP sources are intentionally represented by a static
+ * decoded frame here. That keeps album grids and viewer previews away from
+ * multi-frame thumbnail transcoding.
  */
 object GeneratedThumbnailCache {
     enum class Kind(val targetPx: Int, val quality: Int) {

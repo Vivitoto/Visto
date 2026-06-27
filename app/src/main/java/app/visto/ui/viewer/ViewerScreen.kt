@@ -87,7 +87,8 @@ import okhttp3.OkHttpClient
  * When [autoLoadOriginalImages] is false, image pages display a small
  * translucent "加载原图" button over the image area. Tapping it loads the
  * full-resolution image. Once loaded for a page, it stays loaded for the
- * rest of the viewer session.
+ * rest of the viewer session. Animated images also support loading the
+ * original and follow the same auto-load / manual-load rules.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -142,7 +143,7 @@ fun ViewerScreen(
                         )
                     }
                 }
-                if (autoLoadOriginalImages) {
+                if (ViewerOriginalImagePolicy.shouldAutoLoadOriginal(item, autoLoadOriginalImages)) {
                     imageLoader.enqueue(
                         ImageRequest.Builder(context)
                             .data(url)
@@ -171,7 +172,11 @@ fun ViewerScreen(
                 when (item.mediaType) {
                     MediaType.VIDEO -> VideoPage(item, okHttpClient, mediaUrlOf(item))
                     else -> {
-                        val loaded = autoLoadOriginalImages || manualLoaded[item.path] == true
+                        val loaded = ViewerOriginalImagePolicy.shouldShowOriginal(
+                            item = item,
+                            autoLoadOriginalImages = autoLoadOriginalImages,
+                            manuallyLoaded = manualLoaded[item.path] == true,
+                        )
                         ImagePage(
                             item = item,
                             imageLoader = imageLoader,
@@ -413,11 +418,11 @@ private fun ImagePage(
                 },
             )
         } else {
-            // Default state when the user has not asked to load the original yet:
-            // show the (already cached) thumbnail as the backdrop and overlay a
-            // small "load original" pill so the page is never blank. The
-            // backdrop participates in the pinch-zoom transform so users can
-            // inspect the thumbnail even before downloading the original.
+            // Default state when the user has not asked to load the original
+            // yet: show the thumbnail as the backdrop and overlay a small
+            // "load original" pill so the page is never blank. The backdrop
+            // participates in the pinch-zoom transform so users can inspect
+            // the thumbnail even before downloading the original.
             ThumbnailBackdrop(
                 item = item,
                 imageLoader = imageLoader,
@@ -432,7 +437,9 @@ private fun ImagePage(
                     translationY = offsetY,
                 ),
             )
-            LoadOriginalOverlay(item, onLoadRequest, overlayMetrics)
+            if (ViewerOriginalImagePolicy.canLoadOriginal(item)) {
+                LoadOriginalOverlay(item, onLoadRequest, overlayMetrics)
+            }
         }
     }
 }
