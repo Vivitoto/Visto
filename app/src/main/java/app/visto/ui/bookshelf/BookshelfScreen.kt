@@ -26,13 +26,17 @@ import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -307,6 +311,10 @@ private fun BookshelfViewModeBar(
             current = current,
             onClick = { onChange(current.next()) },
         )
+        BookshelfViewModeDropdownButton(
+            current = current,
+            onChange = onChange,
+        )
     }
 }
 
@@ -339,6 +347,45 @@ private fun BookshelfViewCycleButton(
                 ?: Strings.BOOKSHELF_SWITCH_TO_LIST,
             modifier = Modifier.size(22.dp),
         )
+    }
+}
+
+@Composable
+private fun BookshelfViewModeDropdownButton(
+    current: BookshelfLayoutMode,
+    onChange: (BookshelfLayoutMode) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = { open = true },
+            modifier = Modifier.size(36.dp),
+        ) {
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = Strings.BOOKSHELF_VIEW_MODE_MENU,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            listOf(
+                BookshelfLayoutMode.LIST to "列表",
+                BookshelfLayoutMode.GRID_STANDARD to "标准网格",
+                BookshelfLayoutMode.GRID_COMPACT to "紧凑网格",
+            ).forEach { (mode, label) ->
+                val selected = mode == current
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        open = false
+                        onChange(mode)
+                    },
+                    leadingIcon = if (selected) {
+                        { Icon(Icons.Filled.Check, contentDescription = null) }
+                    } else null,
+                )
+            }
+        }
     }
 }
 

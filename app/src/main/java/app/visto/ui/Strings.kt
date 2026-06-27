@@ -90,6 +90,7 @@ object Strings {
     const val ALBUM_VIEW_MODE_FOLDERS = "文件夹"
     const val ALBUM_VIEW_MODE_FLAT = "所有图片"
     const val ALBUM_VIEW_MODE_TOGGLE = "切换查看方式"
+    const val ALBUM_VIEW_MODE_MENU = "选择相册视图"
     const val ALBUM_FOLDER_EMPTY = "这个文件夹是空的"
     const val ALBUM_NO_COVER = "未找到封面"
 
@@ -118,6 +119,7 @@ object Strings {
     const val BOOKSHELF_SCAN_RUNNING = "正在扫描书籍目录…"
     const val BOOKSHELF_VIEW_MODE = "视图"
     const val BOOKSHELF_SWITCH_TO_LIST = "切换到列表"
+    const val BOOKSHELF_VIEW_MODE_MENU = "选择书架视图"
     const val BOOKSHELF_JUST_NOW = "刚刚"
     const val BOOKSHELF_LONG_AGO = "很久以前"
     const val BOOK_SOURCE_TITLE = "书籍目录"

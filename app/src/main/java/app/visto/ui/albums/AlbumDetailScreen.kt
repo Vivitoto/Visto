@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Check
@@ -196,42 +197,110 @@ private fun ViewCycleAction(
 ) {
     val isList = viewMode == AlbumViewMode.FOLDERS
     val nextGridDensity = gridDensity.nextAlbumFolderGridDensityOrNull()
-    Box(
+    var open by remember { mutableStateOf(false) }
+    Row(
         modifier = Modifier
-            .padding(horizontal = 4.dp)
-            .size(44.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(
-                if (isList) {
-                    MaterialTheme.colorScheme.surfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.primaryContainer
+            .padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(0.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(
+                    if (isList) {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.primaryContainer
+                    },
+                )
+                .clickable(
+                    onClick = {
+                        when {
+                            isList -> {
+                                onGridDensityChange(GridDensity.COMFORTABLE)
+                                onSwitchToFlat()
+                            }
+                            nextGridDensity != null -> onGridDensityChange(nextGridDensity)
+                            else -> onSwitchToFolders()
+                        }
+                    },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = if (isList) Icons.Filled.GridView else Icons.AutoMirrored.Filled.List,
+                tint = if (isList) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimaryContainer,
+                contentDescription = when {
+                    isList -> "切换到网格：舒适"
+                    nextGridDensity != null -> "切换到网格：${nextGridDensity.displayLabel}"
+                    else -> Strings.ALBUM_VIEW_MODE_FOLDERS
+                },
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        Box {
+            IconButton(
+                onClick = { open = true },
+                modifier = Modifier.size(36.dp),
+            ) {
+                Icon(
+                    Icons.Filled.ArrowDropDown,
+                    contentDescription = Strings.ALBUM_VIEW_MODE_MENU,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            AlbumViewModeDropdown(
+                expanded = open,
+                viewMode = viewMode,
+                gridDensity = gridDensity,
+                onDismiss = { open = false },
+                onSelectFolders = {
+                    open = false
+                    onSwitchToFolders()
+                },
+                onSelectGridDensity = { density ->
+                    open = false
+                    onGridDensityChange(density)
+                    onSwitchToFlat()
                 },
             )
-            .clickable(
-                onClick = {
-                    when {
-                        isList -> {
-                            onGridDensityChange(GridDensity.COMFORTABLE)
-                            onSwitchToFlat()
-                        }
-                        nextGridDensity != null -> onGridDensityChange(nextGridDensity)
-                        else -> onSwitchToFolders()
-                    }
-                },
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = if (isList) Icons.Filled.GridView else Icons.AutoMirrored.Filled.List,
-            tint = if (isList) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimaryContainer,
-            contentDescription = when {
-                isList -> "切换到网格：舒适"
-                nextGridDensity != null -> "切换到网格：${nextGridDensity.displayLabel}"
-                else -> Strings.ALBUM_VIEW_MODE_FOLDERS
-            },
-            modifier = Modifier.size(22.dp),
+        }
+    }
+}
+
+@Composable
+private fun AlbumViewModeDropdown(
+    expanded: Boolean,
+    viewMode: AlbumViewMode,
+    gridDensity: GridDensity,
+    onDismiss: () -> Unit,
+    onSelectFolders: () -> Unit,
+    onSelectGridDensity: (GridDensity) -> Unit,
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        DropdownMenuItem(
+            text = { Text(Strings.ALBUM_VIEW_MODE_FOLDERS) },
+            onClick = onSelectFolders,
+            leadingIcon = if (viewMode == AlbumViewMode.FOLDERS) {
+                { Icon(Icons.Filled.Check, contentDescription = null) }
+            } else null,
         )
+        listOf(
+            GridDensity.COMFORTABLE to "宽松/舒适网格",
+            GridDensity.STANDARD to "标准网格",
+            GridDensity.COMPACT to "紧凑网格",
+        ).forEach { (density, label) ->
+            val selected = viewMode == AlbumViewMode.FLAT && gridDensity == density
+            DropdownMenuItem(
+                text = { Text(label) },
+                onClick = { onSelectGridDensity(density) },
+                leadingIcon = if (selected) {
+                    { Icon(Icons.Filled.Check, contentDescription = null) }
+                } else null,
+            )
+        }
     }
 }
 
