@@ -1,3 +1,15 @@
+Visto 1.1.16
+
+- 紧急修复 v2：将动图转码固定到专用单线程（newSingleThreadContext），替换 Dispatchers.IO + Semaphore 方案。
+- 原因：webp-android JNI 库内部使用线程绑定的 JNIEnv，即使 Semaphore 串行化协程，不同 IO 线程上调用仍会触发 native thread-local 冲突。专用单线程确保所有 JNI 调用发生在同一线程上。
+- GIF 解码增加容错：Movie.draw() 在 Android 12+ 上对某些 GIF 可能抛 native 异常，现在捕获并保留已解码的帧继续编码。
+
+## 版本
+
+- 应用版本：1.1.16，Android versionCode 为 37。
+
+---
+
 Visto 1.1.15
 
 - 紧急修复：webp/GIF 动图相册闪退问题，将 JNI 转码改为严格单线程串行，消除 native 层多线程冲突。

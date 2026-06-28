@@ -12,9 +12,7 @@ import com.aureusapps.android.webpandroid.encoder.WebPAnimEncoderOptions
 import com.aureusapps.android.webpandroid.encoder.WebPConfig
 import com.aureusapps.android.webpandroid.encoder.WebPMuxAnimParams
 import com.aureusapps.android.webpandroid.encoder.WebPPreset
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -44,8 +42,8 @@ object AnimatedThumbnailCache {
     private const val DIR_NAME = "visto_generated_animated_thumbs"
     private const val SOURCE_SUFFIX = ".source"
 
-    /** Serialize JNI webp operations — prevent native thread-safety crashes. */
-    private val transcodeSemaphore = Semaphore(1)
+    /** Dedicated single thread — same-thread JNI affinity prevents thread-local native crashes. */
+    private val webpDispatcher = newSingleThreadContext("webp-jni")
 
     private enum class SourceKind { GIF, WEBP }
 
@@ -70,7 +68,7 @@ object AnimatedThumbnailCache {
         cacheKey: String,
         kind: Kind,
         maxBytes: Long,
-    ): File = withContext(Dispatchers.IO) {
+    ): File = withContext(webpDispatcher) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
             error("Animated WebP thumbnails require Android 9+ playback support")
         }
@@ -81,30 +79,28 @@ object AnimatedThumbnailCache {
             return@withContext file
         }
 
-        transcodeSemaphore.withPermit {
-            val source = File(dir, "${file.name}$SOURCE_SUFFIX")
-            val tmp = File(dir, "${file.name}.tmp")
-            var frames: List<ThumbFrame> = emptyList()
-            try {
-                downloadSource(okHttpClient, url, source)
-                frames = when (source.detectKind()) {
-                    SourceKind.WEBP -> decodeAnimatedWebpFrames(context, source, kind)
-                    SourceKind.GIF -> sampleGifFrames(source, kind)
-                }
-                encodeAnimatedWebp(context, frames, kind, tmp)
-                if (!tmp.isFile || tmp.length() <= 0L) error("Animated thumbnail output is empty")
-                if (!tmp.renameTo(file)) {
-                    tmp.copyTo(file, overwrite = true)
-                    tmp.delete()
-                }
-                file.setLastModified(System.currentTimeMillis())
-                evictOldestIfNeeded(dir, maxBytes)
-                file
-            } finally {
-                frames.forEach { it.bitmap.recycle() }
-                source.delete()
+        val source = File(dir, "${file.name}$SOURCE_SUFFIX")
+        val tmp = File(dir, "${file.name}.tmp")
+        var frames: List<ThumbFrame> = emptyList()
+        try {
+            downloadSource(okHttpClient, url, source)
+            frames = when (source.detectKind()) {
+                SourceKind.WEBP -> decodeAnimatedWebpFrames(context, source, kind)
+                SourceKind.GIF -> sampleGifFrames(source, kind)
+            }
+            encodeAnimatedWebp(context, frames, kind, tmp)
+            if (!tmp.isFile || tmp.length() <= 0L) error("Animated thumbnail output is empty")
+            if (!tmp.renameTo(file)) {
+                tmp.copyTo(file, overwrite = true)
                 tmp.delete()
             }
+            file.setLastModified(System.currentTimeMillis())
+            evictOldestIfNeeded(dir, maxBytes)
+            file
+        } finally {
+            frames.forEach { it.bitmap.recycle() }
+            source.delete()
+            tmp.delete()
         }
     }
 
@@ -156,18 +152,24 @@ object AnimatedThumbnailCache {
         val duration = movie.duration().takeIf { it > 0 } ?: 1000
         val frames = mutableListOf<ThumbFrame>()
         var t = 0
-        while (t < duration && frames.size < kind.maxFrames) {
-            movie.setTime(t)
-            val bitmap = Bitmap.createBitmap(target.width, target.height, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(bitmap)
-            val scale = minOf(
-                target.width.toFloat() / sourceWidth.toFloat(),
-                target.height.toFloat() / sourceHeight.toFloat(),
-            )
-            canvas.scale(scale, scale)
-            movie.draw(canvas, 0f, 0f)
-            frames += ThumbFrame(timestampMs = normalizedTimestamp(t.toLong(), frames), bitmap = bitmap)
-            t += kind.frameStepMs
+        try {
+            while (t < duration && frames.size < kind.maxFrames) {
+                movie.setTime(t)
+                val bitmap = Bitmap.createBitmap(target.width, target.height, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bitmap)
+                val scale = minOf(
+                    target.width.toFloat() / sourceWidth.toFloat(),
+                    target.height.toFloat() / sourceHeight.toFloat(),
+                )
+                canvas.scale(scale, scale)
+                movie.draw(canvas, 0f, 0f)
+                frames += ThumbFrame(timestampMs = normalizedTimestamp(t.toLong(), frames), bitmap = bitmap)
+                t += kind.frameStepMs
+            }
+        } catch (e: Throwable) {
+            // Movie.draw() may throw native exceptions on Android 12+ for
+            // certain GIFs (local color tables, interlaced, etc.).
+            if (frames.isEmpty()) throw e
         }
         if (frames.isEmpty()) error("GIF source produced no frames")
         return frames
