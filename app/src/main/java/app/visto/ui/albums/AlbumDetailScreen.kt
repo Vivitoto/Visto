@@ -167,6 +167,7 @@ fun AlbumDetailScreen(
                 state.viewMode == AlbumViewMode.FOLDERS -> FolderGrid(
                     folderView = state.folderView,
                     sortMode = sortMode,
+                    folderScrollState = folderScrollState,
                     onOpenFolder = onOpenFolder,
                     onOpenMedia = onOpenMedia,
                 )
@@ -177,6 +178,7 @@ fun AlbumDetailScreen(
                     blurThumbnails = blurThumbnails,
                     gridDensity = gridDensity,
                     sortMode = sortMode,
+                    gridScrollState = gridScrollState,
                     mediaUrlOf = mediaUrlOf,
                     mediaCacheKeyOf = mediaCacheKeyOf,
                     thumbnailCacheLimitBytes = thumbnailCacheLimitBytes,
@@ -362,6 +364,7 @@ private fun FolderGrid(
     sortMode: SortMode,
     onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
+    folderScrollState: LazyListState? = null,
 ) {
     val listState = folderScrollState ?: rememberLazyListState()
     LaunchedEffect(folderView.currentPath, sortMode) {
@@ -465,6 +468,7 @@ private fun FolderIconGrid(
     blurThumbnails: Boolean,
     gridDensity: GridDensity,
     sortMode: SortMode,
+    gridScrollState: LazyGridState? = null,
     mediaUrlOf: (RemoteEntry) -> String,
     mediaCacheKeyOf: (RemoteEntry) -> String,
     thumbnailCacheLimitBytes: Long,
