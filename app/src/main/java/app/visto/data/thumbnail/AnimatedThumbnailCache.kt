@@ -44,8 +44,8 @@ object AnimatedThumbnailCache {
     private const val DIR_NAME = "visto_generated_animated_thumbs"
     private const val SOURCE_SUFFIX = ".source"
 
-    /** At most 4 concurrent transcode jobs — safe on devices with ≥8 GB RAM. */
-    private val transcodeSemaphore = Semaphore(4)
+    /** Serialize JNI webp operations — prevent native thread-safety crashes. */
+    private val transcodeSemaphore = Semaphore(1)
 
     private enum class SourceKind { GIF, WEBP }
 
