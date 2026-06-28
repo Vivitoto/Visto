@@ -64,9 +64,9 @@ import app.visto.core.sort.SortMode
 import app.visto.data.account.AlbumViewMode
 import app.visto.data.account.GridDensity
 import app.visto.data.account.nextAlbumFolderGridDensityOrNull
-import app.visto.data.thumbnail.AnimatedThumbnailCache
 import app.visto.data.thumbnail.GeneratedThumbnailCache
 import app.visto.ui.Strings
+import app.visto.ui.components.ANIMATED_THUMB_GRID_PX
 import app.visto.ui.components.AnimatedThumbnailImage
 import app.visto.ui.components.GeneratedThumbnailImage
 import app.visto.ui.components.PausableAsyncImage
@@ -794,12 +794,10 @@ private fun AlbumMediaTile(
             AnimatedThumbnailImage(
                 url = mediaUrl,
                 cacheKey = mediaCacheKey,
-                kind = AnimatedThumbnailCache.Kind.GRID,
+                targetPx = ANIMATED_THUMB_GRID_PX,
                 imageLoader = imageLoader,
-                okHttpClient = okHttpClient,
                 contentDescription = item.name,
                 contentScale = ContentScale.Crop,
-                cacheLimitBytes = thumbnailCacheLimitBytes,
                 playAnimations = playThumbnailAnimations && !blurThumbnails,
                 resumeDelayMs = resumeDelayMs,
                 modifier = Modifier.fillMaxSize().then(if (blurThumbnails) Modifier.blur(12.dp) else Modifier),

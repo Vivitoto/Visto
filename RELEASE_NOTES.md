@@ -1,3 +1,16 @@
+Visto 1.2.0
+
+- **里程碑**：彻底移除 webp-android 自定义 JNI 依赖，动图缩略图回归 Coil 平台原生加载。
+- 删除 `AnimatedThumbnailCache`（-226 行），不再对 GIF/WebP 自行转码。
+- 动图缩略图由 Coil 直接解码，磁盘缓存存原文件，重启不重复下载。
+- 消除 `WebPDecoder` / `WebPAnimEncoder` JNI 崩溃根因。
+
+## 版本
+
+- 应用版本：1.2.0，Android versionCode 为 41。
+
+---
+
 Visto 1.1.19
 
 - 动图缩略图编码层改用平台 Bitmap.compress(WEBP) 替代 WebPAnimEncoder，验证 crash 是否在编码端。

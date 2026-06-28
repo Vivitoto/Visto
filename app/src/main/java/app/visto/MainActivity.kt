@@ -61,7 +61,6 @@ import app.visto.data.db.AlbumSourceEntity
 import app.visto.data.db.BookProgressEntity
 import app.visto.data.db.BookSourceEntity
 import app.visto.data.db.RemoteEntryRepository
-import app.visto.data.thumbnail.AnimatedThumbnailCache
 import app.visto.data.thumbnail.GeneratedThumbnailCache
 import app.visto.data.thumbnail.ThumbnailCacheKey
 import app.visto.data.update.AppUpdateService
@@ -1727,7 +1726,6 @@ private fun SettingsHost(
                 app.imageLoader.memoryCache?.clear()
                 app.imageLoader.diskCache?.clear()
                 GeneratedThumbnailCache.clear(app)
-                AnimatedThumbnailCache.clear(app)
                 settingsState = settingsState.copy(
                     isClearingCache = false,
                     thumbnailCacheBytes = thumbnailCacheBytes(app),
@@ -1869,8 +1867,7 @@ private fun mediaCacheKeyScope(summary: AccountSummary): String =
 
 private fun thumbnailCacheBytes(app: VistoApplication): Long =
     (app.imageLoader.diskCache?.size ?: 0L) +
-        GeneratedThumbnailCache.sizeBytes(app) +
-        AnimatedThumbnailCache.sizeBytes(app)
+        GeneratedThumbnailCache.sizeBytes(app)
 
 @Composable
 private fun BrowserHost(

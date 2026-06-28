@@ -63,8 +63,8 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import app.visto.core.media.MediaType
 import app.visto.core.model.RemoteEntry
-import app.visto.data.thumbnail.AnimatedThumbnailCache
 import app.visto.data.thumbnail.GeneratedThumbnailCache
+import app.visto.ui.components.ANIMATED_THUMB_PREVIEW_PX
 import app.visto.data.thumbnail.ThumbnailCacheKey
 import app.visto.ui.components.AnimatedThumbnailImage
 import app.visto.ui.components.GeneratedThumbnailImage
@@ -121,15 +121,13 @@ fun ViewerScreen(
                 val url = mediaUrlOf(item)
                 val cacheKey = "$cacheKeyScope:${ThumbnailCacheKey.forEntry(item)}"
                 if (item.mediaType == MediaType.ANIMATED_IMAGE) {
+                    // Coil handles animated image caching natively — enqueue a preload.
                     runCatching {
-                        AnimatedThumbnailCache.ensure(
-                            context = context.applicationContext,
-                            okHttpClient = okHttpClient,
-                            url = url,
-                            cacheKey = cacheKey,
-                            kind = AnimatedThumbnailCache.Kind.PREVIEW,
-                            maxBytes = thumbnailCacheLimitBytes,
-                        )
+                        val request = ImageRequest.Builder(context)
+                            .data(url)
+                            .size(ANIMATED_THUMB_PREVIEW_PX)
+                            .build()
+                        imageLoader.enqueue(request)
                     }
                 } else {
                     runCatching {
@@ -459,12 +457,10 @@ private fun ThumbnailBackdrop(
         AnimatedThumbnailImage(
             url = url,
             cacheKey = cacheKey,
-            kind = AnimatedThumbnailCache.Kind.PREVIEW,
+            targetPx = ANIMATED_THUMB_PREVIEW_PX,
             imageLoader = imageLoader,
-            okHttpClient = okHttpClient,
             contentDescription = item.name,
             contentScale = ContentScale.Fit,
-            cacheLimitBytes = thumbnailCacheLimitBytes,
             modifier = Modifier.fillMaxSize().then(modifier),
             loading = { /* blank — page just stays black briefly */ },
             error = { /* blank */ },
