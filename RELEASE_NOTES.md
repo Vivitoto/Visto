@@ -1,3 +1,14 @@
+Visto 1.1.18
+
+- 修复 v1.1.17 编译失败：移除不兼容的 ImageDecoder.setDecodeFrame，WebP 保留 WebPDecoder 解码，GIF 使用 ImageDecoder 首帧。
+- 下载 30s 超时、编码后 WebP 头校验、GRID 15→10 帧、PREVIEW 保持 60 帧。
+
+## 版本
+
+- 应用版本：1.1.18，Android versionCode 为 39。
+
+---
+
 Visto 1.1.17
 
 - 优雅重构动图缩略图解码管线：GIF 和 WebP 统一使用平台 ImageDecoder（API 31+ 多帧提取，API 28-30 安全首帧），仅 API 26-27 使用 legacy 解码器。
