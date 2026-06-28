@@ -14,9 +14,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.items
@@ -92,6 +94,8 @@ import okhttp3.OkHttpClient
 fun AlbumDetailScreen(
     state: AlbumDetailUiState,
     albumRootPath: String,
+    folderScrollState: LazyListState? = null,
+    gridScrollState: LazyGridState? = null,
     imageLoader: ImageLoader,
     okHttpClient: OkHttpClient,
     blurThumbnails: Boolean,
@@ -359,7 +363,7 @@ private fun FolderGrid(
     onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
 ) {
-    val listState = rememberLazyListState()
+    val listState = folderScrollState ?: rememberLazyListState()
     LaunchedEffect(folderView.currentPath, sortMode) {
         listState.scrollToItem(0)
     }
@@ -470,7 +474,7 @@ private fun FolderIconGrid(
     onOpenFolder: (RemoteEntry) -> Unit,
     onOpenMedia: (RemoteEntry) -> Unit,
 ) {
-    val gridState = rememberLazyGridState()
+    val gridState = gridScrollState ?: rememberLazyGridState()
     LaunchedEffect(folderView.currentPath, sortMode) {
         gridState.scrollToItem(0)
     }

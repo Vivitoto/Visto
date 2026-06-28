@@ -19,9 +19,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -74,6 +78,8 @@ import app.visto.ui.layout.VistoLayoutMetrics
 @Composable
 fun BookshelfScreen(
     state: BookshelfUiState,
+    listScrollState: LazyListState? = null,
+    gridScrollState: LazyGridState? = null,
     onOpenBook: (BookProgressEntity) -> Unit,
     onRemoveBook: (BookProgressEntity) -> Unit,
     onAddDirectoryRequested: () -> Unit,
@@ -120,6 +126,7 @@ fun BookshelfScreen(
                         )
                         when (layoutMode) {
                             BookshelfLayoutMode.LIST -> BookshelfList(
+                                scrollState = listScrollState,
                                 books = state.books,
                                 bottomContentPadding = bottomContentPadding,
                                 onOpenBook = onOpenBook,
@@ -127,6 +134,7 @@ fun BookshelfScreen(
                             )
                             BookshelfLayoutMode.GRID_STANDARD,
                             BookshelfLayoutMode.GRID_COMPACT -> BookshelfGrid(
+                                scrollState = gridScrollState,
                                 books = state.books,
                                 minCellWidth = layoutMode.gridMinCellWidth ?: 112.dp,
                                 bottomContentPadding = bottomContentPadding,
@@ -392,12 +400,15 @@ private fun BookshelfViewModeDropdownButton(
 @Composable
 private fun BookshelfGrid(
     books: List<BookProgressEntity>,
+    scrollState: LazyGridState? = null,
     minCellWidth: Dp,
     bottomContentPadding: Dp,
     onOpenBook: (BookProgressEntity) -> Unit,
     onSelectBook: (BookProgressEntity) -> Unit,
 ) {
+    val gridState = scrollState ?: rememberLazyGridState()
     LazyVerticalGrid(
+        state = gridState,
         columns = GridCells.Adaptive(minSize = minCellWidth),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = bottomContentPadding),
@@ -417,11 +428,14 @@ private fun BookshelfGrid(
 @Composable
 private fun BookshelfList(
     books: List<BookProgressEntity>,
+    scrollState: LazyListState? = null,
     bottomContentPadding: Dp,
     onOpenBook: (BookProgressEntity) -> Unit,
     onSelectBook: (BookProgressEntity) -> Unit,
 ) {
+    val listState = scrollState ?: rememberLazyListState()
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = bottomContentPadding),
         verticalArrangement = Arrangement.spacedBy(12.dp),

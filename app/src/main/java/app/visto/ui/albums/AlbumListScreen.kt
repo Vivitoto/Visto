@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -68,6 +69,7 @@ import coil.size.Precision
 @Composable
 fun AlbumListScreen(
     state: AlbumListUiState,
+    scrollState: LazyListState? = null,
     coverImagePathOf: (AlbumSourceEntity) -> String?,
     coverPreviewsOf: (AlbumSourceEntity) -> List<String>,
     mediaUrlOf: (String) -> String,
@@ -83,7 +85,7 @@ fun AlbumListScreen(
     onDeleteRequested: (AlbumSourceEntity) -> Unit,
     bottomBar: @Composable () -> Unit = {},
 ) {
-    val listState = rememberLazyListState()
+    val listState = scrollState ?: rememberLazyListState()
     val playThumbnailAnimations = rememberThumbnailAnimationsEnabled(listState.isScrollInProgress)
     val density = LocalDensity.current
     var fabHeight by remember { mutableStateOf(VistoLayoutMetrics.DefaultFloatingActionButtonHeight) }

@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -754,6 +756,16 @@ private fun AlbumsHost(
     // thumbnails instead of a blank folder icon.
     val folderPreviews = remember { mutableStateMapOf<String, List<String>>() }
     val folderCoverJobs = remember { mutableMapOf<String, Job>() }
+    // Scroll states preserved across album list ↔ detail ↔ viewer navigation.
+    val albumListScrollState = rememberLazyListState()
+    val albumDetailFolderScrollState = rememberLazyListState()
+    val albumDetailGridScrollState = rememberLazyGridState()
+
+    // Reset detail scroll states when entering a different album.
+    LaunchedEffect(openedAlbum?.id) {
+        albumDetailFolderScrollState.scrollToItem(0)
+        albumDetailGridScrollState.scrollToItem(0)
+    }
 
     suspend fun refreshAlbumList() {
         listState = listState.copy(isLoading = true, errorMessage = null)
@@ -982,6 +994,8 @@ private fun AlbumsHost(
         AlbumDetailScreen(
             state = detail,
             albumRootPath = rootPath,
+            folderScrollState = albumDetailFolderScrollState,
+            gridScrollState = albumDetailGridScrollState,
             imageLoader = app.imageLoader,
             okHttpClient = app.okHttpClient,
             blurThumbnails = app.preferences.blurThumbnails,
@@ -1059,6 +1073,7 @@ private fun AlbumsHost(
 
     AlbumListScreen(
         state = listState,
+        scrollState = albumListScrollState,
         coverImagePathOf = { album -> albumCovers[album.id] },
         coverPreviewsOf = { album -> albumPreviews[album.id].orEmpty() },
         mediaUrlOf = { path -> client.mediaUrl(path) },
@@ -1501,6 +1516,10 @@ private fun BookshelfHost(
         }
     }
 
+    // Scroll states preserved across bookshelf ↔ reader/directory management navigation.
+    val bookshelfListScrollState = rememberLazyListState()
+    val bookshelfGridScrollState = rememberLazyGridState()
+
     val activeReader = readerSession
     if (activeReader != null) {
         ActiveReaderScreen(
@@ -1558,6 +1577,8 @@ private fun BookshelfHost(
             isScanning = isBookScanRunning,
             scanMessage = bookScanMessage,
         ),
+        listScrollState = bookshelfListScrollState,
+        gridScrollState = bookshelfGridScrollState,
         onOpenBook = ::openBook,
         onRemoveBook = { book ->
             scope.launch {
