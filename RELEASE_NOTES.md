@@ -1,3 +1,15 @@
+Visto 1.1.19
+
+- 动图缩略图编码层改用平台 Bitmap.compress(WEBP) 替代 WebPAnimEncoder，验证 crash 是否在编码端。
+- 仅存首帧静态缩略图，彻底移除 webp-android 编码 JNI。
+- 精简单文件 -94 行。
+
+## 版本
+
+- 应用版本：1.1.19，Android versionCode 为 40。
+
+---
+
 Visto 1.1.18
 
 - 修复 v1.1.17 编译失败：移除不兼容的 ImageDecoder.setDecodeFrame，WebP 保留 WebPDecoder 解码，GIF 使用 ImageDecoder 首帧。
