@@ -5,9 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.ImageDecoder
 import android.graphics.Movie
-import android.net.Uri
 import android.os.Build
-import com.aureusapps.android.webpandroid.decoder.WebPDecoder
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -113,27 +111,22 @@ object AnimatedThumbnailCache {
 
     private fun decodeFirstFrame(context: Context, source: File, kind: Kind): ThumbFrame {
         return when (source.detectKind()) {
-            SourceKind.WEBP -> decodeWebpFirstFrame(context, source, kind)
+            SourceKind.WEBP -> decodeWebpFirstFrame(source, kind)
             SourceKind.GIF -> decodeGifFirstFrame(source, kind)
         }
     }
 
-    private fun decodeWebpFirstFrame(context: Context, source: File, kind: Kind): ThumbFrame {
-        val decoder = WebPDecoder(context)
-        return try {
-            decoder.setDataSource(Uri.fromFile(source))
-            val info = decoder.decodeInfo()
-            val target = targetSize(info.width, info.height, kind.targetPx)
-            if (decoder.hasNextFrame()) {
-                val result = decoder.decodeNextFrame()
-                val frame = result.frame ?: error("WebP first frame is null")
-                ThumbFrame(0L, frame.scaleTo(target.width, target.height))
-            } else {
-                error("WebP source has no frames")
-            }
-        } finally {
-            decoder.release()
+    private fun decodeWebpFirstFrame(source: File, kind: Kind): ThumbFrame {
+        val src = ImageDecoder.createSource(source)
+        val bitmap = ImageDecoder.decodeBitmap(src) { decoder, _, _ ->
+            decoder.setTargetSize(kind.targetPx, kind.targetPx)
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
         }
+        val target = targetSize(bitmap.width, bitmap.height, kind.targetPx)
+        val scaled = if (bitmap.width == target.width && bitmap.height == target.height) bitmap
+        else Bitmap.createScaledBitmap(bitmap, target.width, target.height, true)
+        if (scaled !== bitmap) bitmap.recycle()
+        return ThumbFrame(0L, scaled)
     }
 
     private fun decodeGifFirstFrame(source: File, kind: Kind): ThumbFrame {
