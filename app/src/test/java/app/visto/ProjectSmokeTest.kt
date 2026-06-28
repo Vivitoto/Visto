@@ -8,7 +8,7 @@ class ProjectSmokeTest {
     fun appInfoMatchesProjectIdentity() {
         assertEquals("Visto", AppInfo.APP_NAME)
         assertEquals("app.visto", AppInfo.PACKAGE_NAME)
-        assertEquals("1.2.1", AppInfo.VERSION_NAME)
-        assertEquals(42, AppInfo.VERSION_CODE)
+        assertEquals("1.2.2", AppInfo.VERSION_NAME)
+        assertEquals(43, AppInfo.VERSION_CODE)
     }
 }

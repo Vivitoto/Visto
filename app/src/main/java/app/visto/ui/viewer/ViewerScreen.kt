@@ -277,6 +277,7 @@ private fun ImagePage(
     var scale by remember { mutableStateOf(1f) }
     var offsetX by remember { mutableStateOf(0f) }
     var offsetY by remember { mutableStateOf(0f) }
+    var isZoomedIn by remember { mutableStateOf(false) }
     var loadAttempt by remember(item.path) { mutableStateOf(0) }
 
     Box(
@@ -288,10 +289,10 @@ private fun ImagePage(
                     do {
                         val event = awaitPointerEvent()
                         val pressedCount = event.changes.count { it.pressed }
-                        val canTransform = pressedCount >= 2 || scale > 1.01f
+                        val canTransform = pressedCount >= 2 || isZoomedIn
                         if (canTransform) {
                             val zoom = if (pressedCount >= 2) event.calculateZoom() else 1f
-                            val pan = if (scale > 1.01f || pressedCount >= 2) {
+                            val pan = if (isZoomedIn || pressedCount >= 2) {
                                 event.calculatePan()
                             } else {
                                 Offset.Zero
@@ -299,6 +300,7 @@ private fun ImagePage(
                             if (zoom != 1f || pan != Offset.Zero) {
                                 val newScale = (scale * zoom).coerceIn(1f, 6f)
                                 scale = newScale
+                                isZoomedIn = newScale > 1.01f
                                 if (newScale > 1f) {
                                     offsetX += pan.x
                                     offsetY += pan.y
@@ -319,10 +321,10 @@ private fun ImagePage(
                 detectTapGestures(
                     onTap = { onToggleChrome() },
                     onDoubleTap = {
-                        if (scale > 1.01f) {
-                            scale = 1f; offsetX = 0f; offsetY = 0f
+                        if (isZoomedIn) {
+                            scale = 1f; offsetX = 0f; offsetY = 0f; isZoomedIn = false
                         } else {
-                            scale = 2f
+                            scale = 2f; isZoomedIn = true
                         }
                     },
                 )
