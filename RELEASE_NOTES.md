@@ -1,3 +1,16 @@
+Visto 1.1.17
+
+- 优雅重构动图缩略图解码管线：GIF 和 WebP 统一使用平台 ImageDecoder（API 31+ 多帧提取，API 28-30 安全首帧），仅 API 26-27 使用 legacy 解码器。
+- 消除 webp-android 解码器的 JNI 崩溃面（95%+ 设备不再调用 WebPDecoder）。
+- 网格缩略图减帧（15→10），查看页预览保持 60 帧丝滑。
+- 下载增加 30s 超时防护，编码后校验 WebP 文件头防损坏缓存。
+
+## 版本
+
+- 应用版本：1.1.17，Android versionCode 为 38。
+
+---
+
 Visto 1.1.16
 
 - 紧急修复 v2：将动图转码固定到专用单线程（newSingleThreadContext），替换 Dispatchers.IO + Semaphore 方案。

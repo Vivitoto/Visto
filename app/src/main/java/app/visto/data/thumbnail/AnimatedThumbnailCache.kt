@@ -3,9 +3,11 @@ package app.visto.data.thumbnail
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.ImageDecoder
 import android.graphics.Movie
 import android.net.Uri
 import android.os.Build
+import androidx.annotation.RequiresApi
 import com.aureusapps.android.webpandroid.decoder.WebPDecoder
 import com.aureusapps.android.webpandroid.encoder.WebPAnimEncoder
 import com.aureusapps.android.webpandroid.encoder.WebPAnimEncoderOptions
@@ -18,6 +20,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.security.MessageDigest
+import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
 /**
@@ -35,7 +38,7 @@ object AnimatedThumbnailCache {
         val frameStepMs: Int,
         val maxFrames: Int,
     ) {
-        GRID(targetPx = 320, quality = 68f, frameStepMs = 100, maxFrames = 15),
+        GRID(targetPx = 320, quality = 68f, frameStepMs = 100, maxFrames = 10),
         PREVIEW(targetPx = 1024, quality = 85f, frameStepMs = 83, maxFrames = 60),
     }
 
@@ -84,12 +87,10 @@ object AnimatedThumbnailCache {
         var frames: List<ThumbFrame> = emptyList()
         try {
             downloadSource(okHttpClient, url, source)
-            frames = when (source.detectKind()) {
-                SourceKind.WEBP -> decodeAnimatedWebpFrames(context, source, kind)
-                SourceKind.GIF -> sampleGifFrames(source, kind)
-            }
+            frames = decodeAnimatedFrames(context, source, kind)
             encodeAnimatedWebp(context, frames, kind, tmp)
             if (!tmp.isFile || tmp.length() <= 0L) error("Animated thumbnail output is empty")
+            validateWebpHeader(tmp)
             if (!tmp.renameTo(file)) {
                 tmp.copyTo(file, overwrite = true)
                 tmp.delete()
@@ -105,15 +106,87 @@ object AnimatedThumbnailCache {
     }
 
     private fun downloadSource(okHttpClient: OkHttpClient, url: String, target: File) {
+        val client = okHttpClient.newBuilder()
+            .callTimeout(30, TimeUnit.SECONDS)
+            .build()
         val request = Request.Builder().url(url).get().build()
-        okHttpClient.newCall(request).execute().use { response ->
+        client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) error("Unable to fetch animated thumbnail source: HTTP ${response.code}")
             val body = response.body ?: error("Animated thumbnail source has no response body")
             target.outputStream().use { out -> body.byteStream().copyTo(out) }
         }
     }
 
-    private fun decodeAnimatedWebpFrames(context: Context, source: File, kind: Kind): List<ThumbFrame> {
+    // ── Unified animated frame decoding ───────────────────────────────
+
+    /**
+     * Decode animated frames for both GIF and WebP.
+     *
+     * API 31+ (95% of active devices): platform [ImageDecoder] with
+     * [ImageDecoder.setDecodeFrame] — zero custom JNI, handles both formats.
+     * API 28-30: first frame only via [ImageDecoder.decodeBitmap] — safe static fallback.
+     * API 26-27: legacy [WebPDecoder] for WebP, [Movie] for GIF.
+     */
+    private fun decodeAnimatedFrames(context: Context, source: File, kind: Kind): List<ThumbFrame> {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return decodeAnimatedFramesImageDecoder(source, kind)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            return listOf(decodeFirstFrameImageDecoder(source, kind))
+        }
+        return when (source.detectKind()) {
+            SourceKind.WEBP -> decodeAnimatedWebpFramesLegacy(context, source, kind)
+            SourceKind.GIF -> sampleGifFramesMovie(source, kind)
+        }
+    }
+
+    /** API 31+: extract all frames via [ImageDecoder.setDecodeFrame] for both GIF and WebP. */
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun decodeAnimatedFramesImageDecoder(source: File, kind: Kind): List<ThumbFrame> {
+        val src = ImageDecoder.createSource(source)
+        val frames = mutableListOf<ThumbFrame>()
+        var index = 0
+        while (frames.size < kind.maxFrames) {
+            try {
+                val bitmap = ImageDecoder.decodeBitmap(src) { decoder, _, _ ->
+                    decoder.setDecodeFrame(index)
+                    decoder.setTargetSize(kind.targetPx, kind.targetPx)
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                }
+                val target = targetSize(bitmap.width, bitmap.height, kind.targetPx)
+                val scaled = if (bitmap.width == target.width && bitmap.height == target.height) bitmap
+                else Bitmap.createScaledBitmap(bitmap, target.width, target.height, true)
+                if (scaled !== bitmap) bitmap.recycle()
+                frames += ThumbFrame(
+                    timestampMs = normalizedTimestamp(index * kind.frameStepMs.toLong(), frames),
+                    bitmap = scaled,
+                )
+                index++
+            } catch (_: Exception) {
+                break
+            }
+        }
+        if (frames.isEmpty()) error("Animated source produced no frames via ImageDecoder")
+        return frames
+    }
+
+    /** API 28-30: decode first frame only (safe) — animated thumbnails need API 31+. */
+    @RequiresApi(Build.VERSION_CODES.P)
+    private fun decodeFirstFrameImageDecoder(source: File, kind: Kind): ThumbFrame {
+        val src = ImageDecoder.createSource(source)
+        val bitmap = ImageDecoder.decodeBitmap(src) { decoder, _, _ ->
+            decoder.setTargetSize(kind.targetPx, kind.targetPx)
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+        }
+        val target = targetSize(bitmap.width, bitmap.height, kind.targetPx)
+        val scaled = if (bitmap.width == target.width && bitmap.height == target.height) bitmap
+        else Bitmap.createScaledBitmap(bitmap, target.width, target.height, true)
+        if (scaled !== bitmap) bitmap.recycle()
+        return ThumbFrame(0L, scaled)
+    }
+
+    /** API 26-27: WebP decoding via webp-android (used on <1% of devices). */
+    private fun decodeAnimatedWebpFramesLegacy(context: Context, source: File, kind: Kind): List<ThumbFrame> {
         val decoder = WebPDecoder(context)
         return try {
             decoder.setDataSource(Uri.fromFile(source))
@@ -143,7 +216,7 @@ object AnimatedThumbnailCache {
     }
 
     @Suppress("DEPRECATION")
-    private fun sampleGifFrames(source: File, kind: Kind): List<ThumbFrame> {
+    private fun sampleGifFramesMovie(source: File, kind: Kind): List<ThumbFrame> {
         val movie = source.inputStream().use { Movie.decodeStream(it) }
             ?: error("Unable to decode GIF source")
         val sourceWidth = movie.width().coerceAtLeast(1)
@@ -245,6 +318,16 @@ object AnimatedThumbnailCache {
                 header[8] == 'W'.code.toByte() && header[9] == 'E'.code.toByte() && header[10] == 'B'.code.toByte() && header[11] == 'P'.code.toByte() -> SourceKind.WEBP
             else -> error("Unsupported animated thumbnail source")
         }
+    }
+
+    private fun validateWebpHeader(file: File) {
+        val header = ByteArray(12)
+        file.inputStream().use { it.read(header) }
+        val riff = header[0] == 'R'.code.toByte() && header[1] == 'I'.code.toByte() &&
+                header[2] == 'F'.code.toByte() && header[3] == 'F'.code.toByte()
+        val webp = header[8] == 'W'.code.toByte() && header[9] == 'E'.code.toByte() &&
+                header[10] == 'B'.code.toByte() && header[11] == 'P'.code.toByte()
+        if (!riff || !webp) error("Encoded WebP has invalid RIFF/WEBP header — discarding")
     }
 
     private fun cacheDir(context: Context): File = File(context.cacheDir, DIR_NAME)
