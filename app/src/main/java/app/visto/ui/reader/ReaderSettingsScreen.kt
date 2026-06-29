@@ -1,12 +1,15 @@
 package app.visto.ui.reader
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -16,12 +19,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,8 +50,9 @@ private val ReaderSheetChipHorizontalGap = 8.dp
 private val ReaderSheetChipVerticalGap = 6.dp
 private val ReaderSheetPreviewPadding = 14.dp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReaderSettingsSheet(
+fun ReaderSettingsScreen(
     current: ReaderSession,
     onFontSize: (Int) -> Unit,
     onLineSpacing: (Float) -> Unit,
@@ -55,15 +66,33 @@ fun ReaderSettingsSheet(
     onPageMarginStart: (Int) -> Unit,
     onPageMarginEnd: (Int) -> Unit,
     onSetDefaultSettings: () -> Unit,
-    onDismiss: () -> Unit,
+    onBack: () -> Unit,
     fontImportError: String? = null,
 ) {
     val previewFontFamily = rememberReaderFontFamily(current.fontChoice)
     val previewPalette = current.readerPalette()
 
-    VistoBottomSheet(onDismiss = onDismiss) {
+    BackHandler(onBack = onBack)
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(Strings.READER_SETTINGS) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = Strings.BACK,
+                        )
+                    }
+                },
+            )
+        },
+    ) { innerPadding: PaddingValues ->
         Column(
             modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(
@@ -73,8 +102,6 @@ fun ReaderSettingsSheet(
                 ),
             verticalArrangement = Arrangement.spacedBy(ReaderSheetSectionGap),
         ) {
-            Text(text = Strings.READER_SETTINGS, style = MaterialTheme.typography.titleLarge)
-
             Column(verticalArrangement = Arrangement.spacedBy(ReaderSheetItemGap)) {
                 Text(text = Strings.readerFontSize(current.fontSizeSp), style = MaterialTheme.typography.titleSmall)
                 Slider(

@@ -4,10 +4,9 @@ import app.visto.core.book.Chapter
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Test
 
-class ChapterListSheetTest {
+class ChapterListScreenTest {
 
     @Test
     fun matchingChapterIndicesFiltersByTitle() {
@@ -56,14 +55,6 @@ class ChapterListSheetTest {
         assertEquals(colorScheme.surface, colors.containerColor)
         assertEquals(colorScheme.onSurface, colors.headlineColor)
         assertEquals(colorScheme.onSurfaceVariant, colors.supportingColor)
-    }
-
-    @Test
-    fun vistoBottomSheetIsPublicComposable() {
-        // VistoBottomSheet is a public @Composable function that replaces the old
-        // ModalBottomSheet with a drag-handle-only bottom sheet.
-        // The constant CHAPTER_LIST_SHEET_GESTURES_ENABLED was removed;
-        // sheet drag is now controlled per-region via the drag handle bar.
     }
 
     private fun chapters(): List<Chapter> = listOf(

@@ -107,7 +107,7 @@ import app.visto.ui.reader.ReaderPageMargins
 import app.visto.ui.reader.ReaderReducer
 import app.visto.ui.reader.ReaderScreen
 import app.visto.ui.reader.ReaderSession
-import app.visto.ui.reader.ReaderSettingsSheet
+import app.visto.ui.reader.ReaderSettingsScreen
 import app.visto.ui.reader.ReaderTextColor
 import app.visto.ui.reader.ReaderTheme
 import app.visto.ui.reader.currentAbsolutePageStartChar
@@ -361,46 +361,48 @@ private fun ActiveReaderScreen(
         }
     }
 
-    ReaderScreen(
-        session = session,
-        onBack = onClose,
-        onChapterSelect = { index, landingPage -> updateSession(ReaderAction.GoToChapter(index, landingPage)) },
-        onPreviousPage = { updateSession(ReaderAction.PrevPage) },
-        onNextPage = { updateSession(ReaderAction.NextPage) },
-        onSettingsToggle = { showSettings = true },
-        onSaveProgress = { saved ->
-            onSessionChange(saved)
-            onPersistProgress(saved)
-        },
-        onViewportChange = { viewport ->
-            updateSession(ReaderAction.SetViewport(viewport), persist = false)
-        },
-    )
-
-    if (showSettings) {
-        ReaderSettingsSheet(
-            current = session,
-            onFontSize = { updateSession(ReaderAction.SetFontSize(it)) },
-            onLineSpacing = { updateSession(ReaderAction.SetLineSpacing(it)) },
-            onFontChoice = {
-                fontImportError = null
-                updateSession(ReaderAction.SetFontChoice(it))
+    Box(modifier = Modifier.fillMaxSize()) {
+        ReaderScreen(
+            session = session,
+            onBack = onClose,
+            onChapterSelect = { index, landingPage -> updateSession(ReaderAction.GoToChapter(index, landingPage)) },
+            onPreviousPage = { updateSession(ReaderAction.PrevPage) },
+            onNextPage = { updateSession(ReaderAction.NextPage) },
+            onSettingsToggle = { showSettings = true },
+            onSaveProgress = { saved ->
+                onSessionChange(saved)
+                onPersistProgress(saved)
             },
-            onImportFont = {
-                fontImportError = null
-                fontPicker.launch(READER_FONT_PICKER_MIME_TYPES)
+            onViewportChange = { viewport ->
+                updateSession(ReaderAction.SetViewport(viewport), persist = false)
             },
-            onTheme = { updateSession(ReaderAction.SetTheme(it)) },
-            onTextColor = { updateSession(ReaderAction.SetTextColor(it)) },
-            onBackgroundStyle = { updateSession(ReaderAction.SetBackgroundStyle(it)) },
-            onPageMarginTop = { updateSession(ReaderAction.SetPageMarginTop(it)) },
-            onPageMarginBottom = { updateSession(ReaderAction.SetPageMarginBottom(it)) },
-            onPageMarginStart = { updateSession(ReaderAction.SetPageMarginStart(it)) },
-            onPageMarginEnd = { updateSession(ReaderAction.SetPageMarginEnd(it)) },
-            onSetDefaultSettings = { onSetDefaultSettings(latestSession) },
-            onDismiss = { showSettings = false },
-            fontImportError = fontImportError,
         )
+
+        if (showSettings) {
+            ReaderSettingsScreen(
+                current = session,
+                onFontSize = { updateSession(ReaderAction.SetFontSize(it)) },
+                onLineSpacing = { updateSession(ReaderAction.SetLineSpacing(it)) },
+                onFontChoice = {
+                    fontImportError = null
+                    updateSession(ReaderAction.SetFontChoice(it))
+                },
+                onImportFont = {
+                    fontImportError = null
+                    fontPicker.launch(READER_FONT_PICKER_MIME_TYPES)
+                },
+                onTheme = { updateSession(ReaderAction.SetTheme(it)) },
+                onTextColor = { updateSession(ReaderAction.SetTextColor(it)) },
+                onBackgroundStyle = { updateSession(ReaderAction.SetBackgroundStyle(it)) },
+                onPageMarginTop = { updateSession(ReaderAction.SetPageMarginTop(it)) },
+                onPageMarginBottom = { updateSession(ReaderAction.SetPageMarginBottom(it)) },
+                onPageMarginStart = { updateSession(ReaderAction.SetPageMarginStart(it)) },
+                onPageMarginEnd = { updateSession(ReaderAction.SetPageMarginEnd(it)) },
+                onSetDefaultSettings = { onSetDefaultSettings(latestSession) },
+                onBack = { showSettings = false },
+                fontImportError = fontImportError,
+            )
+        }
     }
 }
 

@@ -44,7 +44,7 @@ data class ReaderPageMargins(
 
         /** Baseline total padding used when the user-facing slider is 0. */
         const val TOP_BASELINE_DP = 12
-        const val HORIZONTAL_BASELINE_DP = 8
+        const val HORIZONTAL_BASELINE_DP = 16
         const val BOTTOM_BASELINE_DP = 52
 
         const val DEFAULT_TOP_DP = TOP_BASELINE_DP

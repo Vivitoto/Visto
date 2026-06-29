@@ -39,8 +39,8 @@ class BookProgressEntityTest {
         assertEquals("default", entity.backgroundStyle)
         assertEquals(12, entity.pageMarginTopDp)
         assertEquals(52, entity.pageMarginBottomDp)
-        assertEquals(8, entity.pageMarginStartDp)
-        assertEquals(8, entity.pageMarginEndDp)
+        assertEquals(16, entity.pageMarginStartDp)
+        assertEquals(16, entity.pageMarginEndDp)
         assertEquals(100L, entity.lastReadAt)
         assertEquals(50L, entity.addedAt)
     }

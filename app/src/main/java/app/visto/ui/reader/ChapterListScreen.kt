@@ -1,82 +1,79 @@
 package app.visto.ui.reader
 
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.background
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import app.visto.core.book.Chapter
 import app.visto.ui.Strings
-import kotlin.math.roundToInt
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChapterListSheet(
+fun ChapterListScreen(
     chapters: List<Chapter>,
     currentIndex: Int,
     onSelect: (Int) -> Unit,
-    onDismiss: () -> Unit,
+    onBack: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     val matchingIndices = remember(chapters, query) { matchingChapterIndices(chapters, query) }
 
-    VistoBottomSheet(onDismiss = onDismiss) {
+    BackHandler(onBack = onBack)
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(Strings.READER_CHAPTERS) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = Strings.BACK,
+                        )
+                    }
+                },
+            )
+        },
+    ) { innerPadding ->
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp),
+                .fillMaxSize()
+                .padding(innerPadding),
         ) {
-            Text(
-                text = Strings.READER_CHAPTERS,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-            )
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, top = 12.dp, end = 20.dp),
+                    .padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 12.dp),
                 singleLine = true,
                 label = { Text(Strings.READER_CHAPTER_SEARCH) },
                 placeholder = { Text(Strings.READER_CHAPTER_SEARCH_PLACEHOLDER) },
@@ -85,6 +82,7 @@ fun ChapterListSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = false),
+                contentPadding = PaddingValues(bottom = 16.dp),
             ) {
                 if (matchingIndices.isEmpty()) {
                     item {
@@ -112,7 +110,7 @@ fun ChapterListSheet(
                             .fillMaxWidth()
                             .clickable {
                                 onSelect(index)
-                                onDismiss()
+                                onBack()
                             },
                         headlineContent = {
                             Text(
@@ -129,97 +127,6 @@ fun ChapterListSheet(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun VistoBottomSheet(
-    onDismiss: () -> Unit,
-    content: @Composable () -> Unit,
-) {
-    val scrimInteractionSource = remember { MutableInteractionSource() }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
-    val dismissThresholdPx = 160f
-    val animatedOffset by animateDpAsState(
-        targetValue = if (dragOffset > 0f) (dragOffset / 3f).dp else 0.dp,
-        label = "sheetOffset",
-    )
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val sheetMaxHeight = minOf(maxHeight * 0.9f, 680.dp)
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
-                    .clickable(
-                        interactionSource = scrimInteractionSource,
-                        indication = null,
-                        onClick = onDismiss,
-                    ),
-            )
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 2.dp,
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .heightIn(max = sheetMaxHeight)
-                    .offset { IntOffset(0, animatedOffset.roundToPx()) }
-                    .imePadding(),
-            ) {
-                Box(modifier = Modifier.navigationBarsPadding()) {
-                    Column {
-                        SheetDragHandle(
-                            onDrag = { delta ->
-                                dragOffset = (dragOffset + delta).coerceAtLeast(0f)
-                            },
-                            onDragEnd = {
-                                if (dragOffset > dismissThresholdPx) {
-                                    onDismiss()
-                                } else {
-                                    dragOffset = 0f
-                                }
-                            },
-                            onDragCancel = { dragOffset = 0f },
-                        )
-                        content()
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SheetDragHandle(
-    onDrag: (Float) -> Unit,
-    onDragEnd: () -> Unit,
-    onDragCancel: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(32.dp)
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onDragEnd = onDragEnd,
-                    onDragCancel = onDragCancel,
-                    onVerticalDrag = { _, amount -> onDrag(amount) },
-                )
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .width(32.dp)
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)),
-        )
     }
 }
 

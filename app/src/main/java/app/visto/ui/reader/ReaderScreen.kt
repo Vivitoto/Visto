@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
@@ -113,8 +113,9 @@ fun ReaderScreen(
 
     BackHandler(onBack = ::closeReader)
 
-    Scaffold { innerPadding: PaddingValues ->
-        BoxWithConstraints(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold { innerPadding: PaddingValues ->
+            BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -227,8 +228,8 @@ fun ReaderScreen(
                 }
             }
 
-            if (chromeVisible && !session.isLoading && session.errorMessage == null && pages.isNotEmpty()) {
-                ReaderTopBar(
+                if (chromeVisible && !session.isLoading && session.errorMessage == null && pages.isNotEmpty()) {
+                    ReaderTopBar(
                     title = bookDisplayTitle(session.fileName),
                     palette = palette,
                     onToggle = { chromeVisible = false },
@@ -236,30 +237,31 @@ fun ReaderScreen(
                         .align(Alignment.TopCenter)
                         .padding(start = 12.dp, top = ReaderLayoutMetrics.TopBarTopPadding, end = 12.dp),
                 )
-                ReaderBottomBar(
-                    palette = palette,
-                    onChapterList = { showChapterList = true },
-                    onSettings = onSettingsToggle,
-                    onBack = ::closeReader,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(
-                            start = 12.dp,
-                            end = 12.dp,
-                            bottom = layoutPadding.bottomBarBottomPadding,
-                        ),
-                )
+                    ReaderBottomBar(
+                        palette = palette,
+                        onChapterList = { showChapterList = true },
+                        onSettings = onSettingsToggle,
+                        onBack = ::closeReader,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(
+                                start = 12.dp,
+                                end = 12.dp,
+                                bottom = layoutPadding.bottomBarBottomPadding,
+                            ),
+                    )
+                }
             }
         }
-    }
 
-    if (showChapterList) {
-        ChapterListSheet(
-            chapters = session.chapters,
-            currentIndex = session.currentChapterIndex,
-            onSelect = { onChapterSelect(it, 0) },
-            onDismiss = { showChapterList = false },
-        )
+        if (showChapterList) {
+            ChapterListScreen(
+                chapters = session.chapters,
+                currentIndex = session.currentChapterIndex,
+                onSelect = { onChapterSelect(it, 0) },
+                onBack = { showChapterList = false },
+            )
+        }
     }
 }
 
@@ -534,7 +536,7 @@ private fun ReaderBottomBar(
                 onClick = onSettings,
             )
             ReaderChromeIconButton(
-                icon = Icons.Filled.ArrowBack,
+                icon = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = Strings.BACK,
                 palette = palette,
                 onClick = onBack,
