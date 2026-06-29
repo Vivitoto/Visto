@@ -16,9 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -42,7 +40,6 @@ private val ReaderSheetChipHorizontalGap = 8.dp
 private val ReaderSheetChipVerticalGap = 6.dp
 private val ReaderSheetPreviewPadding = 14.dp
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderSettingsSheet(
     current: ReaderSession,
@@ -64,7 +61,7 @@ fun ReaderSettingsSheet(
     val previewFontFamily = rememberReaderFontFamily(current.fontChoice)
     val previewPalette = current.readerPalette()
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    VistoBottomSheet(onDismiss = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

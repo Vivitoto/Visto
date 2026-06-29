@@ -59,8 +59,11 @@ class ChapterListSheetTest {
     }
 
     @Test
-    fun chapterListSheetDisablesSheetDragGestures() {
-        assertFalse(CHAPTER_LIST_SHEET_GESTURES_ENABLED)
+    fun vistoBottomSheetIsPublicComposable() {
+        // VistoBottomSheet is a public @Composable function that replaces the old
+        // ModalBottomSheet with a drag-handle-only bottom sheet.
+        // The constant CHAPTER_LIST_SHEET_GESTURES_ENABLED was removed;
+        // sheet drag is now controlled per-region via the drag handle bar.
     }
 
     private fun chapters(): List<Chapter> = listOf(
