@@ -71,21 +71,18 @@ object BookTextLoader {
             throw e
         }
 
-        val encoding = TextEncodingDetector.detect(downloaded.bytes)
-        val decodedText = String(downloaded.bytes, Charset.forName(encoding)).removePrefix("\uFEFF")
-        val text = ReaderTextNormalizer.normalize(decodedText)
-        ensureUsableText(text, "Downloaded book text")
-        writeTextAtomically(cacheFile, text)
+        val decoded = decodeDownloadedText(downloaded.bytes)
+        writeTextAtomically(cacheFile, decoded.text)
         writeMetadata(
             metaFile = metaFile,
             etag = downloaded.etag,
-            encoding = encoding,
+            encoding = decoded.encoding,
             sizeBytes = downloaded.bytes.size.toLong(),
             normalizerVersion = NORMALIZER_VERSION,
         )
         BookTextResult(
-            text = text,
-            encoding = encoding,
+            text = decoded.text,
+            encoding = decoded.encoding,
             sizeBytes = downloaded.bytes.size.toLong(),
             etag = downloaded.etag,
             cachedFile = cacheFile,
@@ -197,14 +194,84 @@ object BookTextLoader {
         }
     }
 
-    private fun readUtf8CacheText(file: File): String {
-        val bytes = file.readBytes()
-        if (bytes.isEmpty()) throw IOException("Cached book text is empty")
-        return Charsets.UTF_8.newDecoder()
+    private fun decodeDownloadedText(bytes: ByteArray): DecodedDownloadedText {
+        val detectedEncoding = TextEncodingDetector.detect(bytes)
+        val candidates = downloadDecodeCandidates(detectedEncoding)
+        var lastDecodeFailure: Throwable? = null
+        var lastUnreadableTextFailure: IOException? = null
+
+        for (encoding in candidates) {
+            val decodedText = try {
+                decodeStrict(bytes, encoding).removePrefix("\uFEFF")
+            } catch (e: Exception) {
+                lastDecodeFailure = e
+                continue
+            }
+            val text = ReaderTextNormalizer.normalize(decodedText)
+            try {
+                ensureUsableText(text, "Downloaded book text")
+            } catch (e: IOException) {
+                lastDecodeFailure = e
+                lastUnreadableTextFailure = e
+                continue
+            }
+            return DecodedDownloadedText(text = text, encoding = encoding)
+        }
+
+        for (encoding in candidates) {
+            val decodedText = try {
+                decodeLenient(bytes, encoding).removePrefix("\uFEFF")
+            } catch (e: Exception) {
+                lastDecodeFailure = e
+                continue
+            }
+            val text = ReaderTextNormalizer.normalize(decodedText)
+            try {
+                ensureUsableText(text, "Downloaded book text")
+            } catch (e: IOException) {
+                lastDecodeFailure = e
+                lastUnreadableTextFailure = e
+                continue
+            }
+            return DecodedDownloadedText(text = text, encoding = encoding)
+        }
+
+        lastUnreadableTextFailure?.let { throw it }
+        throw IOException("Downloaded book text could not be decoded as readable text", lastDecodeFailure)
+    }
+
+    private fun downloadDecodeCandidates(detectedEncoding: String): List<String> =
+        listOf(
+            detectedEncoding,
+            "UTF-8",
+            "GBK",
+            "GB18030",
+            "Big5",
+            "EUC-JP",
+            "EUC-KR",
+            "Shift_JIS",
+            "windows-1252",
+            "ISO-8859-1",
+        ).distinct()
+
+    private fun decodeStrict(bytes: ByteArray, encoding: String): String =
+        Charset.forName(encoding).newDecoder()
             .onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT)
             .decode(ByteBuffer.wrap(bytes))
             .toString()
+
+    private fun decodeLenient(bytes: ByteArray, encoding: String): String =
+        Charset.forName(encoding).newDecoder()
+            .onMalformedInput(CodingErrorAction.REPLACE)
+            .onUnmappableCharacter(CodingErrorAction.REPLACE)
+            .decode(ByteBuffer.wrap(bytes))
+            .toString()
+
+    private fun readUtf8CacheText(file: File): String {
+        val bytes = file.readBytes()
+        if (bytes.isEmpty()) throw IOException("Cached book text is empty")
+        return decodeStrict(bytes, "UTF-8")
     }
 
     private fun ensureUsableText(text: String, source: String) {
@@ -275,6 +342,11 @@ object BookTextLoader {
         val encoding: String? = null,
         val sizeBytes: Long? = null,
         val normalizerVersion: String? = null,
+    )
+
+    private data class DecodedDownloadedText(
+        val text: String,
+        val encoding: String,
     )
 
     private data class DownloadedBook(

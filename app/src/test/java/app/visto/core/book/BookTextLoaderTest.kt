@@ -8,11 +8,14 @@ import okhttp3.mockwebserver.MockWebServer
 import okio.Buffer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.IOException
 import java.nio.charset.Charset
 
 class BookTextLoaderTest {
@@ -62,6 +65,121 @@ class BookTextLoaderTest {
         assertEquals("GBK", result.encoding)
         assertEquals("第二章 中文", result.text)
         assertEquals(gbkBytes.size.toLong(), result.sizeBytes)
+    }
+
+    @Test
+    fun loadDetectsAndDecodesGbkTextAfterLongAsciiPrefix() = runBlocking {
+        val rawText = "a".repeat(5_000) + "\n" + "第二章 中文内容".repeat(24)
+        val gbkBytes = rawText.toByteArray(Charset.forName("GBK"))
+        server.enqueue(MockResponse().setBody(Buffer().write(gbkBytes)))
+        val cacheDir = temporaryFolder.newFolder("cache")
+
+        val result = BookTextLoader.load(client(), "/books/gbk-preface.txt", cacheDir)
+
+        assertEquals("GBK", result.encoding)
+        assertTrue(result.text.contains("第二章 中文内容"))
+        assertFalse(result.text.contains('\uFFFD'))
+        assertEquals(gbkBytes.size.toLong(), result.sizeBytes)
+    }
+
+    @Test
+    fun loadDetectsAndDecodesBig5Text() = runBlocking {
+        val rawText = "繁體中文測試 國語閱讀"
+        val big5Bytes = rawText.toByteArray(Charset.forName("Big5"))
+        server.enqueue(MockResponse().setBody(Buffer().write(big5Bytes)))
+        val cacheDir = temporaryFolder.newFolder("cache")
+
+        val result = BookTextLoader.load(client(), "/books/big5.txt", cacheDir)
+
+        assertEquals("Big5", result.encoding)
+        assertTrue(result.text.contains(rawText))
+        assertFalse(result.text.contains('\uFFFD'))
+        assertEquals(big5Bytes.size.toLong(), result.sizeBytes)
+    }
+
+    @Test
+    fun loadDetectsAndDecodesEucJpText() = runBlocking {
+        val rawText = "第一章 日本語の文章です。漢字とかな。"
+        val eucJpBytes = rawText.toByteArray(Charset.forName("EUC-JP"))
+        server.enqueue(MockResponse().setBody(Buffer().write(eucJpBytes)))
+        val cacheDir = temporaryFolder.newFolder("cache")
+
+        val result = BookTextLoader.load(client(), "/books/euc-jp.txt", cacheDir)
+
+        assertEquals("EUC-JP", result.encoding)
+        assertTrue(result.text.contains("日本語の文章です"))
+        assertFalse(result.text.contains('\uFFFD'))
+        assertEquals(eucJpBytes.size.toLong(), result.sizeBytes)
+    }
+
+    @Test
+    fun loadDetectsAndDecodesShiftJisText() = runBlocking {
+        val rawText = "第一章 日本語の文章です。漢字とカナ。"
+        val shiftJisBytes = rawText.toByteArray(Charset.forName("Shift_JIS"))
+        server.enqueue(MockResponse().setBody(Buffer().write(shiftJisBytes)))
+        val cacheDir = temporaryFolder.newFolder("cache")
+
+        val result = BookTextLoader.load(client(), "/books/shift-jis.txt", cacheDir)
+
+        assertEquals("Shift_JIS", result.encoding)
+        assertTrue(result.text.contains("日本語の文章です"))
+        assertFalse(result.text.contains('\uFFFD'))
+        assertEquals(shiftJisBytes.size.toLong(), result.sizeBytes)
+    }
+
+    @Test
+    fun loadDetectsAndDecodesEucKrText() = runBlocking {
+        val rawText = "첫 장 한국어 문장입니다. 한글 내용입니다."
+        val eucKrBytes = rawText.toByteArray(Charset.forName("EUC-KR"))
+        server.enqueue(MockResponse().setBody(Buffer().write(eucKrBytes)))
+        val cacheDir = temporaryFolder.newFolder("cache")
+
+        val result = BookTextLoader.load(client(), "/books/euc-kr.txt", cacheDir)
+
+        assertEquals("EUC-KR", result.encoding)
+        assertTrue(result.text.contains("한국어 문장입니다"))
+        assertFalse(result.text.contains('\uFFFD'))
+        assertEquals(eucKrBytes.size.toLong(), result.sizeBytes)
+    }
+
+    @Test
+    fun loadLenientlyDecodesGbkTextWithMinorCorruption() = runBlocking {
+        val rawText = "第二章 中文内容 ".repeat(12)
+        val corruptBytes = mutableListOf<Byte>()
+        var insertedCorruptBytes = 0
+        for (byte in rawText.toByteArray(Charset.forName("GBK"))) {
+            if (insertedCorruptBytes < 3 && byte == 0x20.toByte()) {
+                corruptBytes += 0x81.toByte()
+                insertedCorruptBytes += 1
+            }
+            corruptBytes += byte
+        }
+        val gbkBytes = corruptBytes.toByteArray()
+        server.enqueue(MockResponse().setBody(Buffer().write(gbkBytes)))
+        val cacheDir = temporaryFolder.newFolder("cache")
+
+        val result = BookTextLoader.load(client(), "/books/corrupt-gbk.txt", cacheDir)
+
+        assertEquals("GBK", result.encoding)
+        assertTrue(result.text.contains("第二章"))
+        assertTrue(result.text.contains("中文内容"))
+        assertTrue(result.text.count { it == '\uFFFD' } in 1..3)
+        assertEquals(gbkBytes.size.toLong(), result.sizeBytes)
+    }
+
+    @Test
+    fun binaryLikeDownloadedTextIsRejected() {
+        val bytes = ByteArray(64) { index -> if (index % 4 == 0) 0 else (index + 1).toByte() }
+        server.enqueue(MockResponse().setBody(Buffer().write(bytes)))
+        val cacheDir = temporaryFolder.newFolder("cache")
+
+        val error = assertThrows(IOException::class.java) {
+            runBlocking {
+                BookTextLoader.load(client(), "/books/not-text.bin", cacheDir)
+            }
+        }
+
+        assertTrue(error.message.orEmpty().contains("unreadable control characters"))
     }
 
     @Test

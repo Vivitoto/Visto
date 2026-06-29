@@ -1,16 +1,24 @@
 package app.visto.ui.reader
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -19,14 +27,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import app.visto.core.book.Chapter
 import app.visto.ui.Strings
 
-@OptIn(ExperimentalMaterial3Api::class)
+internal const val CHAPTER_LIST_SHEET_GESTURES_ENABLED = false
+
 @Composable
 fun ChapterListSheet(
     chapters: List<Chapter>,
@@ -37,8 +50,12 @@ fun ChapterListSheet(
     var query by remember { mutableStateOf("") }
     val matchingIndices = remember(chapters, query) { matchingChapterIndices(chapters, query) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+    NonDraggableChapterBottomSheet(onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 20.dp),
+        ) {
             Text(
                 text = Strings.READER_CHAPTERS,
                 style = MaterialTheme.typography.titleLarge,
@@ -59,7 +76,7 @@ fun ChapterListSheet(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 560.dp),
+                    .weight(1f, fill = false),
             ) {
                 if (matchingIndices.isEmpty()) {
                     item {
@@ -76,29 +93,77 @@ fun ChapterListSheet(
                 items(matchingIndices, key = { it }) { index ->
                     val chapter = chapters[index]
                     val selected = index == currentIndex
-                    Surface(
-                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                    val rowColors = chapterListRowColors(selected, MaterialTheme.colorScheme)
+                    ListItem(
+                        colors = ListItemDefaults.colors(
+                            containerColor = rowColors.containerColor,
+                            headlineColor = rowColors.headlineColor,
+                            supportingColor = rowColors.supportingColor,
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
                                 onSelect(index)
                                 onDismiss()
                             },
-                    ) {
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    text = chapter.title,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                                )
-                            },
-                            supportingContent = {
-                                Text(text = Strings.readerChapterNumber(index))
-                            },
-                        )
-                    }
+                        headlineContent = {
+                            Text(
+                                text = chapter.title,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                            )
+                        },
+                        supportingContent = {
+                            Text(text = Strings.readerChapterNumber(index))
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NonDraggableChapterBottomSheet(
+    onDismiss: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val scrimInteractionSource = remember { MutableInteractionSource() }
+    val sheetInteractionSource = remember { MutableInteractionSource() }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val sheetMaxHeight = minOf(maxHeight * 0.9f, 680.dp)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
+                    .clickable(
+                        interactionSource = scrimInteractionSource,
+                        indication = null,
+                        onClick = onDismiss,
+                    ),
+            )
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .heightIn(max = sheetMaxHeight)
+                    .imePadding()
+                    .clickable(
+                        interactionSource = sheetInteractionSource,
+                        indication = null,
+                        onClick = {},
+                    ),
+            ) {
+                Box(modifier = Modifier.navigationBarsPadding()) {
+                    content()
                 }
             }
         }
@@ -118,3 +183,24 @@ internal fun matchingChapterIndices(chapters: List<Chapter>, query: String): Lis
         if (matchesTitle || matchesNumber) index else null
     }
 }
+
+internal data class ChapterListRowColors(
+    val containerColor: Color,
+    val headlineColor: Color,
+    val supportingColor: Color,
+)
+
+internal fun chapterListRowColors(selected: Boolean, colorScheme: ColorScheme): ChapterListRowColors =
+    if (selected) {
+        ChapterListRowColors(
+            containerColor = colorScheme.primaryContainer,
+            headlineColor = colorScheme.onPrimaryContainer,
+            supportingColor = colorScheme.onPrimaryContainer,
+        )
+    } else {
+        ChapterListRowColors(
+            containerColor = colorScheme.surface,
+            headlineColor = colorScheme.onSurface,
+            supportingColor = colorScheme.onSurfaceVariant,
+        )
+    }

@@ -13,8 +13,8 @@ android {
         applicationId = "app.visto"
         minSdk = 26
         targetSdk = 35
-        versionCode = 43
-        versionName = "1.2.2"
+        versionCode = 44
+        versionName = "1.2.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
