@@ -12,8 +12,8 @@ class ReaderLayoutMetricsTest {
     fun contentPaddingReservesStableFooterClearance() {
         val padding = ReaderLayoutMetrics.contentPadding(maxWidth = 390.dp, maxHeight = 800.dp)
 
-        assertEquals(8.dp, padding.startContentPadding)
-        assertEquals(8.dp, padding.endContentPadding)
+        assertEquals(16.dp, padding.startContentPadding)
+        assertEquals(16.dp, padding.endContentPadding)
         assertEquals(12.dp, padding.topContentPadding)
         assertEquals(52.dp, padding.bottomContentPadding)
         assertEquals(12.dp, padding.footerBottomPadding(chromeVisible = true))
@@ -43,8 +43,8 @@ class ReaderLayoutMetricsTest {
             density = Density(density = 2f, fontScale = 1.25f),
         )
 
-        // width: 390 - 8 - 8 = 374dp -> 748px at 2x
-        assertEquals(748, viewport.widthPx)
+        // width: 390 - 16 - 16 = 358dp -> 716px at 2x
+        assertEquals(716, viewport.widthPx)
         // height: 800 - 12 - 52 = 736dp -> 1472px at 2x
         assertEquals(1472, viewport.heightPx)
         assertEquals(2.5f, viewport.density, 0.0f)
@@ -54,8 +54,8 @@ class ReaderLayoutMetricsTest {
     fun compactScreensKeepBaselineMarginsAndFooterReserve() {
         val padding = ReaderLayoutMetrics.contentPadding(maxWidth = 320.dp, maxHeight = 560.dp)
 
-        assertEquals(8.dp, padding.startContentPadding)
-        assertEquals(8.dp, padding.endContentPadding)
+        assertEquals(16.dp, padding.startContentPadding)
+        assertEquals(16.dp, padding.endContentPadding)
         assertEquals(12.dp, padding.topContentPadding)
         assertEquals(52.dp, padding.bottomContentPadding)
     }
