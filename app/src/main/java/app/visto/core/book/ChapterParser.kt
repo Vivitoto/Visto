@@ -10,29 +10,13 @@ data class Chapter(
 
 /** Parses simple Chinese and English chapter headings from full book text. */
 object ChapterParser {
-    private val PATTERNS = listOf(
-        Regex("第[零一二三四五六七八九十百千万\\d]+[章节回卷][^\\n]*"),
-        Regex("Chapter\\s+\\d+[^\\n]*", RegexOption.IGNORE_CASE),
-    )
     private val LINE_PATTERNS = listOf(
         Regex("^第[零一二三四五六七八九十百千万\\d]+[章节回卷][^\\n]*$"),
         Regex("^Chapter\\s+\\d+[^\\n]*$", RegexOption.IGNORE_CASE),
     )
 
     fun parse(text: String): List<Chapter> {
-        val matches = PATTERNS
-            .flatMapIndexed { priority, regex ->
-                regex.findAll(text).map { match ->
-                    ChapterMatch(
-                        title = match.value.trim(),
-                        startOffset = match.range.first,
-                        matchEndOffset = match.range.last + 1,
-                        priority = priority,
-                    )
-                }
-            }
-            .sortedWith(compareBy<ChapterMatch> { it.startOffset }.thenBy { it.priority })
-            .filterOverlapping()
+        val matches = findChapterMatches(text)
 
         if (matches.isEmpty()) {
             return listOf(
@@ -55,27 +39,45 @@ object ChapterParser {
         }
     }
 
-    private fun List<ChapterMatch>.filterOverlapping(): List<ChapterMatch> {
-        val filtered = mutableListOf<ChapterMatch>()
-        var previousEnd = -1
-        for (match in this) {
-            if (match.startOffset >= previousEnd) {
-                filtered += match
-                previousEnd = match.matchEndOffset
+    private fun findChapterMatches(text: String): List<ChapterMatch> {
+        val matches = mutableListOf<ChapterMatch>()
+        var lineStart = 0
+
+        while (lineStart <= text.length) {
+            val newlineOffset = text.indexOf('\n', lineStart)
+            val lineEnd = if (newlineOffset == -1) text.length else newlineOffset
+            val contentEnd = if (lineEnd > lineStart && text[lineEnd - 1] == '\r') {
+                lineEnd - 1
+            } else {
+                lineEnd
             }
+            val line = text.substring(lineStart, contentEnd)
+            val title = line.trimReaderHeadingWhitespace()
+
+            if (title.isChapterHeadingTitle()) {
+                matches += ChapterMatch(
+                    title = title,
+                    startOffset = lineStart,
+                )
+            }
+
+            if (newlineOffset == -1) break
+            lineStart = newlineOffset + 1
         }
-        return filtered
+
+        return matches
     }
 
     internal fun isChapterHeadingLine(line: String): Boolean =
-        LINE_PATTERNS.any { it.matches(line.trimReaderHeadingWhitespace()) }
+        line.trimReaderHeadingWhitespace().isChapterHeadingTitle()
 
     private data class ChapterMatch(
         val title: String,
         val startOffset: Int,
-        val matchEndOffset: Int,
-        val priority: Int,
     )
+
+    private fun String.isChapterHeadingTitle(): Boolean =
+        LINE_PATTERNS.any { it.matches(this) }
 
     private fun String.trimReaderHeadingWhitespace(): String =
         trim { it == ' ' || it == '\t' || it == '\u3000' }

@@ -1,6 +1,7 @@
 package app.visto.ui.reader
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,8 +16,6 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -100,29 +99,21 @@ fun ChapterListScreen(
                     val chapter = chapters[index]
                     val selected = index == currentIndex
                     val rowColors = chapterListRowColors(selected, MaterialTheme.colorScheme)
-                    ListItem(
-                        colors = ListItemDefaults.colors(
-                            containerColor = rowColors.containerColor,
-                            headlineColor = rowColors.headlineColor,
-                            supportingColor = rowColors.supportingColor,
-                        ),
+                    Text(
+                        text = chapter.title,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = rowColors.headlineColor,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .background(rowColors.containerColor)
                             .clickable {
                                 onSelect(index)
                                 onBack()
-                            },
-                        headlineContent = {
-                            Text(
-                                text = chapter.title,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                            )
-                        },
-                        supportingContent = {
-                            Text(text = Strings.readerChapterNumber(index))
-                        },
+                            }
+                            .padding(horizontal = 20.dp, vertical = 10.dp),
                     )
                 }
             }
@@ -147,7 +138,6 @@ internal fun matchingChapterIndices(chapters: List<Chapter>, query: String): Lis
 internal data class ChapterListRowColors(
     val containerColor: Color,
     val headlineColor: Color,
-    val supportingColor: Color,
 )
 
 internal fun chapterListRowColors(selected: Boolean, colorScheme: ColorScheme): ChapterListRowColors =
@@ -155,12 +145,10 @@ internal fun chapterListRowColors(selected: Boolean, colorScheme: ColorScheme): 
         ChapterListRowColors(
             containerColor = colorScheme.primaryContainer,
             headlineColor = colorScheme.onPrimaryContainer,
-            supportingColor = colorScheme.onPrimaryContainer,
         )
     } else {
         ChapterListRowColors(
             containerColor = colorScheme.surface,
             headlineColor = colorScheme.onSurface,
-            supportingColor = colorScheme.onSurfaceVariant,
         )
     }

@@ -274,7 +274,9 @@ object ReaderSessionReducer {
     fun reduce(state: ReaderSession, action: ReaderSessionAction): ReaderSession = when (action) {
         is ReaderSessionAction.LoadResult -> {
             val chapters = action.chapters.ifEmpty { ChapterParser.parse(action.fullText) }
-            val chapterIndex = action.initialChapterIndex.coerceInChapterBounds(chapters)
+            val chapterIndex = action.initialPageStartChar
+                .toChapterIndex(chapters, action.fullText.length)
+                ?: action.initialChapterIndex.coerceInChapterBounds(chapters)
             val targetStartChar = action.initialPageStartChar.toChapterLocalStartChar(
                 chapter = chapters.getOrNull(chapterIndex),
                 fullTextLength = action.fullText.length,
@@ -471,6 +473,16 @@ object ReaderSessionReducer {
 
     private fun Int.coerceInChapterBounds(chapters: List<Chapter>): Int =
         if (chapters.isEmpty()) 0 else coerceIn(0, chapters.lastIndex)
+
+    private fun Int?.toChapterIndex(chapters: List<Chapter>, fullTextLength: Int): Int? {
+        if (this == null || chapters.isEmpty()) return null
+        val absoluteStart = coerceIn(0, fullTextLength)
+        return chapters.indexOfLast { chapter ->
+            val start = chapter.startOffset.coerceIn(0, fullTextLength)
+            val end = chapter.endOffset.coerceIn(start, fullTextLength)
+            absoluteStart in start..end
+        }.takeIf { it >= 0 }
+    }
 
     private fun ReaderSession.currentPageStartChar(): Int? =
         pagesForCurrentChapter

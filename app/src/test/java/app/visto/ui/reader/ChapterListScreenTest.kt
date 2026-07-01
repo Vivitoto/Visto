@@ -43,7 +43,6 @@ class ChapterListScreenTest {
 
         assertEquals(colorScheme.primaryContainer, colors.containerColor)
         assertEquals(colorScheme.onPrimaryContainer, colors.headlineColor)
-        assertEquals(colorScheme.onPrimaryContainer, colors.supportingColor)
     }
 
     @Test
@@ -54,7 +53,6 @@ class ChapterListScreenTest {
 
         assertEquals(colorScheme.surface, colors.containerColor)
         assertEquals(colorScheme.onSurface, colors.headlineColor)
-        assertEquals(colorScheme.onSurfaceVariant, colors.supportingColor)
     }
 
     private fun chapters(): List<Chapter> = listOf(
@@ -68,6 +66,5 @@ class ChapterListScreenTest {
         onPrimaryContainer = Color(0xFF445566),
         surface = Color(0xFF778899),
         onSurface = Color(0xFFAABBCC),
-        onSurfaceVariant = Color(0xFFDDEEFF),
     )
 }

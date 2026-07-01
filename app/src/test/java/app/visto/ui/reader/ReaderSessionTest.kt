@@ -117,6 +117,33 @@ class ReaderSessionTest {
     }
 
     @Test
+    fun loadResultPrefersAbsolutePageStartCharWhenSavedChapterIndexIsStale() {
+        val targetChapter = chapters[1]
+        val savedLocalStart = ((targetChapter.endOffset - targetChapter.startOffset) / 3).coerceAtLeast(1)
+        val savedAbsoluteStart = targetChapter.startOffset + savedLocalStart
+
+        val restored = ReaderSessionReducer.reduce(
+            ReaderSessionReducer.initial(loading = true),
+            ReaderSessionAction.LoadResult(
+                filePath = "/books/a.txt",
+                fileName = "a.txt",
+                encoding = "UTF-8",
+                fullText = text,
+                chapters = chapters,
+                initialChapterIndex = 0,
+                initialPage = 0,
+                initialPageStartChar = savedAbsoluteStart,
+            ),
+        )
+        val restoredPage = restored.pagesForCurrentChapter[restored.currentPage]
+
+        assertEquals(1, restored.currentChapterIndex)
+        assertTrue(savedLocalStart >= restoredPage.startChar)
+        assertTrue(savedLocalStart <= restoredPage.endChar)
+        assertEquals(savedAbsoluteStart, restored.currentAbsolutePageStartChar())
+    }
+
+    @Test
     fun setFontChoicePersistsChoiceAndKeepsCurrentReadingPosition() {
         val loaded = ReaderSessionReducer.reduce(loadedState(), ReaderSessionAction.NextPage)
         val originalPageStart = loaded.pagesForCurrentChapter[loaded.currentPage].startChar

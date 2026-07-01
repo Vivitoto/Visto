@@ -49,10 +49,43 @@ class ChapterParserTest {
 
         val chapters = ChapterParser.parse(text)
 
-        assertEquals(1, chapters.size)
-        assertEquals("全文", chapters[0].title)
-        assertEquals(0, chapters[0].startOffset)
-        assertEquals(text.length, chapters[0].endOffset)
+        assertFullTextChapter(text, chapters)
+    }
+
+    @Test
+    fun embeddedChineseChapterLikePhrasesInsideProseAreNotDetected() {
+        val texts = listOf(
+            "这是我第一回去北京",
+            "他在第一章里写下这句话。\n正文继续。",
+            "读到第二百三十四回归来时，天已经亮了。",
+        )
+
+        texts.forEach { text ->
+            val chapters = ChapterParser.parse(text)
+
+            assertFullTextChapter(text, chapters)
+        }
+    }
+
+    @Test
+    fun indentedStandaloneChineseChapterHeadingIsDetectedAndTrimmed() {
+        val text = "第一章 开端\n正文\n  第二百三十四回 归来\n归来正文"
+
+        val chapters = ChapterParser.parse(text)
+
+        assertEquals(2, chapters.size)
+        assertEquals("第一章 开端", chapters[0].title)
+        assertEquals("第二百三十四回 归来", chapters[1].title)
+        assertEquals(text.indexOf("第一章"), chapters[0].startOffset)
+        assertEquals(text.indexOf("  第二百三十四回"), chapters[0].endOffset)
+        assertEquals(text.indexOf("  第二百三十四回"), chapters[1].startOffset)
+        assertEquals(text.length, chapters[1].endOffset)
+    }
+
+    @Test
+    fun chapterHeadingLineRecognitionRequiresEntireTrimmedLine() {
+        assertEquals(true, ChapterParser.isChapterHeadingLine("  第二百三十四回 归来"))
+        assertEquals(false, ChapterParser.isChapterHeadingLine("这是我第一回去北京"))
     }
 
     @Test
@@ -77,5 +110,12 @@ class ChapterParserTest {
         assertEquals("Chapter 2 Next", chapters[1].title)
         assertEquals(text.indexOf("Chapter 2"), chapters[0].endOffset)
         assertEquals(text.length, chapters[1].endOffset)
+    }
+
+    private fun assertFullTextChapter(text: String, chapters: List<Chapter>) {
+        assertEquals(1, chapters.size)
+        assertEquals("全文", chapters[0].title)
+        assertEquals(0, chapters[0].startOffset)
+        assertEquals(text.length, chapters[0].endOffset)
     }
 }
