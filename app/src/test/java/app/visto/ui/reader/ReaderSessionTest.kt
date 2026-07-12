@@ -144,6 +144,52 @@ class ReaderSessionTest {
     }
 
     @Test
+    fun nextPageAfterAbsoluteRestoreAdvancesFromRestoredPageWhenSavedPageOffsetIsStale() {
+        val viewport = ReaderViewport(widthPx = 180, heightPx = 220, density = 1f)
+        val base = ReaderSessionReducer.initial(loading = true).copy(viewport = viewport)
+        val chapterStart = chapters[1].startOffset
+        val baseline = ReaderSessionReducer.reduce(
+            ReaderSessionReducer.reduce(
+                base,
+                ReaderSessionAction.LoadResult(
+                    filePath = "/books/a.txt",
+                    fileName = "a.txt",
+                    encoding = "UTF-8",
+                    fullText = text,
+                    chapters = chapters,
+                ),
+            ),
+            ReaderSessionAction.SelectChapter(1),
+        )
+        assertTrue(baseline.pagesForCurrentChapter.size >= 3)
+        val restoredPageIndex = 1
+        val savedAbsoluteStart = chapterStart + baseline.pagesForCurrentChapter[restoredPageIndex].startChar
+
+        val restored = ReaderSessionReducer.reduce(
+            base,
+            ReaderSessionAction.LoadResult(
+                filePath = "/books/a.txt",
+                fileName = "a.txt",
+                encoding = "UTF-8",
+                fullText = text,
+                chapters = chapters,
+                initialChapterIndex = 1,
+                initialPage = 0,
+                initialPageStartChar = savedAbsoluteStart,
+            ),
+        )
+        val next = ReaderSessionReducer.reduce(restored, ReaderSessionAction.NextPage)
+        val nextAbsoluteStart = chapterStart + next.pagesForCurrentChapter[next.currentPage].startChar
+
+        assertEquals(1, restored.currentChapterIndex)
+        assertEquals(restoredPageIndex, restored.currentPage)
+        assertEquals(savedAbsoluteStart, restored.currentAbsolutePageStartChar())
+        assertEquals(restoredPageIndex + 1, next.currentPage)
+        assertEquals(nextAbsoluteStart, next.currentAbsolutePageStartChar())
+        assertTrue(nextAbsoluteStart > savedAbsoluteStart)
+    }
+
+    @Test
     fun setFontChoicePersistsChoiceAndKeepsCurrentReadingPosition() {
         val loaded = ReaderSessionReducer.reduce(loadedState(), ReaderSessionAction.NextPage)
         val originalPageStart = loaded.pagesForCurrentChapter[loaded.currentPage].startChar

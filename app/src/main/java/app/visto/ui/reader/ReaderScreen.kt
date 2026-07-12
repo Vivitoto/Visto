@@ -70,18 +70,12 @@ fun ReaderScreen(
     val palette = session.readerPalette()
     val readerFontFamily = rememberReaderFontFamily(session.fontChoice)
     var chromeVisible by remember { mutableStateOf(true) }
-    var currentPage by remember(session.filePath, session.currentChapterIndex, session.currentPage) {
-        mutableStateOf(session.currentPage)
-    }
     var showChapterList by remember { mutableStateOf(false) }
 
     val pages = session.pagesForCurrentChapter
+    val currentPage = session.currentPage
     val safePage = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
     val currentChapter = session.chapters.getOrNull(session.currentChapterIndex)
-
-    LaunchedEffect(pages.size) {
-        currentPage = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
-    }
 
     fun saveProgress(page: Int = safePage) {
         if (session.isLoading || session.errorMessage != null || pages.isEmpty()) return
@@ -90,19 +84,11 @@ fun ReaderScreen(
 
     fun goToPreviousPage() {
         if (pages.isEmpty()) return
-        val page = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
-        if (page > 0) {
-            currentPage = page - 1
-        }
         onPreviousPage()
     }
 
     fun goToNextPage() {
         if (pages.isEmpty()) return
-        val page = currentPage.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
-        if (page < pages.lastIndex) {
-            currentPage = page + 1
-        }
         onNextPage()
     }
 
