@@ -145,9 +145,17 @@ class ReaderSessionTest {
 
     @Test
     fun nextPageAfterAbsoluteRestoreAdvancesFromRestoredPageWhenSavedPageOffsetIsStale() {
-        val viewport = ReaderViewport(widthPx = 180, heightPx = 220, density = 1f)
+        val restoreText = "第一章 开始\n" +
+            "这是第一章的内容。\n".repeat(20) +
+            "第二章 继续\n" +
+            "这是第二章的内容，用来制造稳定的多页分页。\n".repeat(500)
+        val restoreChapters = listOf(
+            Chapter(index = 0, title = "第一章 开始", startOffset = 0, endOffset = restoreText.indexOf("第二章")),
+            Chapter(index = 1, title = "第二章 继续", startOffset = restoreText.indexOf("第二章"), endOffset = restoreText.length),
+        )
+        val viewport = ReaderViewport(widthPx = 96, heightPx = 72, density = 1f)
         val base = ReaderSessionReducer.initial(loading = true).copy(viewport = viewport)
-        val chapterStart = chapters[1].startOffset
+        val chapterStart = restoreChapters[1].startOffset
         val baseline = ReaderSessionReducer.reduce(
             ReaderSessionReducer.reduce(
                 base,
@@ -155,8 +163,8 @@ class ReaderSessionTest {
                     filePath = "/books/a.txt",
                     fileName = "a.txt",
                     encoding = "UTF-8",
-                    fullText = text,
-                    chapters = chapters,
+                    fullText = restoreText,
+                    chapters = restoreChapters,
                 ),
             ),
             ReaderSessionAction.SelectChapter(1),
@@ -171,8 +179,8 @@ class ReaderSessionTest {
                 filePath = "/books/a.txt",
                 fileName = "a.txt",
                 encoding = "UTF-8",
-                fullText = text,
-                chapters = chapters,
+                fullText = restoreText,
+                chapters = restoreChapters,
                 initialChapterIndex = 1,
                 initialPage = 0,
                 initialPageStartChar = savedAbsoluteStart,
