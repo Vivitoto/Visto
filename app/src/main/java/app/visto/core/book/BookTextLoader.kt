@@ -89,6 +89,27 @@ object BookTextLoader {
         )
     }
 
+    internal fun clearCache(cacheDir: File, accountId: Long, path: String): Boolean {
+        val booksRoot = File(cacheDir, CACHE_SUBDIR)
+        val pathDigest = sha256(path)
+        val accountDir = File(booksRoot, accountId.toString())
+
+        val deletedScoped = deleteCacheFiles(accountDir, pathDigest)
+        val deletedLegacy = deleteCacheFiles(booksRoot, pathDigest)
+        accountDir.takeIf { it.isDirectory && it.list().isNullOrEmpty() }?.delete()
+        return deletedScoped || deletedLegacy
+    }
+
+    private fun deleteCacheFiles(directory: File, pathDigest: String): Boolean {
+        var deleted = false
+        directory.listFiles()
+            ?.filter { it.isFile && it.name.startsWith(pathDigest) }
+            ?.forEach { file ->
+                deleted = runCatching { file.delete() }.getOrDefault(false) || deleted
+            }
+        return deleted
+    }
+
     private fun readCachedResult(
         cacheFile: File,
         metaFile: File,

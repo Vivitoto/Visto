@@ -122,6 +122,7 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.Executors
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
@@ -322,6 +323,7 @@ private fun ActiveReaderScreen(
     onClose: () -> Unit,
     onPersistProgress: (ReaderSession) -> Unit,
     onSetDefaultSettings: (ReaderSession) -> Unit,
+    onClearCacheAndRetry: (() -> Unit)?,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -376,6 +378,7 @@ private fun ActiveReaderScreen(
             onViewportChange = { viewport ->
                 updateSession(ReaderAction.SetViewport(viewport), persist = false)
             },
+            onClearCacheAndRetry = onClearCacheAndRetry,
         )
 
         if (showSettings) {
@@ -1210,6 +1213,7 @@ private fun BookshelfHost(
         BookshelfStateBuilder.fromFlow(dao.getAllByAccount(summary.id))
     }.collectAsState(initial = BookshelfUiState())
     var readerSession by remember(summary.id) { mutableStateOf<ReaderSession?>(null) }
+    var activeReaderBook by remember(summary.id) { mutableStateOf<BookProgressEntity?>(null) }
     var activeReaderSizeBytes by remember { mutableStateOf<Long?>(null) }
     var activeReaderEtag by remember { mutableStateOf<String?>(null) }
     var activeReaderJob by remember { mutableStateOf<Job?>(null) }
@@ -1282,6 +1286,7 @@ private fun BookshelfHost(
         activeReaderJob?.cancel()
         val generation = activeReaderGeneration + 1
         activeReaderGeneration = generation
+        activeReaderBook = book
         activeReaderSizeBytes = book.sizeBytes
         activeReaderEtag = book.etag
         readerSession = readerLoadingSession(
@@ -1524,6 +1529,8 @@ private fun BookshelfHost(
 
     val activeReader = readerSession
     if (activeReader != null) {
+        val retryBook = activeReaderBook
+            ?.takeUnless { BookshelfStateBuilder.bookFileType(it) == BookshelfBookFileType.EPUB }
         ActiveReaderScreen(
             session = activeReader,
             onSessionChange = { readerSession = it },
@@ -1531,10 +1538,22 @@ private fun BookshelfHost(
                 activeReaderJob?.cancel()
                 activeReaderJob = null
                 activeReaderGeneration += 1
+                activeReaderBook = null
                 readerSession = null
             },
             onPersistProgress = ::persistProgress,
             onSetDefaultSettings = { app.preferences.defaultReaderSettings = it.toDefaultSettings() },
+            onClearCacheAndRetry = retryBook?.let { book ->
+                {
+                    clearBookCacheAndRetry(
+                        scope = scope,
+                        cacheDir = context.cacheDir,
+                        accountId = summary.id,
+                        path = book.path,
+                        retry = { openBook(book) },
+                    )
+                }
+            },
         )
         return
     }
@@ -1602,21 +1621,22 @@ private fun BookshelfHost(
 }
 
 private fun clearBookCache(cacheDir: File, accountId: Long, path: String) {
-    val booksRoot = File(cacheDir, "books")
-    val pathDigest = java.security.MessageDigest.getInstance("SHA-256")
-        .digest(path.toByteArray(Charsets.UTF_8))
-        .joinToString(separator = "") { byte -> "%02x".format(byte) }
+    BookTextLoader.clearCache(cacheDir, accountId, path)
+}
 
-    val accountDir = File(booksRoot, accountId.toString())
-    accountDir.walkTopDown()
-        .filter { it.isFile && it.name.contains(pathDigest) }
-        .forEach { runCatching { it.delete() } }
-    accountDir.takeIf { it.isDirectory && it.list().isNullOrEmpty() }?.delete()
-
-    // Remove legacy path-only cache files written directly under books/.
-    booksRoot.listFiles()
-        ?.filter { it.isFile && it.name.contains(pathDigest) }
-        ?.forEach { runCatching { it.delete() } }
+private fun clearBookCacheAndRetry(
+    scope: CoroutineScope,
+    cacheDir: File,
+    accountId: Long,
+    path: String,
+    retry: () -> Unit,
+) {
+    scope.launch {
+        withContext(Dispatchers.IO) {
+            clearBookCache(cacheDir, accountId, path)
+        }
+        retry()
+    }
 }
 
 private fun clearAllBookCache(cacheDir: File) {
@@ -1910,6 +1930,7 @@ private fun BrowserHost(
     var uiState by remember(summary.id) { mutableStateOf(BrowserUiState(currentPath = initialPath)) }
     var viewerSession by remember { mutableStateOf<ViewerSession?>(null) }
     var readerSession by remember(summary.id) { mutableStateOf<ReaderSession?>(null) }
+    var activeReaderBook by remember(summary.id) { mutableStateOf<app.visto.core.model.RemoteEntry?>(null) }
     var activeReaderSizeBytes by remember { mutableStateOf<Long?>(null) }
     var activeReaderEtag by remember { mutableStateOf<String?>(null) }
     var activeBrowserLoadJob by remember { mutableStateOf<Job?>(null) }
@@ -1989,6 +2010,7 @@ private fun BrowserHost(
         activeReaderJob?.cancel()
         val generation = activeReaderGeneration + 1
         activeReaderGeneration = generation
+        activeReaderBook = book
         activeReaderSizeBytes = book.sizeBytes
         activeReaderEtag = book.etag
         val defaultReaderSettings = app.preferences.defaultReaderSettings
@@ -2057,6 +2079,8 @@ private fun BrowserHost(
 
     val activeReader = readerSession
     if (activeReader != null) {
+        val retryBook = activeReaderBook
+            ?.takeUnless { it.mediaType == MediaType.EPUB_BOOK }
         ActiveReaderScreen(
             session = activeReader,
             onSessionChange = { readerSession = it },
@@ -2064,10 +2088,22 @@ private fun BrowserHost(
                 activeReaderJob?.cancel()
                 activeReaderJob = null
                 activeReaderGeneration += 1
+                activeReaderBook = null
                 readerSession = null
             },
             onPersistProgress = ::persistProgress,
             onSetDefaultSettings = { app.preferences.defaultReaderSettings = it.toDefaultSettings() },
+            onClearCacheAndRetry = retryBook?.let { book ->
+                {
+                    clearBookCacheAndRetry(
+                        scope = scope,
+                        cacheDir = context.cacheDir,
+                        accountId = summary.id,
+                        path = book.path,
+                        retry = { openBook(book) },
+                    )
+                }
+            },
         )
         return
     }

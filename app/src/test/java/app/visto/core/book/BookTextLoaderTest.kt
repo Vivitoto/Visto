@@ -295,6 +295,25 @@ class BookTextLoaderTest {
         assertEquals(2, server.requestCount)
     }
 
+    @Test
+    fun clearCacheRemovesOnlySelectedBookCacheForAccount() = runBlocking {
+        val cacheDir = temporaryFolder.newFolder("cache")
+        server.enqueue(MockResponse().setBody("账号一").setHeader("ETag", "same"))
+        server.enqueue(MockResponse().setBody("账号二").setHeader("ETag", "same"))
+        val first = BookTextLoader.load(client(accountId = 1L), "/books/a.txt", cacheDir)
+        val second = BookTextLoader.load(client(accountId = 2L), "/books/a.txt", cacheDir)
+        val firstMeta = java.io.File(first.cachedFile.parentFile, "${first.cachedFile.name}.meta")
+        val secondMeta = java.io.File(second.cachedFile.parentFile, "${second.cachedFile.name}.meta")
+
+        val deleted = BookTextLoader.clearCache(cacheDir, accountId = 1L, path = "/books/a.txt")
+
+        assertTrue(deleted)
+        assertFalse(first.cachedFile.exists())
+        assertFalse(firstMeta.exists())
+        assertTrue(second.cachedFile.exists())
+        assertTrue(secondMeta.exists())
+    }
+
     private fun client(accountId: Long = 1L): WebDavClient = WebDavClient(
         credentials = WebDavCredentials(
             baseUrl = server.url("/dav").toString(),

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ColorScheme
@@ -44,6 +45,12 @@ fun ChapterListScreen(
 ) {
     var query by remember { mutableStateOf("") }
     val matchingIndices = remember(chapters, query) { matchingChapterIndices(chapters, query) }
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = initialChapterListScrollIndex(
+            chapterCount = chapters.size,
+            currentIndex = currentIndex,
+        ),
+    )
 
     BackHandler(onBack = onBack)
 
@@ -78,6 +85,7 @@ fun ChapterListScreen(
                 placeholder = { Text(Strings.READER_CHAPTER_SEARCH_PLACEHOLDER) },
             )
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = false),
@@ -120,6 +128,9 @@ fun ChapterListScreen(
         }
     }
 }
+
+internal fun initialChapterListScrollIndex(chapterCount: Int, currentIndex: Int): Int =
+    if (chapterCount <= 0) 0 else currentIndex.coerceIn(0, chapterCount - 1)
 
 internal fun matchingChapterIndices(chapters: List<Chapter>, query: String): List<Int> {
     val normalizedQuery = query.trim()

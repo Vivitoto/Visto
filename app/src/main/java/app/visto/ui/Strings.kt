@@ -143,6 +143,7 @@ object Strings {
     const val READER_CHAPTER_SEARCH_EMPTY = "没有匹配的章节"
     const val READER_CURRENT_CHAPTER = "当前章节"
     const val READER_LOAD_FAILED = "加载失败"
+    const val READER_CLEAR_BOOK_CACHE_AND_RETRY = "清理本书缓存并重试"
     const val READER_EMPTY = "暂无可阅读内容"
     const val READER_SETTINGS = "阅读设置"
     const val READER_SET_DEFAULT_SETTINGS = "设为默认阅读设置"

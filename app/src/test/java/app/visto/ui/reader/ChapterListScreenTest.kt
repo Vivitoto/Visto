@@ -36,6 +36,18 @@ class ChapterListScreenTest {
     }
 
     @Test
+    fun initialChapterListScrollIndexUsesCurrentChapter() {
+        assertEquals(2, initialChapterListScrollIndex(chapterCount = 5, currentIndex = 2))
+    }
+
+    @Test
+    fun initialChapterListScrollIndexClampsInvalidCurrentChapter() {
+        assertEquals(0, initialChapterListScrollIndex(chapterCount = 5, currentIndex = -1))
+        assertEquals(4, initialChapterListScrollIndex(chapterCount = 5, currentIndex = 99))
+        assertEquals(0, initialChapterListScrollIndex(chapterCount = 0, currentIndex = 3))
+    }
+
+    @Test
     fun selectedChapterRowColorsUsePrimaryContainerColors() {
         val colorScheme = testColorScheme()
 

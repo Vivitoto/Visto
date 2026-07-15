@@ -28,6 +28,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -66,6 +67,7 @@ fun ReaderScreen(
     onSettingsToggle: () -> Unit,
     onSaveProgress: (ReaderSession) -> Unit,
     onViewportChange: (ReaderViewport) -> Unit = {},
+    onClearCacheAndRetry: (() -> Unit)? = null,
 ) {
     val palette = session.readerPalette()
     val readerFontFamily = rememberReaderFontFamily(session.fontChoice)
@@ -139,7 +141,12 @@ fun ReaderScreen(
 
             when {
                 session.isLoading -> ReaderLoading(palette)
-                session.errorMessage != null -> ReaderError(palette, session.errorMessage, onBack = ::closeReader)
+                session.errorMessage != null -> ReaderError(
+                    palette = palette,
+                    message = session.errorMessage,
+                    onBack = ::closeReader,
+                    onClearCacheAndRetry = onClearCacheAndRetry,
+                )
                 pages.isEmpty() -> ReaderEmpty(palette, onBack = ::closeReader)
                 else -> {
                     val swipeThresholdPx = with(density) { 48.dp.toPx() }
@@ -360,7 +367,12 @@ private fun ReaderLoading(palette: ReaderPalette) {
 }
 
 @Composable
-private fun ReaderError(palette: ReaderPalette, message: String, onBack: () -> Unit) {
+private fun ReaderError(
+    palette: ReaderPalette,
+    message: String,
+    onBack: () -> Unit,
+    onClearCacheAndRetry: (() -> Unit)?,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -376,7 +388,12 @@ private fun ReaderError(palette: ReaderPalette, message: String, onBack: () -> U
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 8.dp),
         )
-        Button(onClick = onBack, modifier = Modifier.padding(top = 20.dp)) {
+        if (onClearCacheAndRetry != null) {
+            Button(onClick = onClearCacheAndRetry, modifier = Modifier.padding(top = 20.dp)) {
+                Text(Strings.READER_CLEAR_BOOK_CACHE_AND_RETRY)
+            }
+        }
+        OutlinedButton(onClick = onBack, modifier = Modifier.padding(top = 12.dp)) {
             Text(Strings.BACK)
         }
     }
