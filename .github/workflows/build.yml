@@ -82,6 +82,29 @@ jobs:
           path: output/visto-v*.apk
           if-no-files-found: error
 
+      - name: Prepare release metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          VERSION=$(grep -E '^[[:space:]]*versionName[[:space:]]*=' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Release historical version
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.version_tag }}
+          name: Visto ${{ steps.meta.outputs.version_tag }}
+          body_path: RELEASE_NOTES.md
+          files: output/visto-v*.apk
+          overwrite_files: true
+          draft: false
+          prerelease: false
+          make_latest: 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Remove old APK assets from latest release
         if: github.ref == 'refs/heads/main'
         env:
