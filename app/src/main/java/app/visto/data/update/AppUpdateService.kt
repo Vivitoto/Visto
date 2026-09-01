@@ -26,7 +26,7 @@ import org.json.JSONObject
 /**
  * In-app update checker, downloader and installer for Visto.
  *
- * Mirrors the layout of Vink Flasher's `AppUpdateService`:
+ * App update service layout:
  *   - Source of truth is the GitHub Release tagged `latest` on
  *     `Vivitoto/Visto`. Visto does not maintain an R2 mirror.
  *   - APKs are downloaded into the public Downloads folder (MediaStore on

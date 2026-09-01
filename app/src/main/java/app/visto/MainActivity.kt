@@ -1851,7 +1851,7 @@ private fun SettingsHost(
                             infoMessage = Strings.SETTINGS_UPDATE_SAVED_TO_DOWNLOADS,
                         ),
                     )
-                    // Trigger system installer immediately, mirroring Vink Flasher.
+                    // Trigger system installer immediately after download.
                     try {
                         updateService.installApk(downloaded)
                     } catch (_: Throwable) {
