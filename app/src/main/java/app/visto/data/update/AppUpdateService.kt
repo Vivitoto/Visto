@@ -27,7 +27,7 @@ import org.json.JSONObject
  * In-app update checker, downloader and installer for Visto.
  *
  * App update service layout:
- *   - Source of truth is the GitHub Release tagged `latest` on
+ *   - Source of truth is the GitHub "latest" release on
  *     `Vivitoto/Visto`. Visto does not maintain an R2 mirror.
  *   - APKs are downloaded into the public Downloads folder (MediaStore on
  *     Android Q+, legacy `Environment.DIRECTORY_DOWNLOADS` on older).
@@ -65,7 +65,7 @@ class AppUpdateService(
             } catch (error: JSONException) {
                 throw IOException("GitHub 返回异常内容，可能是代理或网络劫持。", error)
             }
-            val assets = json.optJSONArray("assets") ?: throw IOException("latest 发布版本中没有资产。")
+            val assets = json.optJSONArray("assets") ?: throw IOException("最新发布版本中没有资产。")
             var apkName = ""
             var apkUrl = ""
             var apkSize: Long? = null
@@ -80,7 +80,7 @@ class AppUpdateService(
                 }
             }
             if (apkName.isEmpty() || apkUrl.isEmpty()) {
-                throw IOException("latest 发布版本中没有找到 Visto APK 安装包。")
+                throw IOException("最新发布版本中没有找到 Visto APK 安装包。")
             }
             val latestVersion = versionFromApkName(apkName) ?: AppInfo.VERSION_NAME
             AppUpdateInfo(
@@ -262,7 +262,7 @@ class AppUpdateService(
         } else {
             "GitHub 拒绝了更新检查请求（HTTP 403），请检查网络或代理。"
         }
-        404 -> "未找到 Visto 的 latest 发布版本。"
+        404 -> "未找到 Visto 的发布版本。"
         in 500..599 -> "GitHub 服务暂时不可用（HTTP $code），请稍后重试。"
         else -> "检查更新失败：GitHub 返回 HTTP $code。"
     }
@@ -287,6 +287,6 @@ class AppUpdateService(
 
     companion object {
         private const val LATEST_RELEASE_API =
-            "https://api.github.com/repos/Vivitoto/Visto/releases/tags/latest"
+            "https://api.github.com/repos/Vivitoto/Visto/releases/latest"
     }
 }

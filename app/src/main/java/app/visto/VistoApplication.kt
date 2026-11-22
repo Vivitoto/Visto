@@ -1,6 +1,7 @@
 package app.visto
 
 import android.app.Application
+import app.visto.core.network.NetworkStatus
 import app.visto.data.account.AccountService
 import app.visto.data.account.CredentialStore
 import app.visto.data.account.VistoPreferences
@@ -49,6 +50,7 @@ class VistoApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        NetworkStatus.init(this)
         database = VistoDatabase.create(this)
         remoteRepository = RemoteEntryRepository(database, database.remoteEntryDao())
         credentialStore = CredentialStore(this)

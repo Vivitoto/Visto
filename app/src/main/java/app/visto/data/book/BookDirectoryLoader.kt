@@ -19,7 +19,10 @@ data class BookDirectoryScanResult(
 )
 
 object BookDirectoryScanner {
-    private val BOOK_TYPES = setOf(MediaType.TEXT_BOOK, MediaType.EPUB_BOOK)
+    // EPUB is deliberately excluded: the reader cannot open it yet, and listing
+    // it produced a "EPUB 阅读暂未支持" dead end. Re-add EPUB_BOOK here once the
+    // reader actually supports it.
+    private val BOOK_TYPES = setOf(MediaType.TEXT_BOOK)
 
     fun isBookEntry(entry: RemoteEntry): Boolean =
         !entry.isDirectory && entry.mediaType in BOOK_TYPES

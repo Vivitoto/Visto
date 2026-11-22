@@ -142,13 +142,19 @@ fun ViewerScreen(
                     }
                 }
                 if (ViewerOriginalImagePolicy.shouldAutoLoadOriginal(item, autoLoadOriginalImages)) {
-                    imageLoader.enqueue(
-                        ImageRequest.Builder(context)
-                            .data(url)
-                            .memoryCacheKey("$cacheKeyScope:${item.path}:original:0")
-                            .diskCachePolicy(CachePolicy.DISABLED)
-                            .build(),
-                    )
+                    // Auto-loading the original applies to the page the user is
+                    // actually viewing. Prefetching neighbours at original
+                    // resolution would silently pull tens of megabytes per swipe,
+                    // so neighbours stay on the PREVIEW tier above.
+                    if (page == currentPage) {
+                        imageLoader.enqueue(
+                            ImageRequest.Builder(context)
+                                .data(url)
+                                .memoryCacheKey("$cacheKeyScope:${item.path}:original:0")
+                                .diskCachePolicy(CachePolicy.DISABLED)
+                                .build(),
+                        )
+                    }
                 }
             }
         }

@@ -40,6 +40,7 @@ object Strings {
     const val ERR_NOT_FOUND = "服务器找不到该路径"
     const val ERR_TIMEOUT = "连接超时，请检查网络"
     const val ERR_NETWORK = "网络错误，请稍后重试"
+    const val ERR_OFFLINE = "设备当前未连接网络，请检查 Wi-Fi 或移动数据"
     const val ERR_SERVER = "服务器错误，请稍后重试"
     const val ERR_INVALID_PATH = "路径不能包含 . 或 .. 段"
     const val ERR_UNEXPECTED = "未知错误"

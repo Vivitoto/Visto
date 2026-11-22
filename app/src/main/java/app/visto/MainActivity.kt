@@ -45,6 +45,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.visto.data.account.AlbumViewMode
+import app.visto.core.network.NetworkStatus
 import app.visto.data.account.AccountService
 import app.visto.data.account.AccountSummary
 import app.visto.data.account.GridDensity
@@ -479,9 +480,9 @@ private suspend fun buildLoadedReaderSession(
     }
 }
 
-private fun readerLoadErrorMessage(error: Throwable): String = when (error) {
+private fun readerLoadErrorMessage(error: Throwable, isOnline: Boolean = true): String = when (error) {
     is ReaderSessionBuildTimeoutException -> error.message ?: Strings.ERR_UNEXPECTED
-    else -> AccountErrorMessages.forWebDavError(error)
+    else -> AccountErrorMessages.forWebDavError(error, isOnline)
 }
 
 private fun String?.toReaderTheme(): ReaderTheme = ReaderTheme.fromStorage(this)
@@ -673,7 +674,7 @@ private fun AccountSetup(
                 } catch (ce: CancellationException) {
                     throw ce
                 } catch (e: Throwable) {
-                    state = AccountFormReducer.setError(state, AccountErrorMessages.forWebDavError(e))
+                    state = AccountFormReducer.setError(state, AccountErrorMessages.forWebDavError(e, NetworkStatus.isOnline()))
                 }
             }
         },
@@ -702,7 +703,7 @@ private fun AccountSetup(
                 } catch (ce: CancellationException) {
                     throw ce
                 } catch (e: Throwable) {
-                    state = AccountFormReducer.setError(state, AccountErrorMessages.forWebDavError(e))
+                    state = AccountFormReducer.setError(state, AccountErrorMessages.forWebDavError(e, NetworkStatus.isOnline()))
                 }
             }
         },
@@ -839,7 +840,7 @@ private fun AlbumsHost(
                     rootPath = pickerRoot,
                     folders = emptyList(),
                     isLoading = false,
-                    errorMessage = AccountErrorMessages.forWebDavError(e),
+                    errorMessage = AccountErrorMessages.forWebDavError(e, NetworkStatus.isOnline()),
                 )
             }
         }
@@ -880,7 +881,7 @@ private fun AlbumsHost(
             } catch (e: Throwable) {
                 val current = albumDetail ?: return@launch
                 if (generation != activeLoadGeneration || current.folderView.currentPath != normalizedPath) return@launch
-                albumDetail = AlbumDetailReducer.applyError(current, AccountErrorMessages.forWebDavError(e))
+                albumDetail = AlbumDetailReducer.applyError(current, AccountErrorMessages.forWebDavError(e, NetworkStatus.isOnline()))
             }
         }
     }
@@ -916,7 +917,7 @@ private fun AlbumsHost(
             } catch (e: Throwable) {
                 val current = albumDetail ?: return@launch
                 if (generation != activeLoadGeneration || current.folderView.currentPath != normalizedPath) return@launch
-                albumDetail = AlbumDetailReducer.applyError(current, AccountErrorMessages.forWebDavError(e))
+                albumDetail = AlbumDetailReducer.applyError(current, AccountErrorMessages.forWebDavError(e, NetworkStatus.isOnline()))
             }
         }
     }
@@ -1327,7 +1328,7 @@ private fun BookshelfHost(
                 if (generation != activeReaderGeneration || readerSession?.filePath != book.path) return@launch
                 readerSession = (readerSession ?: readerLoadingSession(book.path, book.name, book)).copy(
                     isLoading = false,
-                    errorMessage = readerLoadErrorMessage(e),
+                    errorMessage = readerLoadErrorMessage(e, NetworkStatus.isOnline()),
                 )
             }
         }
@@ -1362,7 +1363,7 @@ private fun BookshelfHost(
                     rootPath = pickerRoot,
                     folders = emptyList(),
                     isLoading = false,
-                    errorMessage = AccountErrorMessages.forWebDavError(e),
+                    errorMessage = AccountErrorMessages.forWebDavError(e, NetworkStatus.isOnline()),
                 )
             }
         }
@@ -1430,7 +1431,7 @@ private fun BookshelfHost(
                 throw ce
             } catch (e: Throwable) {
                 if (generation != activeBookScanGeneration) return@launch
-                val message = Strings.bookshelfScanFailed(AccountErrorMessages.forWebDavError(e))
+                val message = Strings.bookshelfScanFailed(AccountErrorMessages.forWebDavError(e, NetworkStatus.isOnline()))
                 bookScanMessage = message
                 bookSourceState = bookSourceState.copy(
                     isLoading = false,
@@ -1743,7 +1744,7 @@ private fun SettingsHost(
                                 WebDavDiagnosticStep(
                                     title = Strings.SETTINGS_CONNECTION_TEST,
                                     status = WebDavDiagnosticStatus.FAIL,
-                                    detail = AccountErrorMessages.forWebDavError(e),
+                                    detail = AccountErrorMessages.forWebDavError(e, NetworkStatus.isOnline()),
                                 )
                             ),
                         ),
@@ -1984,7 +1985,7 @@ private fun BrowserHost(
                     currentPath = currentPath,
                     entries = cached,
                     sortMode = uiState.sortMode,
-                    errorMessage = AccountErrorMessages.forWebDavError(e),
+                    errorMessage = AccountErrorMessages.forWebDavError(e, NetworkStatus.isOnline()),
                 )
             }
         }
@@ -2071,7 +2072,7 @@ private fun BrowserHost(
                     defaultSettings = defaultReaderSettings,
                 )).copy(
                     isLoading = false,
-                    errorMessage = readerLoadErrorMessage(e),
+                    errorMessage = readerLoadErrorMessage(e, NetworkStatus.isOnline()),
                 )
             }
         }

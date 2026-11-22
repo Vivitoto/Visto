@@ -31,15 +31,16 @@ class BookDirectoryLoaderTest {
     }
 
     @Test
-    fun scannerAcceptsOnlyTextAndEpubFiles() {
+    fun scannerAcceptsOnlyTextFiles() {
         assertTrue(BookDirectoryScanner.isBookEntry(entry("a.txt", MediaType.TEXT_BOOK)))
-        assertTrue(BookDirectoryScanner.isBookEntry(entry("a.epub", MediaType.EPUB_BOOK)))
+        // EPUB is not listed until the reader can open it.
+        assertFalse(BookDirectoryScanner.isBookEntry(entry("a.epub", MediaType.EPUB_BOOK)))
         assertFalse(BookDirectoryScanner.isBookEntry(entry("a.jpg", MediaType.IMAGE)))
         assertFalse(BookDirectoryScanner.isBookEntry(entry("Books", MediaType.OTHER, isDirectory = true)))
     }
 
     @Test
-    fun recursivelyCollectsTextMarkdownAndEpubBooks() = runBlocking {
+    fun recursivelyCollectsTextAndMarkdownBooks() = runBlocking {
         setRoutes(
             mapOf(
                 "/Books" to MockResponse().setResponseCode(207).setBody(
@@ -68,8 +69,9 @@ class BookDirectoryLoaderTest {
         val result = BookDirectoryLoader(client()).loadCollected("/Books")
 
         assertEquals("/Books", result.rootPath)
+        // story.epub is skipped because the reader cannot open EPUB yet.
         assertEquals(
-            listOf("/Books/a.txt", "/Books/README.md", "/Books/Sub/story.epub"),
+            listOf("/Books/a.txt", "/Books/README.md"),
             result.books.map { it.path },
         )
         assertEquals(2, result.foldersVisited)
